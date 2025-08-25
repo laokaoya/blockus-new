@@ -9,6 +9,7 @@ interface PlayerPieceLibraryProps {
   player: Player;
   selectedPiece: Piece | null;
   onPieceSelect: (piece: Piece) => void;
+  onStartDrag?: (piece: Piece, e: React.MouseEvent) => void;
 }
 
 const LibraryContainer = styled.div`
@@ -131,7 +132,8 @@ const PlayerScore = styled.div`
 const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({
   player,
   selectedPiece,
-  onPieceSelect
+  onPieceSelect,
+  onStartDrag
 }) => {
   // 按类型分组拼图
   const piecesByType = player.pieces.reduce((acc, piece) => {
@@ -180,11 +182,10 @@ const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({
                 isUsed={piece.isUsed}
                 color={PLAYER_COLORS[player.color]}
                 onClick={() => handlePieceClick(piece)}
-                draggable={!piece.isUsed}
-                onDragStart={(e) => {
-                  if (!piece.isUsed) {
-                    e.dataTransfer.setData('text/plain', piece.id);
+                onMouseDown={(e) => {
+                  if (!piece.isUsed && onStartDrag) {
                     onPieceSelect(piece);
+                    onStartDrag(piece, e);
                   }
                 }}
               >

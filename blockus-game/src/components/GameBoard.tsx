@@ -46,6 +46,7 @@ const Cell = styled.div<{
   isOccupied: boolean; 
   playerColor: number;
   isHighlighted: boolean;
+  isInvalid: boolean;
   isCurrentTurn: boolean;
 }>`
   width: 100%;
@@ -58,12 +59,19 @@ const Cell = styled.div<{
     if (props.isHighlighted) {
       return 'rgba(255, 255, 0, 0.3)';
     }
+    if (props.isInvalid) {
+      return 'rgba(255, 0, 0, 0.2)';
+    }
     if (props.isCurrentTurn) {
       return 'rgba(0, 255, 0, 0.1)';
     }
     return '#fff';
   }};
-  border: ${props => props.isHighlighted ? '2px solid #FFD700' : '1px solid #ddd'};
+  border: ${props => {
+    if (props.isHighlighted) return '2px solid #FFD700';
+    if (props.isInvalid) return '2px solid #FF4444';
+    return '1px solid #ddd';
+  }};
   cursor: ${props => props.isHighlighted ? 'pointer' : 'default'};
   transition: all 0.2s ease;
   
@@ -73,38 +81,7 @@ const Cell = styled.div<{
   }
 `;
 
-// 跟随鼠标的拼图预览
-const DraggingPiecePreview = styled.div<{ 
-  x: number; 
-  y: number; 
-  isVisible: boolean;
-}>`
-  position: absolute;
-  left: ${props => props.x}px;
-  top: ${props => props.y}px;
-  pointer-events: none;
-  opacity: ${props => props.isVisible ? 0.7 : 0};
-  transition: opacity 0.1s ease;
-  z-index: 1000;
-`;
 
-const PreviewPieceShape = styled.div<{ rows: number; cols: number }>`
-  display: grid;
-  grid-template-columns: repeat(${props => props.cols}, 20px);
-  grid-template-rows: repeat($props => props.rows}, 20px);
-  gap: 1px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 2px solid #FFD700;
-  border-radius: 4px;
-  padding: 2px;
-`;
-
-const PreviewCell = styled.div<{ isFilled: boolean }>`
-  width: 20px;
-  height: 20px;
-  background: ${props => props.isFilled ? '#FF4444' : 'transparent'};
-  border-radius: 2px;
-`;
 
 const GameBoard: React.FC<GameBoardProps> = ({ 
   gameState, 
@@ -118,8 +95,58 @@ const GameBoard: React.FC<GameBoardProps> = ({
   // 拖拽状态
   const [isDragging, setIsDragging] = useState(false);
   const [mousePosition, setMousePosition] = useState<Position>({ x: 0, y: 0 });
-  const [mouseScreenPosition, setMouseScreenPosition] = useState({ x: 0, y: 0 });
-  const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
+  const [dragMode, setDragMode] = useState<'none' | 'dragging' | 'placing'>('none');
+  
+  // 全局鼠标事件监听
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (dragMode === 'dragging' && selectedPiece) {
+        // 计算棋盘上的位置
+        const boardElement = document.querySelector('[data-board-grid]');
+        if (boardElement) {
+          const rect = boardElement.getBoundingClientRect();
+          const x = Math.floor((e.clientX - rect.left) / (rect.width / 20));
+          const y = Math.floor((e.clientY - rect.top) / (rect.height / 20));
+          
+          if (x >= 0 && x < 20 && y >= 0 && y < 20) {
+            setMousePosition({ x, y });
+          }
+        }
+      }
+    };
+    
+    const handleStartDragFromLibrary = (e: CustomEvent) => {
+      const { piece, clientX, clientY } = e.detail;
+      setIsDragging(true);
+      setDragMode('dragging');
+      
+      // 计算棋盘上的初始位置
+      const boardElement = document.querySelector('[data-board-grid]');
+      if (boardElement) {
+        const rect = boardElement.getBoundingClientRect();
+        const x = Math.floor((clientX - rect.left) / (rect.width / 20));
+        const y = Math.floor((clientY - rect.top) / (rect.height / 20));
+        setMousePosition({ x, y });
+      }
+    };
+    
+    if (dragMode === 'dragging') {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+    }
+    
+    // 监听从拼图库开始的拖拽
+    const boardElement = document.querySelector('[data-board-grid]');
+    if (boardElement) {
+      boardElement.addEventListener('startDragFromLibrary', handleStartDragFromLibrary as EventListener);
+    }
+    
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      if (boardElement) {
+        boardElement.removeEventListener('startDragFromLibrary', handleStartDragFromLibrary as EventListener);
+      }
+    };
+  }, [dragMode, selectedPiece]);
   
   // 检查拼图是否可以放置在指定位置
   const canPlaceAt = (x: number, y: number): boolean => {
@@ -134,32 +161,60 @@ const GameBoard: React.FC<GameBoardProps> = ({
     if (!selectedPiece || currentPlayer.color !== 'red') return;
     
     setIsDragging(true);
-    setDragOffset({ x: 0, y: 0 });
+    setDragMode('dragging');
     setMousePosition({ x, y });
-    setMouseScreenPosition({ x: e.clientX, y: e.clientY });
+  };
+  
+  // 从拼图库开始拖拽
+  const startDragFromLibrary = (e: React.MouseEvent) => {
+    if (!selectedPiece || currentPlayer.color !== 'red') return;
+    
+    setIsDragging(true);
+    setDragMode('dragging');
+    
+    // 计算棋盘上的初始位置
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / (rect.width / 20));
+    const y = Math.floor((e.clientY - rect.top) / (rect.height / 20));
+    setMousePosition({ x, y });
   };
   
   // 拖拽中
   const handleDrag = (e: React.MouseEvent) => {
-    if (!isDragging) return;
+    if (dragMode !== 'dragging') return;
     
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.floor((e.clientX - rect.left) / (rect.width / 20));
     const y = Math.floor((e.clientY - rect.top) / (rect.height / 20));
     
     setMousePosition({ x, y });
-    setMouseScreenPosition({ x: e.clientX, y: e.clientY });
   };
   
   // 结束拖拽
   const endDrag = () => {
-    if (!isDragging) return;
+    if (dragMode !== 'dragging') return;
     
     setIsDragging(false);
+    setDragMode('none');
     
     // 检查是否可以放置
     if (canPlaceAt(mousePosition.x, mousePosition.y)) {
       onPiecePlace(mousePosition);
+    }
+  };
+  
+  // 处理棋盘点击（放置拼图）
+  const handleBoardClick = (x: number, y: number) => {
+    if (dragMode === 'dragging' && selectedPiece) {
+      // 如果正在拖拽，点击就放置
+      if (canPlaceAt(x, y)) {
+        onPiecePlace({ x, y });
+        setIsDragging(false);
+        setDragMode('none');
+      }
+    } else if (!isDragging) {
+      // 如果没有拖拽，正常处理点击
+      onCellClick({ x, y });
     }
   };
   
@@ -186,33 +241,52 @@ const GameBoard: React.FC<GameBoardProps> = ({
            shape[relativeY][relativeX] === 1;
   };
   
+  // 检查位置是否应该高亮（可放置）
+  const shouldHighlight = (x: number, y: number): boolean => {
+    if (dragMode !== 'dragging' || !selectedPiece) return false;
+    
+    return isPositionInPiece(x, y, mousePosition.x, mousePosition.y) && 
+           canPlaceAt(mousePosition.x, mousePosition.y);
+  };
+  
+  // 检查位置是否应该显示无效提示（不可放置）
+  const shouldShowInvalid = (x: number, y: number): boolean => {
+    if (dragMode !== 'dragging' || !selectedPiece) return false;
+    
+    return isPositionInPiece(x, y, mousePosition.x, mousePosition.y) && 
+           !canPlaceAt(mousePosition.x, mousePosition.y);
+  };
+  
   return (
     <BoardContainer>
       <BoardTitle>
         {currentPlayer.name}的回合
         {currentPlayer.color === 'red' && ` - 剩余时间: ${gameState.timeLeft}秒`}
       </BoardTitle>
-      <BoardGrid
-        onMouseMove={handleDrag}
-        onMouseUp={endDrag}
-        onMouseLeave={endDrag}
-      >
+             <BoardGrid
+         data-board-grid
+         onMouseMove={handleDrag}
+       >
         {board.map((row, y) =>
           row.map((cell, x) => (
-            <Cell
-              key={`${x}-${y}`}
-              isOccupied={cell !== 0}
-              playerColor={cell}
-              isHighlighted={isDragging && canPlaceAt(mousePosition.x, mousePosition.y) && 
-                isPositionInPiece(x, y, mousePosition.x, mousePosition.y)}
-              isCurrentTurn={currentPlayer.isCurrentTurn}
-              onClick={() => handleCellClick(x, y)}
-              onMouseEnter={() => handleCellHover(x, y)}
-              onMouseDown={(e) => startDrag(x, y, e)}
-            />
+                         <Cell
+               key={`${x}-${y}`}
+               isOccupied={cell !== 0}
+               playerColor={cell}
+               isHighlighted={shouldHighlight(x, y)}
+               isInvalid={shouldShowInvalid(x, y)}
+               isCurrentTurn={currentPlayer.isCurrentTurn}
+               onClick={() => handleBoardClick(x, y)}
+               onMouseEnter={() => handleCellHover(x, y)}
+               onMouseDown={(e) => startDrag(x, y, e)}
+             />
           ))
         )}
       </BoardGrid>
       
-      {/* 跟随鼠标的拼图预览 */}
-      {
+             
+    </BoardContainer>
+  );
+};
+
+export default GameBoard;

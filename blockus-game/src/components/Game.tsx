@@ -85,6 +85,21 @@ const Game: React.FC = () => {
     }
   };
   
+  // 处理拼图拖拽开始
+  const handleStartDrag = (piece: Piece, e: React.MouseEvent) => {
+    if (currentPlayer.color === 'red' && !piece.isUsed) {
+      selectPiece(piece);
+      // 通知GameBoard开始拖拽
+      const gameBoard = document.querySelector('[data-board-grid]');
+      if (gameBoard) {
+        const customEvent = new CustomEvent('startDragFromLibrary', {
+          detail: { piece, clientX: e.clientX, clientY: e.clientY }
+        });
+        gameBoard.dispatchEvent(customEvent);
+      }
+    }
+  };
+  
   // 处理棋盘点击
   const handleBoardClick = (position: Position) => {
     if (currentPlayer.color === 'red' && gameState.selectedPiece) {
@@ -146,6 +161,7 @@ const Game: React.FC = () => {
             player={player}
             selectedPiece={gameState.selectedPiece}
             onPieceSelect={handlePieceSelect}
+            onStartDrag={handleStartDrag}
           />
         </LeftPanel>
         
