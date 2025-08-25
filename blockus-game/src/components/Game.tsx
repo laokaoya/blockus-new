@@ -1,6 +1,6 @@
 // 主游戏组件
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useGameState } from '../hooks/useGameState';
 import GameBoard from './GameBoard';
@@ -71,7 +71,16 @@ const RightPanel = styled.div`
 `;
 
 const Game: React.FC = () => {
-  const { gameState, selectPiece, placePieceOnBoard, settlePlayer, resetGame } = useGameState();
+  const { 
+    gameState, 
+    selectPiece, 
+    placePieceOnBoard, 
+    settlePlayer, 
+    resetGame,
+    rotateSelectedPiece,
+    flipSelectedPiece,
+    thinkingAI
+  } = useGameState();
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
   
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
@@ -144,6 +153,25 @@ const Game: React.FC = () => {
   const handleReset = () => {
     resetGame();
   };
+
+  // 键盘事件处理
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 只有人类玩家回合且有选中拼图时才响应键盘
+      if (currentPlayer.color === 'red' && gameState.selectedPiece) {
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          rotateSelectedPiece();
+        } else if (e.shiftKey && e.key === 'Shift') {
+          e.preventDefault();
+          flipSelectedPiece();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentPlayer.color, gameState.selectedPiece, rotateSelectedPiece, flipSelectedPiece]);
   
   // 检查拼图是否可以放置在指定位置
   const canPlaceAt = (x: number, y: number): boolean => {
@@ -190,7 +218,10 @@ const Game: React.FC = () => {
         
         {/* 右侧：AI玩家信息 */}
         <RightPanel>
-          <AIPlayersInfo aiPlayers={aiPlayers} />
+          <AIPlayersInfo 
+            aiPlayers={aiPlayers}
+            thinkingAI={thinkingAI}
+          />
         </RightPanel>
       </GameContent>
     </GameContainer>

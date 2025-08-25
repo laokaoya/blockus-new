@@ -5,14 +5,15 @@ import { GameState, Player, Piece, Position, PlayerColor } from '../types/game';
 import { PIECE_SHAPES, PIECE_COUNTS, PLAYER_COLORS, PLAYER_NAMES } from '../constants/pieces';
 import { canPlacePiece, placePiece, calculateScore, isGameFinished, getWinner } from '../utils/gameEngine';
 import { AIPlayer } from '../utils/aiPlayer';
-
+import { rotatePiece, flipPiece } from '../utils/pieceTransformations';
 const BOARD_SIZE = 20;
-const TURN_TIME_LIMIT = 30;
+const TURN_TIME_LIMIT = 60; // 人类玩家时间改为60秒
 
 export function useGameState() {
   // 初始化游戏状态
   const [gameState, setGameState] = useState<GameState>(() => initializeGameState());
   const [aiPlayers, setAiPlayers] = useState<AIPlayer[]>([]);
+  const [thinkingAI, setThinkingAI] = useState<string | null>(null); // AI思考状态
   
   // 初始化AI玩家
   useEffect(() => {
@@ -87,6 +88,30 @@ export function useGameState() {
       selectedPiece: piece
     }));
   }, []);
+
+  // 旋转拼图
+  const rotateSelectedPiece = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.selectedPiece) return prev;
+      
+      return {
+        ...prev,
+        selectedPiece: rotatePiece(prev.selectedPiece)
+      };
+    });
+  }, []);
+
+  // 翻转拼图
+  const flipSelectedPiece = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.selectedPiece) return prev;
+      
+      return {
+        ...prev,
+        selectedPiece: flipPiece(prev.selectedPiece)
+      };
+    });
+  }, []);
   
   // 放置拼图
   const placePieceOnBoard = useCallback((position: Position) => {
@@ -146,63 +171,73 @@ export function useGameState() {
     // 跳过玩家回合
     if (currentPlayer.color === 'red') return;
     
-    // AI立即执行移动，无需延迟
-    const aiPlayer = aiPlayers.find(ai => ai.getColor() === currentPlayer.color);
-    if (!aiPlayer) return;
+    // 设置AI思考状态
+    setThinkingAI(currentPlayer.color);
     
-    const move = aiPlayer.makeMove(gameState.board, currentPlayer.pieces);
+    // AI随机思考时间3-5秒
+    const thinkingTime = Math.random() * 2000 + 3000; // 3000-5000ms
     
-    if (move) {
-      // AI放置拼图
-      const colorIndex = gameState.currentPlayerIndex + 1;
-      const newBoard = placePiece(gameState.board, move.piece, move.position, colorIndex);
+    setTimeout(() => {
+      const aiPlayer = aiPlayers.find(ai => ai.getColor() === currentPlayer.color);
+      if (!aiPlayer) return;
       
-      // 更新玩家状态
-      const newPlayers = gameState.players.map(player => {
-        if (player.id === currentPlayer.id) {
-          const newPieces = player.pieces.map(p => 
-            p.id === move.piece.id ? { ...p, isUsed: true } : p
-          );
-          const newScore = calculateScore(newBoard, colorIndex);
-          return { ...player, pieces: newPieces, score: newScore };
-        }
-        return player;
-      });
+      const move = aiPlayer.makeMove(gameState.board, currentPlayer.pieces);
       
-      // 进入下一回合
-      const nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
-      const nextPlayers = newPlayers.map((player, index) => ({
-        ...player,
-        isCurrentTurn: index === nextPlayerIndex
-      }));
+      if (move) {
+        // AI放置拼图
+        const colorIndex = gameState.currentPlayerIndex + 1;
+        const newBoard = placePiece(gameState.board, move.piece, move.position, colorIndex);
+        
+        // 更新玩家状态
+        const newPlayers = gameState.players.map(player => {
+          if (player.id === currentPlayer.id) {
+            const newPieces = player.pieces.map(p => 
+              p.id === move.piece.id ? { ...p, isUsed: true } : p
+            );
+            const newScore = calculateScore(newBoard, colorIndex);
+            return { ...player, pieces: newPieces, score: newScore };
+          }
+          return player;
+        });
+        
+        // 进入下一回合
+        const nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+        const nextPlayers = newPlayers.map((player, index) => ({
+          ...player,
+          isCurrentTurn: index === nextPlayerIndex
+        }));
+        
+        setGameState(prev => ({
+          ...prev,
+          board: newBoard,
+          players: nextPlayers,
+          currentPlayerIndex: nextPlayerIndex,
+          timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? TURN_TIME_LIMIT : prev.timeLeft
+        }));
+      } else {
+        // AI无法放置拼图，进入结算
+        const newPlayers = gameState.players.map(player => 
+          player.id === currentPlayer.id ? { ...player, isSettled: true } : player
+        );
+        
+        // 进入下一回合
+        const nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+        const nextPlayers = newPlayers.map((player, index) => ({
+          ...player,
+          isCurrentTurn: index === nextPlayerIndex
+        }));
+        
+        setGameState(prev => ({
+          ...prev,
+          players: nextPlayers,
+          currentPlayerIndex: nextPlayerIndex,
+          timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? TURN_TIME_LIMIT : prev.timeLeft
+        }));
+      }
       
-      setGameState(prev => ({
-        ...prev,
-        board: newBoard,
-        players: nextPlayers,
-        currentPlayerIndex: nextPlayerIndex,
-        timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? TURN_TIME_LIMIT : prev.timeLeft
-      }));
-    } else {
-      // AI无法放置拼图，进入结算
-      const newPlayers = gameState.players.map(player => 
-        player.id === currentPlayer.id ? { ...player, isSettled: true } : player
-      );
-      
-      // 进入下一回合
-      const nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
-      const nextPlayers = newPlayers.map((player, index) => ({
-        ...player,
-        isCurrentTurn: index === nextPlayerIndex
-      }));
-      
-      setGameState(prev => ({
-        ...prev,
-        players: nextPlayers,
-        currentPlayerIndex: nextPlayerIndex,
-        timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? TURN_TIME_LIMIT : prev.timeLeft
-      }));
-    }
+      // 清除AI思考状态
+      setThinkingAI(null);
+    }, thinkingTime);
   }, [gameState, aiPlayers]);
   
   // 结算玩家
@@ -291,6 +326,9 @@ export function useGameState() {
     selectPiece,
     placePieceOnBoard,
     settlePlayer,
-    resetGame
+    resetGame,
+    rotateSelectedPiece,
+    flipSelectedPiece,
+    thinkingAI
   };
 }

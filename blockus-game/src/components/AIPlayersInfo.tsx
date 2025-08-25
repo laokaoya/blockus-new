@@ -7,6 +7,7 @@ import { PLAYER_COLORS } from '../constants/pieces';
 
 interface AIPlayersInfoProps {
   aiPlayers: Player[];
+  thinkingAI: string | null;
 }
 
 const Container = styled.div`
@@ -16,12 +17,16 @@ const Container = styled.div`
   min-width: 250px;
 `;
 
-const PlayerCard = styled.div<{ color: string; isCurrentTurn: boolean }>`
+const PlayerCard = styled.div<{ color: string; isCurrentTurn: boolean; isThinking: boolean }>`
   background: #fff;
   border-radius: 8px;
   padding: 15px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  border: 3px solid ${props => props.isCurrentTurn ? '#FFD700' : 'transparent'};
+  border: 3px solid ${props => {
+    if (props.isThinking) return '#ff4444';
+    if (props.isCurrentTurn) return '#FFD700';
+    return 'transparent';
+  }};
   transition: all 0.3s ease;
   
   &:hover {
@@ -60,14 +65,15 @@ const PlayerName = styled.div`
   font-size: 16px;
 `;
 
-const PlayerStatus = styled.div<{ isCurrentTurn: boolean; isSettled: boolean }>`
+const PlayerStatus = styled.div<{ isCurrentTurn: boolean; isSettled: boolean; isThinking: boolean }>`
   font-size: 12px;
   color: ${props => {
+    if (props.isThinking) return '#ff4444';
     if (props.isSettled) return '#666';
     if (props.isCurrentTurn) return '#FFD700';
     return '#999';
   }};
-  font-weight: ${props => props.isCurrentTurn ? 'bold' : 'normal'};
+  font-weight: ${props => (props.isCurrentTurn || props.isThinking) ? 'bold' : 'normal'};
 `;
 
 const PlayerStats = styled.div`
@@ -195,7 +201,7 @@ const ShapeCell = styled.div<{ isFilled: boolean }>`
   border-radius: 2px;
 `;
 
-const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({ aiPlayers }) => {
+const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({ aiPlayers, thinkingAI }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -227,6 +233,7 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({ aiPlayers }) => {
             key={player.id} 
             color={player.color}
             isCurrentTurn={player.isCurrentTurn}
+            isThinking={thinkingAI === player.color}
           >
             <PlayerHeader>
               <PlayerAvatar color={player.color}>
@@ -237,8 +244,9 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({ aiPlayers }) => {
                 <PlayerStatus 
                   isCurrentTurn={player.isCurrentTurn}
                   isSettled={player.isSettled}
+                  isThinking={thinkingAI === player.color}
                 >
-                  {getStatusText(player)}
+                  {thinkingAI === player.color ? '思考中...' : getStatusText(player)}
                 </PlayerStatus>
               </PlayerInfo>
             </PlayerHeader>
