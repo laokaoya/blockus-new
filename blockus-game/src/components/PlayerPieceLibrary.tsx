@@ -31,6 +31,21 @@ const LibraryTitle = styled.h3`
   text-align: center;
 `;
 
+const ControlsHint = styled.div`
+  background: #f0f8ff;
+  border: 1px solid #87ceeb;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 15px;
+  font-size: 12px;
+  color: #333;
+  text-align: center;
+  
+  strong {
+    color: #0066cc;
+  }
+`;
+
 const PieceTypeSection = styled.div`
   margin-bottom: 20px;
 `;
@@ -168,6 +183,11 @@ const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({
       </PlayerInfo>
       
       <LibraryTitle>拼图库</LibraryTitle>
+      
+      <ControlsHint>
+        <strong>操作提示：</strong><br />
+        点击拼图选择 • 向右键旋转 • Shift键翻转
+      </ControlsHint>
       
              {[5, 4, 3, 2, 1].map(type => (
          <PieceTypeSection key={type}>

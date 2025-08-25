@@ -83,7 +83,7 @@ export function canPlacePiece(
   
   // 首次放置必须在角落
   if (isFirstMove(board, playerColorIndex)) {
-    return isInCorner(position, board.length, playerColorIndex);
+    return isPieceInCorner(board, piece, position, playerColorIndex);
   }
   
   // 后续放置必须有角落连接
@@ -119,6 +119,46 @@ function isInCorner(position: Position, boardSize: number, playerColorIndex: num
     default:
       return false;
   }
+}
+
+// 检查拼图是否覆盖指定玩家的起始角落
+function isPieceInCorner(
+  board: number[][],
+  piece: Piece,
+  position: Position,
+  playerColorIndex: number
+): boolean {
+  const { shape } = piece;
+  const { x, y } = position;
+  const boardSize = board.length;
+  
+  // 检查拼图的每个格子是否在指定角落
+  for (let row = 0; row < shape.length; row++) {
+    for (let col = 0; col < shape[row].length; col++) {
+      if (shape[row][col] === 1) {
+        const boardX = x + col;
+        const boardY = y + row;
+        
+        // 检查这个格子是否在指定玩家的起始角落
+        switch (playerColorIndex) {
+          case 1: // 红色玩家 - 左上角 (0,0)
+            if (boardX === 0 && boardY === 0) return true;
+            break;
+          case 2: // 黄色玩家 - 右上角 (19,0)
+            if (boardX === boardSize - 1 && boardY === 0) return true;
+            break;
+          case 3: // 蓝色玩家 - 右下角 (19,19)
+            if (boardX === boardSize - 1 && boardY === boardSize - 1) return true;
+            break;
+          case 4: // 绿色玩家 - 左下角 (0,19)
+            if (boardX === 0 && boardY === boardSize - 1) return true;
+            break;
+        }
+      }
+    }
+  }
+  
+  return false;
 }
 
 // 放置拼图到棋盘

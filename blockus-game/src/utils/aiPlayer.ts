@@ -2,6 +2,7 @@
 
 import { Piece, Position, PlayerColor } from '../types/game';
 import { canPlacePiece, placePiece } from './gameEngine';
+import { getUniqueTransformations } from './pieceTransformations';
 
 export class AIPlayer {
   private color: PlayerColor;
@@ -36,11 +37,16 @@ export class AIPlayer {
     // 按优先级排序拼图：5格 > 4格 > 3格 > 2格 > 1格
     const sortedPieces = availablePieces.sort((a, b) => b.type - a.type);
     
-    // 尝试放置每个拼图
-    for (const piece of sortedPieces) {
-      const position = this.findBestPosition(board, piece);
-      if (position) {
-        return { piece, position };
+    // 尝试放置每个拼图（包括所有可能的变换）
+    for (const originalPiece of sortedPieces) {
+      // 获取所有可能的变换
+      const transformations = getUniqueTransformations(originalPiece);
+      
+      for (const transformedPiece of transformations) {
+        const position = this.findBestPosition(board, transformedPiece);
+        if (position) {
+          return { piece: transformedPiece, position };
+        }
       }
     }
     
