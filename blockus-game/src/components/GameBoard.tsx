@@ -10,6 +10,7 @@ interface GameBoardProps {
   onCellClick: (position: Position) => void;
   onCellHover: (position: Position) => void;
   onPiecePlace: (position: Position) => void;
+  onPieceCancel?: () => void;
 }
 
 const BoardContainer = styled.div`
@@ -21,6 +22,35 @@ const BoardContainer = styled.div`
   padding: 20px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   position: relative;
+`;
+
+// 垃圾桶图标
+const TrashBin = styled.div<{ isVisible: boolean; isHovered: boolean }>`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  background: ${props => props.isHovered ? '#ff6b6b' : '#ff4757'};
+  border-radius: 8px;
+  display: ${props => props.isVisible ? 'flex' : 'none'};
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  &::before {
+    content: '🗑️';
+    font-size: 24px;
+    color: white;
+  }
 `;
 
 const BoardTitle = styled.h2`
@@ -87,7 +117,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
   gameState, 
   onCellClick, 
   onCellHover,
-  onPiecePlace
+  onPiecePlace,
+  onPieceCancel
 }) => {
   const { board, players, currentPlayerIndex, selectedPiece } = gameState;
   const currentPlayer = players[currentPlayerIndex];
@@ -96,6 +127,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [mousePosition, setMousePosition] = useState<Position>({ x: 0, y: 0 });
   const [dragMode, setDragMode] = useState<'none' | 'dragging' | 'placing'>('none');
+  const [isTrashHovered, setIsTrashHovered] = useState(false);
+  const [originalPiecePosition, setOriginalPiecePosition] = useState<Position | null>(null);
   
   // 全局鼠标事件监听
   useEffect(() => {
@@ -171,6 +204,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
     
     setIsDragging(true);
     setDragMode('dragging');
+    
+    // 记录原始位置（拼图库中的位置）
+    setOriginalPiecePosition({ x: -1, y: -1 }); // -1 表示在拼图库中
     
     // 计算棋盘上的初始位置
     const rect = e.currentTarget.getBoundingClientRect();
@@ -257,34 +293,62 @@ const GameBoard: React.FC<GameBoardProps> = ({
            !canPlaceAt(mousePosition.x, mousePosition.y);
   };
   
-  return (
+  // 处理垃圾桶点击（退回拼图）
+  const handleTrashClick = () => {
+    if (dragMode === 'dragging' && selectedPiece) {
+      // 将拼图退回到原位置
+      setIsDragging(false);
+      setDragMode('none');
+      setOriginalPiecePosition(null);
+      
+      // 通知父组件取消选择
+      if (onPieceCancel) {
+        onPieceCancel();
+      }
+    }
+  };
+  
+  // 处理垃圾桶悬停
+  const handleTrashHover = (isHovered: boolean) => {
+    setIsTrashHovered(isHovered);
+  };
+  
+    return (
     <BoardContainer>
       <BoardTitle>
         {currentPlayer.name}的回合
         {currentPlayer.color === 'red' && ` - 剩余时间: ${gameState.timeLeft}秒`}
       </BoardTitle>
-             <BoardGrid
-         data-board-grid
-         onMouseMove={handleDrag}
-       >
+      
+      {/* 垃圾桶图标 */}
+      <TrashBin
+        isVisible={dragMode === 'dragging'}
+        isHovered={isTrashHovered}
+        onClick={handleTrashClick}
+        onMouseEnter={() => handleTrashHover(true)}
+        onMouseLeave={() => handleTrashHover(false)}
+      />
+      
+      <BoardGrid
+        data-board-grid
+        onMouseMove={handleDrag}
+      >
         {board.map((row, y) =>
           row.map((cell, x) => (
-                         <Cell
-               key={`${x}-${y}`}
-               isOccupied={cell !== 0}
-               playerColor={cell}
-               isHighlighted={shouldHighlight(x, y)}
-               isInvalid={shouldShowInvalid(x, y)}
-               isCurrentTurn={currentPlayer.isCurrentTurn}
-               onClick={() => handleBoardClick(x, y)}
-               onMouseEnter={() => handleCellHover(x, y)}
-               onMouseDown={(e) => startDrag(x, y, e)}
-             />
+            <Cell
+              key={`${x}-${y}`}
+              isOccupied={cell !== 0}
+              playerColor={cell}
+              isHighlighted={shouldHighlight(x, y)}
+              isInvalid={shouldShowInvalid(x, y)}
+              isCurrentTurn={currentPlayer.isCurrentTurn}
+              onClick={() => handleBoardClick(x, y)}
+              onMouseEnter={() => handleCellHover(x, y)}
+              onMouseDown={(e) => startDrag(x, y, e)}
+            />
           ))
         )}
       </BoardGrid>
-      
-             
     </BoardContainer>
   );
 };

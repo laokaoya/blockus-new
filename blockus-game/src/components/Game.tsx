@@ -100,6 +100,12 @@ const Game: React.FC = () => {
     }
   };
   
+  // 处理拼图取消选择
+  const handlePieceCancel = () => {
+    // 取消选择当前拼图
+    selectPiece(null);
+  };
+  
   // 处理棋盘点击
   const handleBoardClick = (position: Position) => {
     if (currentPlayer.color === 'red' && gameState.selectedPiece) {
@@ -172,6 +178,7 @@ const Game: React.FC = () => {
             onCellClick={handleBoardClick}
             onCellHover={handleBoardHover}
             onPiecePlace={handlePiecePlace}
+            onPieceCancel={handlePieceCancel}
           />
           
           <GameControls

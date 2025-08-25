@@ -81,7 +81,7 @@ export function useGameState() {
   }
   
   // 选择拼图
-  const selectPiece = useCallback((piece: Piece) => {
+  const selectPiece = useCallback((piece: Piece | null) => {
     setGameState(prev => ({
       ...prev,
       selectedPiece: piece
