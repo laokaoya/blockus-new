@@ -7,6 +7,7 @@ import GameBoard from './GameBoard';
 import PlayerPieceLibrary from './PlayerPieceLibrary';
 import AIPlayersInfo from './AIPlayersInfo';
 import GameControls from './GameControls';
+import GameOver from './GameOver';
 import { Position, Piece } from '../types/game';
 import { canPlacePiece } from '../utils/gameEngine';
 
@@ -68,6 +69,48 @@ const RightPanel = styled.div`
   flex-direction: column;
   gap: 20px;
   min-width: 280px;
+  position: relative;
+`;
+
+const SettleButton = styled.button<{ isUrgent: boolean }>`
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 50px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  
+  background: ${props => props.isUrgent 
+    ? 'linear-gradient(135deg, #f44336, #d32f2f)' 
+    : 'linear-gradient(135deg, #2196F3, #1976D2)'
+  };
+  color: white;
+  
+  ${props => props.isUrgent && `
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(244, 67, 54, 0.5);
+    animation: pulse 2s ease-in-out infinite;
+  `}
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  @keyframes pulse {
+    0%, 100% { transform: scale(1.05); }
+    50% { transform: scale(1.1); }
+  }
 `;
 
 const Game: React.FC = () => {
@@ -79,7 +122,8 @@ const Game: React.FC = () => {
     resetGame,
     rotateSelectedPiece,
     flipSelectedPiece,
-    thinkingAI
+    thinkingAI,
+    canPlayerContinue
   } = useGameState();
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
   
@@ -182,49 +226,75 @@ const Game: React.FC = () => {
   };
   
   return (
-    <GameContainer>
-      <GameHeader>
-        <GameTitle>Blockus 方格大战</GameTitle>
-        <GameSubtitle>经典策略拼图游戏</GameSubtitle>
-      </GameHeader>
+    <>
+      {/* 游戏结束界面 */}
+      {gameState.gamePhase === 'finished' && (
+        <GameOver
+          players={gameState.players}
+          onPlayAgain={handleReset}
+          onBackToMenu={() => {
+            // 这里可以添加返回菜单的逻辑
+            handleReset();
+          }}
+        />
+      )}
       
-      <GameContent>
-        {/* 左侧：玩家拼图库 */}
-        <LeftPanel>
-          <PlayerPieceLibrary
-            player={player}
-            selectedPiece={gameState.selectedPiece}
-            onPieceSelect={handlePieceSelect}
-            onStartDrag={handleStartDrag}
-          />
-        </LeftPanel>
+      {/* 主游戏界面 */}
+      <GameContainer>
+        <GameHeader>
+          <GameTitle>Blockus 方格大战</GameTitle>
+          <GameSubtitle>经典策略拼图游戏</GameSubtitle>
+        </GameHeader>
         
-        {/* 中央：游戏棋盘和控制 */}
-        <CenterPanel>
-          <GameBoard
-            gameState={gameState}
-            onCellClick={handleBoardClick}
-            onCellHover={handleBoardHover}
-            onPiecePlace={handlePiecePlace}
-            onPieceCancel={handlePieceCancel}
-          />
+        <GameContent>
+          {/* 左侧：玩家拼图库 */}
+          <LeftPanel>
+            <PlayerPieceLibrary
+              player={player}
+              selectedPiece={gameState.selectedPiece}
+              onPieceSelect={handlePieceSelect}
+              onStartDrag={handleStartDrag}
+            />
+          </LeftPanel>
           
-          <GameControls
-            gameState={gameState}
-            onSettle={handleSettle}
-            onReset={handleReset}
-          />
-        </CenterPanel>
+          {/* 中央：游戏棋盘和控制 */}
+          <CenterPanel>
+            <GameBoard
+              gameState={gameState}
+              onCellClick={handleBoardClick}
+              onCellHover={handleBoardHover}
+              onPiecePlace={handlePiecePlace}
+              onPieceCancel={handlePieceCancel}
+            />
+            
+            <GameControls
+              gameState={gameState}
+              onSettle={handleSettle}
+              onReset={handleReset}
+              canPlayerContinue={canPlayerContinue}
+            />
+          </CenterPanel>
+          
+          {/* 右侧：AI玩家信息 */}
+          <RightPanel>
+            <AIPlayersInfo 
+              aiPlayers={aiPlayers}
+              thinkingAI={thinkingAI}
+            />
+          </RightPanel>
+        </GameContent>
         
-        {/* 右侧：AI玩家信息 */}
-        <RightPanel>
-          <AIPlayersInfo 
-            aiPlayers={aiPlayers}
-            thinkingAI={thinkingAI}
-          />
-        </RightPanel>
-      </GameContent>
-    </GameContainer>
+        {/* 右下角结算按钮 - 始终可见 */}
+        {gameState.gamePhase === 'playing' && !player.isSettled && (
+          <SettleButton 
+            onClick={handleSettle}
+            isUrgent={!canPlayerContinue(player)}
+          >
+            {!canPlayerContinue(player) ? '🚨 紧急结算' : '💡 结算'}
+          </SettleButton>
+        )}
+      </GameContainer>
+    </>
   );
 };
 

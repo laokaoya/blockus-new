@@ -8,42 +8,72 @@ interface GameControlsProps {
   gameState: GameState;
   onSettle: () => void;
   onReset: () => void;
+  canPlayerContinue: (player: any) => boolean;
 }
 
 const ControlsContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  padding: 20px;
+  gap: 4px;
+  padding: 8px;
   background: #f5f5f5;
   border-radius: 8px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  min-height: 180px;
+  max-height: 280px;
+  overflow-y: auto;
+  
+  /* 确保内容完全可见 */
+  &:hover {
+    max-height: 320px;
+    transition: max-height 0.3s ease;
+  }
+  
+  /* 自定义滚动条样式 */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
 `;
 
 const GameStatus = styled.div`
   text-align: center;
-  padding: 15px;
+  padding: 8px;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  min-width: 300px;
+  min-width: 260px;
 `;
 
 const StatusTitle = styled.h3`
-  margin: 0 0 10px 0;
+  margin: 0 0 6px 0;
   color: #333;
-  font-size: 18px;
+  font-size: 14px;
 `;
 
 const StatusText = styled.div<{ isCurrentTurn: boolean }>`
-  font-size: 16px;
+  font-size: 14px;
   color: ${props => props.isCurrentTurn ? '#4CAF50' : '#666'};
   font-weight: ${props => props.isCurrentTurn ? 'bold' : 'normal'};
+  margin: 2px 0;
 `;
 
 const TimeDisplay = styled.div<{ timeLeft: number }>`
-  font-size: 24px;
+  font-size: 18px;
   font-weight: bold;
   color: ${props => {
     if (props.timeLeft <= 5) return '#f44336';
@@ -51,25 +81,26 @@ const TimeDisplay = styled.div<{ timeLeft: number }>`
     return '#4CAF50';
   }};
   text-align: center;
-  margin: 10px 0;
+  margin: 4px 0;
 `;
 
 const ButtonsContainer = styled.div`
   display: flex;
-  gap: 15px;
+  gap: 6px;
   flex-wrap: wrap;
   justify-content: center;
+  margin: 2px 0;
 `;
 
-const Button = styled.button<{ variant: 'primary' | 'secondary' | 'danger' }>`
-  padding: 12px 24px;
+const Button = styled.button<{ variant: 'primary' | 'secondary' | 'danger'; isUrgent?: boolean }>`
+  padding: 8px 16px;
   border: none;
   border-radius: 6px;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 120px;
+  min-width: 90px;
   
   background: ${props => {
     switch (props.variant) {
@@ -81,6 +112,11 @@ const Button = styled.button<{ variant: 'primary' | 'secondary' | 'danger' }>`
   }};
   
   color: white;
+  
+  ${props => props.isUrgent && `
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(244, 67, 54, 0.5);
+  `}
   
   &:hover {
     transform: translateY(-2px);
@@ -96,7 +132,7 @@ const Button = styled.button<{ variant: 'primary' | 'secondary' | 'danger' }>`
 `;
 
 const GamePhaseDisplay = styled.div<{ phase: string }>`
-  padding: 10px 20px;
+  padding: 6px 12px;
   border-radius: 6px;
   font-weight: bold;
   text-align: center;
@@ -110,13 +146,15 @@ const GamePhaseDisplay = styled.div<{ phase: string }>`
     }
   }};
   color: white;
-  margin-bottom: 15px;
+  margin-bottom: 6px;
+  font-size: 13px;
 `;
 
 const GameControls: React.FC<GameControlsProps> = ({
   gameState,
   onSettle,
-  onReset
+  onReset,
+  canPlayerContinue
 }) => {
   const { gamePhase, timeLeft, players, currentPlayerIndex } = gameState;
   const currentPlayer = players[currentPlayerIndex];
@@ -131,7 +169,8 @@ const GameControls: React.FC<GameControlsProps> = ({
     }
   };
   
-  const canSettle = currentPlayer.color === 'red' && !currentPlayer.isSettled;
+  const canSettle = currentPlayer.color === 'red' && !currentPlayer.isSettled && gamePhase === 'playing';
+  const shouldShowSettleHint = currentPlayer.color === 'red' && !currentPlayer.isSettled && !canPlayerContinue(currentPlayer);
   const isGameOver = gamePhase === 'finished';
   
   return (
@@ -140,28 +179,48 @@ const GameControls: React.FC<GameControlsProps> = ({
         {getPhaseText(gamePhase)}
       </GamePhaseDisplay>
       
+      {/* 紧凑的游戏状态显示 */}
       <GameStatus>
-        <StatusTitle>当前回合</StatusTitle>
+        <StatusTitle>🎯 当前回合</StatusTitle>
         <StatusText isCurrentTurn={true}>
           {currentPlayer.name}
+        </StatusText>
+        <StatusText isCurrentTurn={false}>
+          状态: {currentPlayer.isSettled ? '已结算' : '进行中'}
         </StatusText>
         
         {gamePhase === 'playing' && currentPlayer.color === 'red' && (
           <TimeDisplay timeLeft={timeLeft}>
-            剩余时间: {timeLeft}秒
+            ⏰ {timeLeft}秒
           </TimeDisplay>
         )}
-        
-        <StatusText isCurrentTurn={false}>
-          状态: {currentPlayer.isSettled ? '已结算' : '进行中'}
-        </StatusText>
       </GameStatus>
       
+      {/* 按钮区域 - 始终显示 */}
       <ButtonsContainer>
         {canSettle && (
-          <Button variant="secondary" onClick={onSettle}>
-            结算
+          <Button 
+            variant={shouldShowSettleHint ? 'danger' : 'secondary'} 
+            onClick={onSettle}
+            isUrgent={shouldShowSettleHint}
+          >
+            {shouldShowSettleHint ? '🚨 紧急结算' : '结算'}
           </Button>
+        )}
+        
+        {/* 调试信息 - 显示为什么按钮不显示 */}
+        {!canSettle && currentPlayer.color === 'red' && (
+          <div style={{ 
+            fontSize: '11px', 
+            color: '#666', 
+            textAlign: 'center',
+            padding: '4px',
+            background: '#f0f0f0',
+            borderRadius: '4px',
+            margin: '2px 0'
+          }}>
+            {currentPlayer.isSettled ? '已结算' : gamePhase !== 'playing' ? `游戏阶段: ${gamePhase}` : '可以继续游戏'}
+          </div>
         )}
         
         {isGameOver && (
@@ -171,11 +230,13 @@ const GameControls: React.FC<GameControlsProps> = ({
         )}
       </ButtonsContainer>
       
+      {/* 游戏结果 - 只在游戏结束时显示 */}
       {isGameOver && (
         <GameStatus>
-          <StatusTitle>游戏结果</StatusTitle>
+          <StatusTitle>🏆 最终排名</StatusTitle>
           {players
             .sort((a, b) => b.score - a.score)
+            .slice(0, 3) // 只显示前3名，节省空间
             .map((player, index) => (
               <StatusText key={player.id} isCurrentTurn={false}>
                 {index + 1}. {player.name}: {player.score}分
@@ -184,6 +245,17 @@ const GameControls: React.FC<GameControlsProps> = ({
           }
         </GameStatus>
       )}
+      
+      {/* 滚动提示 */}
+      <div style={{ 
+        fontSize: '11px', 
+        color: '#999', 
+        textAlign: 'center', 
+        marginTop: '4px',
+        fontStyle: 'italic'
+      }}>
+        💡 鼠标悬停可展开更多内容
+      </div>
     </ControlsContainer>
   );
 };

@@ -207,7 +207,7 @@ export function getWinner(players: any[]): any {
   
   return players.reduce((winner, player) => {
     return player.score > winner.score ? player : winner;
-  });
+  }, players[0]);
 }
 
 // 检查玩家是否可以继续放置拼图
