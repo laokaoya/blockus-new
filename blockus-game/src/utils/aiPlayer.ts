@@ -34,19 +34,53 @@ export class AIPlayer {
     const availablePieces = pieces.filter(p => !p.isUsed);
     if (availablePieces.length === 0) return null;
     
-    // 按优先级排序拼图：5格 > 4格 > 3格 > 2格 > 1格
-    const sortedPieces = availablePieces.sort((a, b) => b.type - a.type);
+    // 按块数分组：5格、4格、3格、2格、1格
+    const piecesByType: { [key: number]: Piece[] } = {};
+    availablePieces.forEach(piece => {
+      if (!piecesByType[piece.type]) {
+        piecesByType[piece.type] = [];
+      }
+      piecesByType[piece.type].push(piece);
+    });
     
-    // 尝试放置每个拼图（包括所有可能的变换）
-    for (const originalPiece of sortedPieces) {
-      // 获取所有可能的变换
-      const transformations = getUniqueTransformations(originalPiece);
+    // 按块数递减顺序尝试，每个块数级别内随机选择
+    const pieceTypes = Object.keys(piecesByType).map(Number).sort((a, b) => b - a);
+    
+    for (const pieceType of pieceTypes) {
+      const piecesOfType = piecesByType[pieceType];
       
-      for (const transformedPiece of transformations) {
-        const position = this.findBestPosition(board, transformedPiece);
-        if (position) {
-          return { piece: transformedPiece, position };
+      // 为当前块数级别的所有拼图评分，选择最佳的几个
+      const scoredPieces = piecesOfType.map(piece => {
+        const transformations = getUniqueTransformations(piece);
+        let bestScore = -Infinity;
+        let bestMove: { piece: Piece; position: Position } | null = null;
+        
+        for (const transformedPiece of transformations) {
+          const position = this.findBestPosition(board, transformedPiece);
+          if (position) {
+            const score = this.evaluatePosition(board, transformedPiece, position);
+            if (score > bestScore) {
+              bestScore = score;
+              bestMove = { piece: transformedPiece, position };
+            }
+          }
         }
+        
+        return { piece: piece, score: bestScore, bestMove };
+      }).filter(item => item.bestMove !== null);
+      
+      if (scoredPieces.length === 0) continue;
+      
+      // 按分数排序，选择前3个最佳选项中的一个随机选择
+      scoredPieces.sort((a, b) => b.score - a.score);
+      const topChoices = scoredPieces.slice(0, Math.min(3, scoredPieces.length));
+      
+      // 随机选择一个，但偏向分数更高的
+      const randomIndex = this.getWeightedRandomIndex(topChoices.map(item => item.score));
+      const selectedPiece = topChoices[randomIndex];
+      
+      if (selectedPiece.bestMove) {
+        return selectedPiece.bestMove;
       }
     }
     
@@ -85,11 +119,8 @@ export class AIPlayer {
     const { x, y } = position;
     const { shape } = piece;
     
-    // 优先选择靠近边缘的位置（向外拓展）
-    score += this.getEdgeDistanceScore(x, y, board.length);
-    
-    // 优先选择靠近角落的位置
-    score += this.getCornerDistanceScore(x, y, board.length);
+    // 优先选择靠近中心的位置
+    score += this.getCenterDistanceScore(x, y, board.length);
     
     // 避免被对手包围
     score += this.getSurroundingScore(board, x, y, shape);
@@ -100,21 +131,19 @@ export class AIPlayer {
     return score;
   }
   
-  // 计算到边缘的距离分数
-  private getEdgeDistanceScore(x: number, y: number, boardSize: number): number {
-    const distanceToEdge = Math.min(x, y, boardSize - 1 - x, boardSize - 1 - y);
-    return (boardSize - distanceToEdge) * 10; // 越靠近边缘分数越高
-  }
-  
-  // 计算到角落的距离分数
-  private getCornerDistanceScore(x: number, y: number, boardSize: number): number {
-    const distanceToCorner = Math.min(
-      Math.sqrt(x * x + y * y),
-      Math.sqrt((boardSize - 1 - x) * (boardSize - 1 - x) + y * y),
-      Math.sqrt(x * x + (boardSize - 1 - y) * (boardSize - 1 - y)),
-      Math.sqrt((boardSize - 1 - x) * (boardSize - 1 - x) + (boardSize - 1 - y) * (boardSize - 1 - y))
+  // 计算到中心的距离分数
+  private getCenterDistanceScore(x: number, y: number, boardSize: number): number {
+    const centerX = Math.floor(boardSize / 2);
+    const centerY = Math.floor(boardSize / 2);
+    
+    // 计算到中心的欧几里得距离
+    const distanceToCenter = Math.sqrt(
+      Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
     );
-    return (boardSize - distanceToCorner) * 5; // 越靠近角落分数越高
+    
+    // 越靠近中心分数越高，最大距离为对角线的一半
+    const maxDistance = Math.sqrt(Math.pow(boardSize / 2, 2) + Math.pow(boardSize / 2, 2));
+    return Math.max(0, (maxDistance - distanceToCenter)) * 15; // 越靠近中心分数越高
   }
   
   // 计算周围环境分数
@@ -195,5 +224,33 @@ export class AIPlayer {
     }
     
     return true; // 无法放置任何拼图，需要结算
+  }
+  
+  // 加权随机选择索引，分数越高的选项被选中的概率越大
+  private getWeightedRandomIndex(scores: number[]): number {
+    if (scores.length === 0) return 0;
+    
+    // 计算总权重（所有分数的和）
+    const totalWeight = scores.reduce((sum, score) => sum + Math.max(0, score), 0);
+    
+    if (totalWeight <= 0) {
+      // 如果所有分数都是负数或0，则均匀随机选择
+      return Math.floor(Math.random() * scores.length);
+    }
+    
+    // 生成随机数
+    const random = Math.random() * totalWeight;
+    
+    // 按权重选择
+    let currentWeight = 0;
+    for (let i = 0; i < scores.length; i++) {
+      currentWeight += Math.max(0, scores[i]);
+      if (random <= currentWeight) {
+        return i;
+      }
+    }
+    
+    // 兜底返回最后一个索引
+    return scores.length - 1;
   }
 }
