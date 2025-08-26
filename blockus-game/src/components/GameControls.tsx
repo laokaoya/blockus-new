@@ -189,6 +189,15 @@ const GameControls: React.FC<GameControlsProps> = ({
           状态: {currentPlayer.isSettled ? '已结算' : '进行中'}
         </StatusText>
         
+        <StatusText isCurrentTurn={false}>
+          回合: {gameState.turnCount}
+        </StatusText>
+        
+        {/* 显示结算状态 */}
+        <StatusText isCurrentTurn={false}>
+          已结算: {players.filter(p => p.isSettled).length}/4
+        </StatusText>
+        
         {gamePhase === 'playing' && currentPlayer.color === 'red' && (
           <TimeDisplay timeLeft={timeLeft}>
             ⏰ {timeLeft}秒
@@ -204,7 +213,7 @@ const GameControls: React.FC<GameControlsProps> = ({
             onClick={onSettle}
             isUrgent={shouldShowSettleHint}
           >
-            {shouldShowSettleHint ? '🚨 紧急结算' : '结算'}
+            {shouldShowSettleHint ? '🏁 结束结算' : '结算'}
           </Button>
         )}
         
@@ -220,6 +229,25 @@ const GameControls: React.FC<GameControlsProps> = ({
             margin: '2px 0'
           }}>
             {currentPlayer.isSettled ? '已结算' : gamePhase !== 'playing' ? `游戏阶段: ${gamePhase}` : '可以继续游戏'}
+          </div>
+        )}
+        
+        {/* 游戏结束提示 - 只有当玩家无法继续时才显示 */}
+        {gamePhase === 'playing' && 
+         currentPlayer.color === 'red' && 
+         !currentPlayer.isSettled && 
+         !canPlayerContinue(currentPlayer) && (
+          <div style={{ 
+            fontSize: '11px', 
+            color: '#ff9800', 
+            textAlign: 'center',
+            padding: '4px',
+            background: '#fff3e0',
+            borderRadius: '4px',
+            margin: '2px 0',
+            fontWeight: 'bold'
+          }}>
+            💡 您已无法放置，点击"结束结算"后游戏结束
           </div>
         )}
         

@@ -31,6 +31,7 @@ export interface GameState {
   timeLeft: number;
   selectedPiece: Piece | null;
   selectedPiecePosition: { x: number; y: number } | null;
+  turnCount: number; // 当前回合数
 }
 
 export interface Position {

@@ -34,18 +34,20 @@ export function useGameState() {
       createPlayer('green', 'AI-小绿')
     ];
     
-    // 设置第一个玩家为当前回合
-    players[0].isCurrentTurn = true;
+    // 随机选择先手玩家
+    const randomFirstPlayerIndex = Math.floor(Math.random() * players.length);
+    players[randomFirstPlayerIndex].isCurrentTurn = true;
     
     return {
       board: Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(0)),
       players,
-      currentPlayerIndex: 0,
+      currentPlayerIndex: randomFirstPlayerIndex,
       gamePhase: 'playing',
       turnTimeLimit: TURN_TIME_LIMIT,
-      timeLeft: TURN_TIME_LIMIT,
+      timeLeft: randomFirstPlayerIndex === 0 ? TURN_TIME_LIMIT : 0, // 只有人类玩家有时间限制
       selectedPiece: null,
-      selectedPiecePosition: null
+      selectedPiecePosition: null,
+      turnCount: 1 // 游戏开始，第一回合
     };
   }
   
@@ -158,7 +160,8 @@ export function useGameState() {
        currentPlayerIndex: nextPlayerIndex,
        selectedPiece: null,
        selectedPiecePosition: null,
-       timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? TURN_TIME_LIMIT : prev.timeLeft
+       timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? TURN_TIME_LIMIT : prev.timeLeft,
+       turnCount: prev.turnCount + 1 // 增加回合计数
      }));
     
     return true;
@@ -174,8 +177,13 @@ export function useGameState() {
     // 设置AI思考状态
     setThinkingAI(currentPlayer.color);
     
-    // AI随机思考时间3-5秒
-    const thinkingTime = Math.random() * 2000 + 3000; // 3000-5000ms
+    // AI思考时间根据回合数调整：前8回合2-3秒，之后3-5秒
+    let thinkingTime;
+    if (gameState.turnCount <= 8) {
+      thinkingTime = Math.random() * 1000 + 2000; // 2000-3000ms
+    } else {
+      thinkingTime = Math.random() * 2000 + 3000; // 3000-5000ms
+    }
     
     setTimeout(() => {
       const aiPlayer = aiPlayers.find(ai => ai.getColor() === currentPlayer.color);
@@ -212,7 +220,8 @@ export function useGameState() {
           board: newBoard,
           players: nextPlayers,
           currentPlayerIndex: nextPlayerIndex,
-          timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? TURN_TIME_LIMIT : prev.timeLeft
+          timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? TURN_TIME_LIMIT : prev.timeLeft,
+          turnCount: prev.turnCount + 1 // 增加回合计数
         }));
       } else {
         // AI无法放置拼图，进入结算
@@ -231,7 +240,8 @@ export function useGameState() {
           ...prev,
           players: nextPlayers,
           currentPlayerIndex: nextPlayerIndex,
-          timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? TURN_TIME_LIMIT : prev.timeLeft
+          timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? TURN_TIME_LIMIT : prev.timeLeft,
+          turnCount: prev.turnCount + 1 // 增加回合计数
         }));
       }
       
@@ -261,7 +271,8 @@ export function useGameState() {
       ...prev,
       players: nextPlayers,
       currentPlayerIndex: nextPlayerIndex,
-      timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? TURN_TIME_LIMIT : prev.timeLeft
+      timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? TURN_TIME_LIMIT : prev.timeLeft,
+      turnCount: prev.turnCount + 1 // 增加回合计数
     }));
   }, [gameState]);
   
@@ -302,6 +313,7 @@ export function useGameState() {
   // 重置游戏
   const resetGame = useCallback(() => {
     setGameState(initializeGameState());
+    setThinkingAI(null); // 清除AI思考状态
   }, []);
   
   // 倒计时 - 只有人类玩家有时间限制
@@ -352,7 +364,7 @@ export function useGameState() {
     }
   }, [gameState.players]);
   
-  // 检查是否所有玩家都无法继续
+  // 检查是否所有玩家都无法继续 - 但不自动结算，只提示
   useEffect(() => {
     if (gameState.gamePhase === 'playing') {
       const allPlayersStuck = gameState.players.every(player => 
@@ -360,17 +372,9 @@ export function useGameState() {
       );
       
       if (allPlayersStuck) {
-        // 自动结算所有无法继续的玩家
-        const updatedPlayers = gameState.players.map(player => ({
-          ...player,
-          isSettled: player.isSettled || !canPlayerContinue(player)
-        }));
-        
-        setGameState(prev => ({
-          ...prev,
-          players: updatedPlayers,
-          gamePhase: 'finished'
-        }));
+        // 所有玩家都无法继续，但不自动结算
+        // 游戏继续，等待玩家主动结算
+        console.log('所有玩家都无法继续，请主动结算');
       }
     }
   }, [gameState.gamePhase, gameState.players, canPlayerContinue]);
