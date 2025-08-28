@@ -5,6 +5,7 @@ import styled from 'styled-components';
 import { Player } from '../types/game';
 import { PLAYER_COLORS } from '../constants/pieces';
 import { useLanguage } from '../contexts/LanguageContext';
+import GameRulesModal from './GameRulesModal';
 
 interface AIPlayersInfoProps {
   aiPlayers: Player[];
@@ -269,6 +270,54 @@ const DifficultyValue = styled.span<{ difficulty: string }>`
   color: ${props => getDifficultyColor(props.difficulty)};
 `;
 
+const RulesButton = styled.button`
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  
+  &:hover {
+    background: #5a6fd8;
+    transform: translateY(-1px);
+  }
+  
+  @media (max-width: 768px) {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+`;
+
+const RulesInfo = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
+  border-radius: 8px;
+  padding: 10px 15px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  
+  @media (max-width: 768px) {
+    padding: 8px 12px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 6px 10px;
+  }
+`;
+
 const PiecesModal = styled.div<{ isOpen: boolean }>`
   position: fixed;
   top: 0;
@@ -368,6 +417,7 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({
   const { t } = useLanguage();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
 
   const handleViewPieces = (player: Player) => {
     setSelectedPlayer(player);
@@ -377,6 +427,14 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedPlayer(null);
+  };
+
+  const handleViewRules = () => {
+    setIsRulesModalOpen(true);
+  };
+
+  const handleCloseRules = () => {
+    setIsRulesModalOpen(false);
   };
 
   const getStatusText = (player: Player): string => {
@@ -403,6 +461,13 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({
             {getDifficultyText(aiDifficulty, t)}
           </DifficultyValue>
         </DifficultyInfo>
+
+        {/* 查看规则按钮 */}
+        <RulesInfo>
+          <RulesButton onClick={handleViewRules}>
+            📖 {t('menu.viewRules')}
+          </RulesButton>
+        </RulesInfo>
 
         {aiPlayers.map(player => (
           <PlayerCard 
@@ -480,6 +545,11 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({
           )}
         </ModalContent>
       </PiecesModal>
+
+      <GameRulesModal 
+        isOpen={isRulesModalOpen} 
+        onClose={handleCloseRules} 
+      />
     </>
   );
 };

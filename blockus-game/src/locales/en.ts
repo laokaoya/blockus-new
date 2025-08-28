@@ -195,6 +195,10 @@ export const en = {
     ],
     startingPosition: 'Starting Position',
     startingPositionDesc: 'The game starts from the top-left corner (position 0,0). The first piece must be placed at this position. This position will have a special glowing indicator.',
+    placementRules: 'Placement Rules',
+    placementRulesDesc: 'Pieces must connect corner-to-corner with pieces of the same color, not edge-to-edge.',
+    connectionRules: 'Connection Rules',
+    connectionRulesDesc: 'Pieces of the same color can only connect corner-to-corner, while pieces of different colors can connect edge-to-edge.',
   },
 
   // About

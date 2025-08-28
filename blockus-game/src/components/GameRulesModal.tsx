@@ -176,6 +176,14 @@ const ImageDescription = styled.div`
   font-size: 0.95rem;
 `;
 
+const RuleImage = styled.img`
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 10px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+`;
+
 const GameRulesModal: React.FC<GameRulesModalProps> = ({ isOpen, onClose }) => {
   const { t, tArray } = useLanguage();
 
@@ -235,13 +243,47 @@ const GameRulesModal: React.FC<GameRulesModalProps> = ({ isOpen, onClose }) => {
           <SectionDescription>
             {t('help.startingPositionDesc')}
           </SectionDescription>
-          <StartingPositionImage>
-            <ImageCaption>游戏起始位置示意图</ImageCaption>
-            <ImageDescription>
-              左上角（0,0位置）是游戏的起始点，第一个拼图必须放置在这里。
-              这个位置会有特殊的黄色发光提示，帮助玩家识别起始位置。
-            </ImageDescription>
-          </StartingPositionImage>
+          <RuleImage 
+            src="/images/starting-position.png" 
+            alt="Starting Position"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        </Section>
+
+        <Section>
+          <SectionTitle>
+            <SectionIcon>📐</SectionIcon>
+            {t('help.placementRules')}
+          </SectionTitle>
+          <SectionDescription>
+            {t('help.placementRulesDesc')}
+          </SectionDescription>
+          <RuleImage 
+            src="/images/placement-rules.png" 
+            alt="Placement Rules"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        </Section>
+
+        <Section>
+          <SectionTitle>
+            <SectionIcon>🔗</SectionIcon>
+            {t('help.connectionRules')}
+          </SectionTitle>
+          <SectionDescription>
+            {t('help.connectionRulesDesc')}
+          </SectionDescription>
+          <RuleImage 
+            src="/images/connection-rules.png" 
+            alt="Connection Rules"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
         </Section>
       </ModalContent>
     </ModalOverlay>

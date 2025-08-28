@@ -195,6 +195,10 @@ export const zh = {
     ],
     startingPosition: '起始位置说明',
     startingPositionDesc: '游戏从左上角（0,0位置）开始，第一个拼图必须放置在这个位置。这个位置会有特殊的发光提示。',
+    placementRules: '摆放规则',
+    placementRulesDesc: '拼图必须与同色拼图角对角连接，不能边对边连接。',
+    connectionRules: '连接规则',
+    connectionRulesDesc: '同色拼图只能角对角连接，不同颜色拼图可以边对边连接。',
   },
 
   // 关于

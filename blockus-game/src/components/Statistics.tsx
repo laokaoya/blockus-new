@@ -50,6 +50,14 @@ const StatisticsContainer = styled.div`
   align-items: center;
 `;
 
+const ContentWrapper = styled.div`
+  width: 90%;
+  max-width: 1260px;
+  transform: scale(0.9);
+  transform-origin: top center;
+  margin-bottom: 40px;
+`;
+
 const Header = styled.div`
   text-align: center;
   margin-bottom: 30px;
@@ -505,135 +513,137 @@ const Statistics: React.FC = () => {
         <Subtitle>{t('statistics.subtitle')}</Subtitle>
       </Header>
 
-      <ContentContainer>
-        <LeftPanel>
-          <StatsCard>
-            <CardTitle>{t('statistics.overallStats')}</CardTitle>
-            <StatsGrid>
-              <StatItem>
-                <StatValue>{userStats.totalGames}</StatValue>
-                <StatLabel>{t('statistics.totalGames')}</StatLabel>
-              </StatItem>
-              <StatItem>
-                <StatValue>{userStats.totalWins}</StatValue>
-                <StatLabel>{t('statistics.totalWins')}</StatLabel>
-              </StatItem>
-              <StatItem>
-                <StatValue>{userStats.winRate.toFixed(1)}%</StatValue>
-                <StatLabel>{t('statistics.winRate')}</StatLabel>
-              </StatItem>
-              <StatItem>
-                <StatValue>{userStats.bestScore}</StatValue>
-                <StatLabel>{t('statistics.bestScore')}</StatLabel>
-              </StatItem>
-              <StatItem>
-                <StatValue>{userStats.averageScore}</StatValue>
-                <StatLabel>{t('statistics.averageScore')}</StatLabel>
-              </StatItem>
-              <StatItem>
-                <StatValue>{formatDuration(userStats.averageGameTime)}</StatValue>
-                <StatLabel>{t('statistics.averageTime')}</StatLabel>
-              </StatItem>
-            </StatsGrid>
-          </StatsCard>
+      <ContentWrapper>
+        <ContentContainer>
+          <LeftPanel>
+            <StatsCard>
+              <CardTitle>{t('statistics.overallStats')}</CardTitle>
+              <StatsGrid>
+                <StatItem>
+                  <StatValue>{userStats.totalGames}</StatValue>
+                  <StatLabel>{t('statistics.totalGames')}</StatLabel>
+                </StatItem>
+                <StatItem>
+                  <StatValue>{userStats.totalWins}</StatValue>
+                  <StatLabel>{t('statistics.totalWins')}</StatLabel>
+                </StatItem>
+                <StatItem>
+                  <StatValue>{userStats.winRate.toFixed(1)}%</StatValue>
+                  <StatLabel>{t('statistics.winRate')}</StatLabel>
+                </StatItem>
+                <StatItem>
+                  <StatValue>{userStats.bestScore}</StatValue>
+                  <StatLabel>{t('statistics.bestScore')}</StatLabel>
+                </StatItem>
+                <StatItem>
+                  <StatValue>{userStats.averageScore}</StatValue>
+                  <StatLabel>{t('statistics.averageScore')}</StatLabel>
+                </StatItem>
+                <StatItem>
+                  <StatValue>{formatDuration(userStats.averageGameTime)}</StatValue>
+                  <StatLabel>{t('statistics.averageTime')}</StatLabel>
+                </StatItem>
+              </StatsGrid>
+            </StatsCard>
 
-          <StatsCard>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <CardTitle>{t('statistics.gameHistory')}</CardTitle>
-              {gameHistory.length > 0 && (
-                <ControlButton 
-                  onClick={clearGameHistory}
-                  style={{ 
-                    backgroundColor: '#e74c3c', 
-                    color: 'white',
-                    fontSize: '12px',
-                    padding: '6px 12px',
-                    border: 'none'
-                  }}
-                  title={t('statistics.clearHistory')}
-                >
-                  🗑️ {t('statistics.clearHistory')}
-                </ControlButton>
-              )}
-            </div>
-            <HistoryList>
-              {gameHistory.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                  {t('statistics.noHistory')}
-                </div>
-              ) : (
-                gameHistory.map((game) => (
-                  <HistoryItem
-                    key={game.id}
-                    isSelected={selectedGame?.id === game.id}
-                    onClick={() => handleGameSelect(game)}
+            <StatsCard>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <CardTitle>{t('statistics.gameHistory')}</CardTitle>
+                {gameHistory.length > 0 && (
+                  <ControlButton 
+                    onClick={clearGameHistory}
+                    style={{ 
+                      backgroundColor: '#e74c3c', 
+                      color: 'white',
+                      fontSize: '12px',
+                      padding: '6px 12px',
+                      border: 'none'
+                    }}
+                    title={t('statistics.clearHistory')}
                   >
-                    <GameInfo>
-                      <GameDate>{formatDate(game.date)}</GameDate>
-                      <GameDuration>{formatDuration(game.duration)}</GameDuration>
-                    </GameInfo>
-                    <PlayersInfo>
-                      {game.players.map((player) => (
-                        <PlayerInfo key={player.color} isWinner={player.isWinner}>
-                          <PlayerColor color={player.color} />
-                          {player.name}: {player.score}
-                        </PlayerInfo>
-                      ))}
-                    </PlayersInfo>
-                  </HistoryItem>
-                ))
-              )}
-            </HistoryList>
-          </StatsCard>
-        </LeftPanel>
-
-        <RightPanel>
-          <ReplayContainer>
-            <CardTitle>{t('statistics.replay')}</CardTitle>
-            {selectedGame ? (
-              <>
-                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                  <h3>{formatDate(selectedGame.date)}</h3>
-                  <p>{t('statistics.aiDifficulty')}: {selectedGame.settings.aiDifficulty} | {t('statistics.timeLimit')}: {selectedGame.settings.timeLimit}{t('settings.seconds')}</p>
-                </div>
-                
-                <ReplayBoard>
-                  {replayBoard.map((row, y) =>
-                    row.map((cell, x) => (
-                      <BoardCell key={`${x}-${y}`} color={cell} />
-                    ))
-                  )}
-                </ReplayBoard>
-
-                <ProgressBar>
-                  <ProgressFill 
-                    progress={selectedGame.moves.length > 0 ? (currentMoveIndex / (selectedGame.moves.length + 1)) * 100 : 0} 
-                  />
-                </ProgressBar>
-
-                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                  {t('statistics.steps')} {currentMoveIndex + 1} / {selectedGame.moves.length + 1}
-                </div>
-
-                <ReplayControls>
-                  <ControlButton onClick={resetReplay}>🔄 {t('statistics.reset')}</ControlButton>
-                  <ControlButton onClick={prevMove} disabled={currentMoveIndex <= 0}>⬅️ {t('statistics.previous')}</ControlButton>
-                  <ControlButton onClick={isPlaying ? pauseReplay : playReplay}>
-                    {isPlaying ? `⏸️ ${t('statistics.pause')}` : `▶️ ${t('statistics.play')}`}
+                    🗑️ {t('statistics.clearHistory')}
                   </ControlButton>
-                  <ControlButton onClick={nextMove} disabled={currentMoveIndex >= (selectedGame.moves.length + 1) - 1}>
-                    ➡️ {t('statistics.next')}
-                  </ControlButton>
-                </ReplayControls>
-              </>
-            ) : (
-              <div style={{ textAlign: 'center', color: '#666', padding: '40px' }}>
-                {t('statistics.selectGame')}
+                )}
               </div>
-            )}
-          </ReplayContainer>
-        </RightPanel>
-      </ContentContainer>
+              <HistoryList>
+                {gameHistory.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                    {t('statistics.noHistory')}
+                  </div>
+                ) : (
+                  gameHistory.map((game) => (
+                    <HistoryItem
+                      key={game.id}
+                      isSelected={selectedGame?.id === game.id}
+                      onClick={() => handleGameSelect(game)}
+                    >
+                      <GameInfo>
+                        <GameDate>{formatDate(game.date)}</GameDate>
+                        <GameDuration>{formatDuration(game.duration)}</GameDuration>
+                      </GameInfo>
+                      <PlayersInfo>
+                        {game.players.map((player) => (
+                          <PlayerInfo key={player.color} isWinner={player.isWinner}>
+                            <PlayerColor color={player.color} />
+                            {player.name}: {player.score}
+                          </PlayerInfo>
+                        ))}
+                      </PlayersInfo>
+                    </HistoryItem>
+                  ))
+                )}
+              </HistoryList>
+            </StatsCard>
+          </LeftPanel>
+
+          <RightPanel>
+            <ReplayContainer>
+              <CardTitle>{t('statistics.replay')}</CardTitle>
+              {selectedGame ? (
+                <>
+                  <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                    <h3>{formatDate(selectedGame.date)}</h3>
+                    <p>{t('statistics.aiDifficulty')}: {selectedGame.settings.aiDifficulty} | {t('statistics.timeLimit')}: {selectedGame.settings.timeLimit}{t('settings.seconds')}</p>
+                  </div>
+                  
+                  <ReplayBoard>
+                    {replayBoard.map((row, y) =>
+                      row.map((cell, x) => (
+                        <BoardCell key={`${x}-${y}`} color={cell} />
+                      ))
+                    )}
+                  </ReplayBoard>
+
+                  <ProgressBar>
+                    <ProgressFill 
+                      progress={selectedGame.moves.length > 0 ? (currentMoveIndex / (selectedGame.moves.length + 1)) * 100 : 0} 
+                    />
+                  </ProgressBar>
+
+                  <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                    {t('statistics.steps')} {currentMoveIndex + 1} / {selectedGame.moves.length + 1}
+                  </div>
+
+                  <ReplayControls>
+                    <ControlButton onClick={resetReplay}>🔄 {t('statistics.reset')}</ControlButton>
+                    <ControlButton onClick={prevMove} disabled={currentMoveIndex <= 0}>⬅️ {t('statistics.previous')}</ControlButton>
+                    <ControlButton onClick={isPlaying ? pauseReplay : playReplay}>
+                      {isPlaying ? `⏸️ ${t('statistics.pause')}` : `▶️ ${t('statistics.play')}`}
+                    </ControlButton>
+                    <ControlButton onClick={nextMove} disabled={currentMoveIndex >= (selectedGame.moves.length + 1) - 1}>
+                      ➡️ {t('statistics.next')}
+                    </ControlButton>
+                  </ReplayControls>
+                </>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#666', padding: '40px' }}>
+                  {t('statistics.selectGame')}
+                </div>
+              )}
+            </ReplayContainer>
+          </RightPanel>
+        </ContentContainer>
+      </ContentWrapper>
     </StatisticsContainer>
   );
 };
