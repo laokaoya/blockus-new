@@ -1,12 +1,14 @@
 // 游戏结束界面组件
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled, { keyframes, css } from 'styled-components';
-import { Player } from '../types/game';
+import { Player, GameState } from '../types/game';
 import { PLAYER_COLORS } from '../constants/pieces';
 
 interface GameOverProps {
   players: Player[];
+  gameState: GameState;
   onPlayAgain: () => void;
   onBackToMenu: () => void;
 }
@@ -53,6 +55,12 @@ const Title = styled.h1`
   
   @media (max-width: 768px) {
     font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 2rem;
+    margin-bottom: 1rem;
   }
 `;
 
@@ -62,6 +70,16 @@ const Subtitle = styled.p`
   margin-bottom: 3rem;
   text-align: center;
   animation: ${css`${fadeIn} 1s ease-out 0.3s both`};
+  
+  @media (max-width: 768px) {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+  }
 `;
 
 const Leaderboard = styled.div`
@@ -76,6 +94,13 @@ const Leaderboard = styled.div`
   @media (max-width: 768px) {
     min-width: 300px;
     padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  @media (max-width: 480px) {
+    min-width: 280px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
   }
 `;
 
@@ -85,6 +110,16 @@ const LeaderboardTitle = styled.h2`
   text-align: center;
   margin-bottom: 2rem;
   font-weight: bold;
+  
+  @media (max-width: 768px) {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+  }
 `;
 
 const PlayerRow = styled.div<{ rank: number; isWinner: boolean }>`
@@ -111,36 +146,11 @@ const PlayerRow = styled.div<{ rank: number; isWinner: boolean }>`
   }
 `;
 
-const RankBadge = styled.div<{ rank: number; isWinner: boolean }>`
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 1.5rem;
-  color: white;
-  margin-right: 1rem;
-  background: ${props => props.isWinner 
-    ? 'linear-gradient(135deg, #FFD700, #FFA500)' 
-    : props.rank === 2 
-    ? 'linear-gradient(135deg, #C0C0C0, #A9A9A9)'
-    : props.rank === 3
-    ? 'linear-gradient(135deg, #CD7F32, #B8860B)'
-    : 'linear-gradient(135deg, #6c757d, #495057)'
-  };
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-  
-  ${props => props.isWinner && css`
-    animation: ${pulse} 2s ease-in-out infinite;
-  `}
-`;
-
 const PlayerInfo = styled.div`
   flex: 1;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  margin-left: 1rem;
 `;
 
 const PlayerAvatar = styled.div<{ color: string }>`
@@ -148,7 +158,6 @@ const PlayerAvatar = styled.div<{ color: string }>`
   height: 40px;
   border-radius: 50%;
   background: ${props => PLAYER_COLORS[props.color]};
-  margin-right: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -158,10 +167,6 @@ const PlayerAvatar = styled.div<{ color: string }>`
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 `;
 
-const PlayerDetails = styled.div`
-  flex: 1;
-`;
-
 const PlayerName = styled.div`
   font-weight: bold;
   font-size: 1.2rem;
@@ -169,104 +174,192 @@ const PlayerName = styled.div`
   margin-bottom: 0.25rem;
 `;
 
-const PlayerScore = styled.div`
+const PlayerStatus = styled.div<{ isCurrentTurn: boolean; isSettled: boolean; isThinking: boolean }>`
   font-size: 1rem;
   color: #666;
+  font-weight: 500;
 `;
 
-const ScoreDisplay = styled.div<{ isWinner: boolean }>`
+const Score = styled.div`
   font-size: 2rem;
   font-weight: bold;
-  color: ${props => props.isWinner ? '#8B4513' : '#333'};
-  text-shadow: ${props => props.isWinner ? '1px 1px 2px rgba(0, 0, 0, 0.3)' : 'none'};
+  color: #333;
+  margin-left: auto;
+  padding-left: 1rem;
 `;
 
-const ButtonGroup = styled.div`
+const ActionButtons = styled.div`
   display: flex;
-  gap: 2rem;
+  gap: 20px;
+  margin-top: 20px;
   animation: ${css`${fadeIn} 1s ease-out 1.2s both`};
   
   @media (max-width: 768px) {
     flex-direction: column;
-    gap: 1rem;
+    gap: 15px;
   }
 `;
 
 const Button = styled.button<{ variant: 'primary' | 'secondary' }>`
-  padding: 1rem 2rem;
-  font-size: 1.2rem;
-  font-weight: bold;
+  padding: 15px 30px;
   border: none;
   border-radius: 50px;
+  font-size: 1.1rem;
+  font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   
   background: ${props => props.variant === 'primary' 
-    ? 'linear-gradient(135deg, #FF6B6B, #FF8E53)' 
-    : 'linear-gradient(135deg, #4ECDC4, #44A08D)'
+    ? 'linear-gradient(135deg, #667eea, #764ba2)' 
+    : 'rgba(255, 255, 255, 0.2)'
   };
   color: white;
+  border: ${props => props.variant === 'secondary' ? '2px solid rgba(255, 255, 255, 0.3)' : 'none'};
   
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
   }
   
-  &:active {
-    transform: translateY(0);
+  @media (max-width: 768px) {
+    padding: 12px 24px;
+    font-size: 1rem;
   }
 `;
 
-const GameOver: React.FC<GameOverProps> = ({ players, onPlayAgain, onBackToMenu }) => {
-  // 按分数排序玩家
+const GameOver: React.FC<GameOverProps> = ({ 
+  players, 
+  gameState,
+  onPlayAgain, 
+  onBackToMenu 
+}) => {
+  const navigate = useNavigate();
+  
+  // 更新用户统计数据和保存游戏记录
+  const hasProcessed = useRef(false);
+  
+  useEffect(() => {
+    if (hasProcessed.current) return;
+    hasProcessed.current = true;
+    
+    const updateUserStats = () => {
+      const savedStats = localStorage.getItem('userStats');
+      const currentStats = savedStats ? JSON.parse(savedStats) : {
+        totalGames: 0,
+        totalWins: 0,
+        totalScore: 0,
+        winRate: 0,
+        bestScore: 0,
+        totalPlayTime: 0
+      };
+      
+      // 计算新的统计数据
+      const player = players[0]; // 假设玩家是第一个
+      const playerScore = player.score;
+      const isWinner = playerScore === Math.max(...players.map(p => p.score));
+      
+      const newStats = {
+        totalGames: currentStats.totalGames + 1,
+        totalWins: currentStats.totalWins + (isWinner ? 1 : 0),
+        totalScore: currentStats.totalScore + playerScore,
+        winRate: ((currentStats.totalWins + (isWinner ? 1 : 0)) / (currentStats.totalGames + 1)) * 100,
+        bestScore: Math.max(currentStats.bestScore, playerScore),
+        totalPlayTime: currentStats.totalPlayTime + 300 // 假设平均游戏时长5分钟
+      };
+      
+      localStorage.setItem('userStats', JSON.stringify(newStats));
+    };
+
+    const saveGameRecord = () => {
+      const gameSettings = localStorage.getItem('gameSettings');
+      const settings = gameSettings ? JSON.parse(gameSettings) : {
+        aiDifficulty: 'medium',
+        timeLimit: 60
+      };
+
+      // 创建游戏记录
+      const gameRecord = {
+        id: `game_${Date.now()}`,
+        date: new Date().toISOString(),
+        duration: 300, // 假设游戏时长5分钟
+        players: players.map(player => ({
+          name: `玩家${player.color}`,
+          color: player.color,
+          score: player.score,
+          isWinner: player.score === Math.max(...players.map(p => p.score))
+        })),
+        settings: {
+          aiDifficulty: settings.aiDifficulty,
+          timeLimit: settings.timeLimit
+        },
+        moves: gameState.moves, // 从游戏状态中获取移动记录
+        finalBoard: gameState.board // 从游戏状态中获取最终棋盘
+      };
+
+      // 保存到游戏历史
+      const savedHistory = localStorage.getItem('gameHistory');
+      const history = savedHistory ? JSON.parse(savedHistory) : [];
+      history.unshift(gameRecord); // 添加到开头
+      
+      // 只保留最近50局游戏记录
+      if (history.length > 50) {
+        history.splice(50);
+      }
+      
+      localStorage.setItem('gameHistory', JSON.stringify(history));
+    };
+    
+    updateUserStats();
+    saveGameRecord();
+  }, [players, gameState]);
+  
+  const handleBackToLobby = () => {
+    navigate('/');
+  };
+  
+  const handlePlayAgain = () => {
+    onPlayAgain();
+  };
+
+  // 计算排名
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
   const winner = sortedPlayers[0];
 
   return (
     <Container>
-      <Title>🎉 游戏结束 🎉</Title>
-      <Subtitle>恭喜 {winner.name} 获得胜利！</Subtitle>
+      <Title>游戏结束</Title>
+      <Subtitle>恭喜 玩家{winner.color} 获得胜利！</Subtitle>
       
       <Leaderboard>
-        <LeaderboardTitle>🏆 最终排名</LeaderboardTitle>
+        <LeaderboardTitle>最终排名</LeaderboardTitle>
         {sortedPlayers.map((player, index) => (
-          <PlayerRow 
-            key={player.id} 
-            rank={index + 1} 
-            isWinner={index === 0}
-          >
-            <RankBadge rank={index + 1} isWinner={index === 0}>
-              {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
-            </RankBadge>
-            
+          <PlayerRow key={player.color} rank={index + 1} isWinner={index === 0}>
+            <PlayerAvatar color={player.color}>
+              {player.color.charAt(0).toUpperCase()}
+            </PlayerAvatar>
             <PlayerInfo>
-              <PlayerAvatar color={player.color}>
-                {player.name.charAt(0)}
-              </PlayerAvatar>
-              <PlayerDetails>
-                <PlayerName>{player.name}</PlayerName>
-                <PlayerScore>
-                  {player.isSettled ? '已结算' : '游戏中'}
-                </PlayerScore>
-              </PlayerDetails>
+              <PlayerName>玩家{player.color}</PlayerName>
+              <PlayerStatus 
+                isCurrentTurn={false} 
+                isSettled={player.isSettled} 
+                isThinking={false}
+              >
+                {index === 0 ? '🏆 冠军' : `第${index + 1}名`}
+              </PlayerStatus>
             </PlayerInfo>
-            
-            <ScoreDisplay isWinner={index === 0}>
-              {player.score} 分
-            </ScoreDisplay>
+            <Score>{player.score} 分</Score>
           </PlayerRow>
         ))}
       </Leaderboard>
       
-      <ButtonGroup>
-        <Button variant="primary" onClick={onPlayAgain}>
-          🎮 再来一局
+      <ActionButtons>
+        <Button variant="secondary" onClick={handleBackToLobby}>
+          返回大厅
         </Button>
-        <Button variant="secondary" onClick={onBackToMenu}>
-          🏠 返回菜单
+        <Button variant="primary" onClick={handlePlayAgain}>
+          再来一局
         </Button>
-      </ButtonGroup>
+      </ActionButtons>
     </Container>
   );
 };

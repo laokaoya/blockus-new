@@ -3,6 +3,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { GameState } from '../types/game';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface GameControlsProps {
   gameState: GameState;
@@ -48,6 +49,26 @@ const ControlsContainer = styled.div`
   &::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
   }
+  
+  @media (max-width: 768px) {
+    padding: 6px;
+    min-height: 160px;
+    max-height: 240px;
+    
+    &:hover {
+      max-height: 280px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    padding: 5px;
+    min-height: 140px;
+    max-height: 200px;
+    
+    &:hover {
+      max-height: 240px;
+    }
+  }
 `;
 
 const GameStatus = styled.div`
@@ -57,12 +78,32 @@ const GameStatus = styled.div`
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   min-width: 260px;
+  
+  @media (max-width: 768px) {
+    min-width: 220px;
+    padding: 6px;
+  }
+  
+  @media (max-width: 480px) {
+    min-width: 200px;
+    padding: 5px;
+  }
 `;
 
 const StatusTitle = styled.h3`
   margin: 0 0 6px 0;
   color: #333;
   font-size: 14px;
+  
+  @media (max-width: 768px) {
+    font-size: 13px;
+    margin: 0 0 5px 0;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 12px;
+    margin: 0 0 4px 0;
+  }
 `;
 
 const StatusText = styled.div<{ isCurrentTurn: boolean }>`
@@ -70,6 +111,14 @@ const StatusText = styled.div<{ isCurrentTurn: boolean }>`
   color: ${props => props.isCurrentTurn ? '#4CAF50' : '#666'};
   font-weight: ${props => props.isCurrentTurn ? 'bold' : 'normal'};
   margin: 2px 0;
+  
+  @media (max-width: 768px) {
+    font-size: 13px;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 12px;
+  }
 `;
 
 const TimeDisplay = styled.div<{ timeLeft: number }>`
@@ -82,6 +131,16 @@ const TimeDisplay = styled.div<{ timeLeft: number }>`
   }};
   text-align: center;
   margin: 4px 0;
+  
+  @media (max-width: 768px) {
+    font-size: 16px;
+    margin: 3px 0;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 14px;
+    margin: 2px 0;
+  }
 `;
 
 const ButtonsContainer = styled.div`
@@ -90,6 +149,15 @@ const ButtonsContainer = styled.div`
   flex-wrap: wrap;
   justify-content: center;
   margin: 2px 0;
+  
+  @media (max-width: 768px) {
+    gap: 5px;
+    margin: 1px 0;
+  }
+  
+  @media (max-width: 480px) {
+    gap: 4px;
+  }
 `;
 
 const Button = styled.button<{ variant: 'primary' | 'secondary' | 'danger'; isUrgent?: boolean }>`
@@ -150,57 +218,48 @@ const GamePhaseDisplay = styled.div<{ phase: string }>`
   font-size: 13px;
 `;
 
-const GameControls: React.FC<GameControlsProps> = ({
-  gameState,
-  onSettle,
-  onReset,
-  canPlayerContinue
+const GameControls: React.FC<GameControlsProps> = ({ 
+  gameState, 
+  onSettle, 
+  onReset, 
+  canPlayerContinue 
 }) => {
-  const { gamePhase, timeLeft, players, currentPlayerIndex } = gameState;
+  const { t } = useLanguage();
+  const { gamePhase, players, currentPlayerIndex, turnCount, timeLeft } = gameState;
   const currentPlayer = players[currentPlayerIndex];
   
-  const getPhaseText = (phase: string): string => {
-    switch (phase) {
-      case 'waiting': return '等待开始';
-      case 'playing': return '游戏进行中';
-      case 'settling': return '结算中';
-      case 'finished': return '游戏结束';
-      default: return '未知状态';
-    }
-  };
-  
-  const canSettle = currentPlayer.color === 'red' && !currentPlayer.isSettled && gamePhase === 'playing';
-  const shouldShowSettleHint = currentPlayer.color === 'red' && !currentPlayer.isSettled && !canPlayerContinue(currentPlayer);
   const isGameOver = gamePhase === 'finished';
-  
+  const canSettle = gamePhase === 'playing' && currentPlayer.color === 'red' && !currentPlayer.isSettled;
+  const shouldShowSettleHint = canSettle && !canPlayerContinue(currentPlayer);
+
   return (
     <ControlsContainer>
-      <GamePhaseDisplay phase={gamePhase}>
-        {getPhaseText(gamePhase)}
-      </GamePhaseDisplay>
-      
-      {/* 紧凑的游戏状态显示 */}
+      {/* 游戏状态显示 */}
       <GameStatus>
-        <StatusTitle>🎯 当前回合</StatusTitle>
-        <StatusText isCurrentTurn={true}>
-          {currentPlayer.name}
-        </StatusText>
+        <StatusTitle>
+          {gamePhase === 'playing' ? t('game.gameInProgress') : t('game.gameOver')}
+        </StatusTitle>
+        
         <StatusText isCurrentTurn={false}>
-          状态: {currentPlayer.isSettled ? '已结算' : '进行中'}
+          {t('game.currentTurn')}: {currentPlayer.name === 'Player' ? t('player.player') : currentPlayer.name}
         </StatusText>
         
         <StatusText isCurrentTurn={false}>
-          回合: {gameState.turnCount}
+          {t('game.status')}: {gamePhase === 'playing' ? t('game.inProgress') : t('game.finished')}
+        </StatusText>
+        
+        <StatusText isCurrentTurn={false}>
+          {t('game.turn')}: {turnCount}
         </StatusText>
         
         {/* 显示结算状态 */}
         <StatusText isCurrentTurn={false}>
-          已结算: {players.filter(p => p.isSettled).length}/4
+          {t('game.settled')}: {players.filter(p => p.isSettled).length}/4
         </StatusText>
         
         {gamePhase === 'playing' && currentPlayer.color === 'red' && (
           <TimeDisplay timeLeft={timeLeft}>
-            ⏰ {timeLeft}秒
+            ⏰ {timeLeft}{t('settings.seconds')}
           </TimeDisplay>
         )}
       </GameStatus>
@@ -213,7 +272,7 @@ const GameControls: React.FC<GameControlsProps> = ({
             onClick={onSettle}
             isUrgent={shouldShowSettleHint}
           >
-            {shouldShowSettleHint ? '🏁 结束结算' : '结算'}
+            {shouldShowSettleHint ? `🏁 ${t('game.endSettle')}` : t('game.settle')}
           </Button>
         )}
         
@@ -228,7 +287,7 @@ const GameControls: React.FC<GameControlsProps> = ({
             borderRadius: '4px',
             margin: '2px 0'
           }}>
-            {currentPlayer.isSettled ? '已结算' : gamePhase !== 'playing' ? `游戏阶段: ${gamePhase}` : '可以继续游戏'}
+            {currentPlayer.isSettled ? t('game.settled') : gamePhase !== 'playing' ? `${t('game.gamePhase')}: ${gamePhase}` : t('game.canContinue')}
           </div>
         )}
         
@@ -247,13 +306,13 @@ const GameControls: React.FC<GameControlsProps> = ({
             margin: '2px 0',
             fontWeight: 'bold'
           }}>
-            💡 您已无法放置，点击"结束结算"后游戏结束
+            💡 {t('game.cannotPlaceHint')}
           </div>
         )}
         
         {isGameOver && (
           <Button variant="primary" onClick={onReset}>
-            重新开始
+            {t('game.restart')}
           </Button>
         )}
       </ButtonsContainer>
@@ -261,13 +320,13 @@ const GameControls: React.FC<GameControlsProps> = ({
       {/* 游戏结果 - 只在游戏结束时显示 */}
       {isGameOver && (
         <GameStatus>
-          <StatusTitle>🏆 最终排名</StatusTitle>
+          <StatusTitle>🏆 {t('game.finalRanking')}</StatusTitle>
           {players
             .sort((a, b) => b.score - a.score)
             .slice(0, 3) // 只显示前3名，节省空间
             .map((player, index) => (
               <StatusText key={player.id} isCurrentTurn={false}>
-                {index + 1}. {player.name}: {player.score}分
+                {index + 1}. {player.name}: {player.score}{t('game.points')}
               </StatusText>
             ))
           }
@@ -282,7 +341,7 @@ const GameControls: React.FC<GameControlsProps> = ({
         marginTop: '4px',
         fontStyle: 'italic'
       }}>
-        💡 鼠标悬停可展开更多内容
+        💡 {t('game.hoverHint')}
       </div>
     </ControlsContainer>
   );

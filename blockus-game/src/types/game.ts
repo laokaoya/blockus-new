@@ -22,6 +22,16 @@ export interface Player {
   isCurrentTurn: boolean;
 }
 
+export interface GameMove {
+  playerColor: PlayerColor;
+  boardChanges: Array<{
+    x: number;
+    y: number;
+    color: number; // 0=空, 1=红, 2=黄, 3=蓝, 4=绿
+  }>;
+  timestamp: number;
+}
+
 export interface GameState {
   board: number[][]; // 0=空, 1=红, 2=黄, 3=蓝, 4=绿
   players: Player[];
@@ -32,6 +42,7 @@ export interface GameState {
   selectedPiece: Piece | null;
   selectedPiecePosition: { x: number; y: number } | null;
   turnCount: number; // 当前回合数
+  moves: GameMove[]; // 游戏移动记录
 }
 
 export interface Position {
@@ -43,4 +54,7 @@ export interface GameSettings {
   boardSize: number;
   turnTimeLimit: number;
   aiDifficulty: 'easy' | 'medium' | 'hard';
+  timeLimit: number;
+  showHints: boolean;
+  soundEnabled: boolean;
 }

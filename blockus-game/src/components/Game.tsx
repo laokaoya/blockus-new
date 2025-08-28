@@ -10,6 +10,8 @@ import GameControls from './GameControls';
 import GameOver from './GameOver';
 import { Position, Piece } from '../types/game';
 import { canPlacePiece } from '../utils/gameEngine';
+import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const GameContainer = styled.div`
   display: flex;
@@ -17,11 +19,46 @@ const GameContainer = styled.div`
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 20px;
+  
+  @media (max-width: 768px) {
+    padding: 10px;
+  }
 `;
 
 const GameHeader = styled.div`
   text-align: center;
   margin-bottom: 20px;
+  position: relative;
+  
+  @media (max-width: 768px) {
+    margin-bottom: 15px;
+  }
+`;
+
+const BackButton = styled.button`
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-50%) translateX(-2px);
+  }
+  
+  @media (max-width: 768px) {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
 `;
 
 const GameTitle = styled.h1`
@@ -29,12 +66,29 @@ const GameTitle = styled.h1`
   font-size: 36px;
   margin: 0;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  
+  @media (max-width: 768px) {
+    font-size: 24px;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 20px;
+  }
 `;
 
 const GameSubtitle = styled.p`
   color: rgba(255, 255, 255, 0.8);
   font-size: 18px;
   margin: 10px 0 0 0;
+  
+  @media (max-width: 768px) {
+    font-size: 14px;
+    margin: 8px 0 0 0;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 12px;
+  }
 `;
 
 const GameContent = styled.div`
@@ -47,6 +101,11 @@ const GameContent = styled.div`
   @media (max-width: 1200px) {
     flex-direction: column;
     align-items: center;
+    gap: 15px;
+  }
+  
+  @media (max-width: 768px) {
+    gap: 10px;
   }
 `;
 
@@ -55,6 +114,17 @@ const LeftPanel = styled.div`
   flex-direction: column;
   gap: 20px;
   min-width: 320px;
+  
+  @media (max-width: 1200px) {
+    min-width: auto;
+    width: 100%;
+    max-width: 400px;
+  }
+  
+  @media (max-width: 768px) {
+    gap: 15px;
+    max-width: 100%;
+  }
 `;
 
 const CenterPanel = styled.div`
@@ -62,6 +132,10 @@ const CenterPanel = styled.div`
   flex-direction: column;
   gap: 20px;
   align-items: center;
+  
+  @media (max-width: 768px) {
+    gap: 15px;
+  }
 `;
 
 const RightPanel = styled.div`
@@ -70,6 +144,17 @@ const RightPanel = styled.div`
   gap: 20px;
   min-width: 280px;
   position: relative;
+  
+  @media (max-width: 1200px) {
+    min-width: auto;
+    width: 100%;
+    max-width: 400px;
+  }
+  
+  @media (max-width: 768px) {
+    gap: 15px;
+    max-width: 100%;
+  }
 `;
 
 const SettleButton = styled.button<{ isUrgent: boolean }>`
@@ -111,6 +196,13 @@ const SettleButton = styled.button<{ isUrgent: boolean }>`
     0%, 100% { transform: scale(1.05); }
     50% { transform: scale(1.1); }
   }
+  
+  @media (max-width: 768px) {
+    bottom: 15px;
+    right: 15px;
+    padding: 10px 20px;
+    font-size: 14px;
+  }
 `;
 
 const Game: React.FC = () => {
@@ -123,13 +215,21 @@ const Game: React.FC = () => {
     rotateSelectedPiece,
     flipSelectedPiece,
     thinkingAI,
-    canPlayerContinue
+    canPlayerContinue,
+    gameSettings
   } = useGameState();
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
+  const navigate = useNavigate();
+  const { t } = useLanguage();
   
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const player = gameState.players[0]; // 玩家（红色）
   const aiPlayers = gameState.players.slice(1); // AI玩家
+
+  // 处理返回大厅
+  const handleBackToLobby = () => {
+    navigate('/');
+  };
   
   // 处理拼图选择
   const handlePieceSelect = (piece: Piece) => {
@@ -228,22 +328,23 @@ const Game: React.FC = () => {
   return (
     <>
       {/* 游戏结束界面 */}
-      {gameState.gamePhase === 'finished' && (
+      {gameState.gamePhase === 'finished' ? (
         <GameOver
           players={gameState.players}
+          gameState={gameState}
           onPlayAgain={handleReset}
           onBackToMenu={() => {
             // 这里可以添加返回菜单的逻辑
             handleReset();
           }}
         />
-      )}
-      
-      {/* 主游戏界面 */}
-      <GameContainer>
+      ) : (
+        /* 主游戏界面 */
+        <GameContainer>
         <GameHeader>
-          <GameTitle>Blockus 方格大战</GameTitle>
-          <GameSubtitle>经典策略拼图游戏</GameSubtitle>
+          <BackButton onClick={handleBackToLobby}>← {t('common.back')}</BackButton>
+          <GameTitle>{t('game.title')}</GameTitle>
+          <GameSubtitle>{t('game.description')}</GameSubtitle>
         </GameHeader>
         
         <GameContent>
@@ -280,6 +381,7 @@ const Game: React.FC = () => {
             <AIPlayersInfo 
               aiPlayers={aiPlayers}
               thinkingAI={thinkingAI}
+              aiDifficulty={gameSettings.aiDifficulty}
             />
           </RightPanel>
         </GameContent>
@@ -290,10 +392,11 @@ const Game: React.FC = () => {
             onClick={handleSettle}
             isUrgent={!canPlayerContinue(player)}
           >
-            {!canPlayerContinue(player) ? '🚨 紧急结算' : '💡 结算'}
+            {!canPlayerContinue(player) ? `🚨 ${t('game.urgentSettle')}` : `💡 ${t('game.settle')}`}
           </SettleButton>
         )}
       </GameContainer>
+      )}
     </>
   );
 };

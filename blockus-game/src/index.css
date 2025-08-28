@@ -5,6 +5,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden; /* 防止水平滚动 */
 }
 
 code {
@@ -20,4 +21,27 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
+  overflow-x: hidden; /* 防止水平滚动 */
+}
+
+/* 移动端触摸优化 */
+@media (max-width: 768px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  button, [role="button"] {
+    min-height: 44px; /* 确保触摸目标足够大 */
+  }
+  
+  input, select, textarea {
+    font-size: 16px; /* 防止iOS缩放 */
+  }
+}
+
+/* 防止移动端双击缩放 */
+@media (max-width: 768px) {
+  html {
+    touch-action: manipulation;
+  }
 }

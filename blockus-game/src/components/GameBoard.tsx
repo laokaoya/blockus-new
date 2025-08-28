@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { GameState, Position, Piece } from '../types/game';
 import { canPlacePiece } from '../utils/gameEngine';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface GameBoardProps {
   gameState: GameState;
@@ -11,6 +12,7 @@ interface GameBoardProps {
   onCellHover: (position: Position) => void;
   onPiecePlace: (position: Position) => void;
   onPieceCancel?: () => void;
+  showHints?: boolean;
 }
 
 const BoardContainer = styled.div`
@@ -22,6 +24,14 @@ const BoardContainer = styled.div`
   padding: 20px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   position: relative;
+  
+  @media (max-width: 768px) {
+    padding: 15px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 10px;
+  }
 `;
 
 // 垃圾桶图标
@@ -51,12 +61,44 @@ const TrashBin = styled.div<{ isVisible: boolean; isHovered: boolean }>`
     font-size: 24px;
     color: white;
   }
+  
+  @media (max-width: 768px) {
+    top: 15px;
+    right: 15px;
+    width: 40px;
+    height: 40px;
+    
+    &::before {
+      font-size: 20px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    top: 10px;
+    right: 10px;
+    width: 35px;
+    height: 35px;
+    
+    &::before {
+      font-size: 18px;
+    }
+  }
 `;
 
 const BoardTitle = styled.h2`
   margin: 0 0 20px 0;
   color: #333;
   font-size: 24px;
+  
+  @media (max-width: 768px) {
+    font-size: 20px;
+    margin: 0 0 15px 0;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 18px;
+    margin: 0 0 10px 0;
+  }
 `;
 
 const BoardGrid = styled.div`
@@ -70,6 +112,20 @@ const BoardGrid = styled.div`
   height: 600px;
   max-width: 90vw;
   max-height: 90vw;
+  
+  @media (max-width: 768px) {
+    width: 400px;
+    height: 400px;
+    max-width: 85vw;
+    max-height: 85vw;
+  }
+  
+  @media (max-width: 480px) {
+    width: 300px;
+    height: 300px;
+    max-width: 80vw;
+    max-height: 80vw;
+  }
 `;
 
 const Cell = styled.div<{ 
@@ -78,6 +134,7 @@ const Cell = styled.div<{
   isHighlighted: boolean;
   isInvalid: boolean;
   isCurrentTurn: boolean;
+  isStartingPosition: boolean;
 }>`
   width: 100%;
   height: 100%;
@@ -85,6 +142,9 @@ const Cell = styled.div<{
     if (props.isOccupied) {
       const colors = ['transparent', '#FF4444', '#FFDD44', '#4444FF', '#44FF44'];
       return colors[props.playerColor] || '#ccc';
+    }
+    if (props.isStartingPosition) {
+      return 'rgba(255, 215, 0, 0.3)'; // 起始位置 - 金色半透明
     }
     if (props.isHighlighted) {
       return 'rgba(255, 255, 0, 0.3)';
@@ -98,17 +158,33 @@ const Cell = styled.div<{
     return '#fff';
   }};
   border: ${props => {
+    if (props.isStartingPosition) return '2px solid #FFD700'; // 起始位置 - 金色边框
     if (props.isHighlighted) return '2px solid #FFD700';
     if (props.isInvalid) return '2px solid #FF4444';
     return '1px solid #ddd';
   }};
   cursor: ${props => props.isHighlighted ? 'pointer' : 'default'};
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  position: relative;
   
   &:hover {
     transform: ${props => props.isHighlighted ? 'scale(1.1)' : 'scale(1)'};
     box-shadow: ${props => props.isHighlighted ? '0 0 8px rgba(255, 215, 0, 0.6)' : 'none'};
   }
+  
+  ${props => props.isStartingPosition && `
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+    animation: glow 2s ease-in-out infinite alternate;
+    
+    @keyframes glow {
+      from {
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+      }
+      to {
+        box-shadow: 0 0 25px rgba(255, 215, 0, 1), 0 0 35px rgba(255, 215, 0, 0.6);
+      }
+    }
+  `}
 `;
 
 
@@ -120,6 +196,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   onPiecePlace,
   onPieceCancel
 }) => {
+  const { t } = useLanguage();
   const { board, players, currentPlayerIndex, selectedPiece } = gameState;
   const currentPlayer = players[currentPlayerIndex];
   
@@ -316,8 +393,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
     return (
     <BoardContainer>
       <BoardTitle>
-        {currentPlayer.name}的回合
-        {currentPlayer.color === 'red' && ` - 剩余时间: ${gameState.timeLeft}秒`}
+        {currentPlayer.name === 'Player' ? t('player.player') : currentPlayer.name} {t('game.turn')}
+        {currentPlayer.color === 'red' && ` - ${t('game.timeLeft')}: ${gameState.timeLeft}${t('settings.seconds')}`}
       </BoardTitle>
       
       {/* 垃圾桶图标 */}
@@ -327,6 +404,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
         onClick={handleTrashClick}
         onMouseEnter={() => handleTrashHover(true)}
         onMouseLeave={() => handleTrashHover(false)}
+        title={t('controls.trash')}
       />
       
       <BoardGrid
@@ -342,6 +420,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
               isHighlighted={shouldHighlight(x, y)}
               isInvalid={shouldShowInvalid(x, y)}
               isCurrentTurn={currentPlayer.isCurrentTurn}
+              isStartingPosition={x === 0 && y === 0} // 左上角为起始位置
               onClick={() => handleBoardClick(x, y)}
               onMouseEnter={() => handleCellHover(x, y)}
               onMouseDown={(e) => startDrag(x, y, e)}

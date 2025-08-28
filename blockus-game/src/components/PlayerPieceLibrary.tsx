@@ -4,6 +4,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { Piece, Player } from '../types/game';
 import { PLAYER_COLORS } from '../constants/pieces';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface PlayerPieceLibraryProps {
   player: Player;
@@ -22,6 +23,22 @@ const LibraryContainer = styled.div`
   max-height: 80vh;
   overflow-y: auto;
   min-width: 300px;
+  
+  @media (max-width: 1200px) {
+    min-width: auto;
+    width: 100%;
+    max-width: 400px;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 15px;
+    max-height: 70vh;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 10px;
+    max-height: 60vh;
+  }
 `;
 
 const LibraryTitle = styled.h3`
@@ -29,6 +46,16 @@ const LibraryTitle = styled.h3`
   color: #333;
   font-size: 20px;
   text-align: center;
+  
+  @media (max-width: 768px) {
+    font-size: 18px;
+    margin: 0 0 15px 0;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 16px;
+    margin: 0 0 10px 0;
+  }
 `;
 
 const ControlsHint = styled.div`
@@ -44,10 +71,30 @@ const ControlsHint = styled.div`
   strong {
     color: #0066cc;
   }
+  
+  @media (max-width: 768px) {
+    padding: 8px;
+    margin-bottom: 12px;
+    font-size: 11px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 6px;
+    margin-bottom: 10px;
+    font-size: 10px;
+  }
 `;
 
 const PieceTypeSection = styled.div`
   margin-bottom: 20px;
+  
+  @media (max-width: 768px) {
+    margin-bottom: 15px;
+  }
+  
+  @media (max-width: 480px) {
+    margin-bottom: 12px;
+  }
 `;
 
 const TypeTitle = styled.h4<{ color: string }>`
@@ -56,6 +103,16 @@ const TypeTitle = styled.h4<{ color: string }>`
   font-size: 16px;
   border-bottom: 2px solid ${props => PLAYER_COLORS[props.color as keyof typeof PLAYER_COLORS]};
   padding-bottom: 5px;
+  
+  @media (max-width: 768px) {
+    font-size: 14px;
+    margin: 0 0 8px 0;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 13px;
+    margin: 0 0 6px 0;
+  }
 `;
 
 const PiecesGrid = styled.div`
@@ -63,6 +120,18 @@ const PiecesGrid = styled.div`
   grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
   gap: 8px;
   margin-bottom: 15px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(auto-fit, minmax(45px, 1fr));
+    gap: 5px;
+    margin-bottom: 10px;
+  }
 `;
 
 const PieceItem = styled.div<{ 
@@ -90,6 +159,16 @@ const PieceItem = styled.div<{
   
   &:active {
     cursor: grabbing;
+  }
+  
+  @media (max-width: 768px) {
+    width: 50px;
+    height: 50px;
+  }
+  
+  @media (max-width: 480px) {
+    width: 45px;
+    height: 45px;
   }
 `;
 
@@ -150,6 +229,8 @@ const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({
   onPieceSelect,
   onStartDrag
 }) => {
+  const { t } = useLanguage();
+  
   // 按类型分组拼图
   const piecesByType = player.pieces.reduce((acc, piece) => {
     if (!acc[piece.type]) {
@@ -178,22 +259,22 @@ const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({
   return (
     <LibraryContainer>
       <PlayerInfo color={player.color}>
-        <PlayerName>{player.name}</PlayerName>
-        <PlayerScore>得分: {player.score}</PlayerScore>
+        <PlayerName>{player.name === 'Player' ? t('player.player') : player.name}</PlayerName>
+        <PlayerScore>{t('game.score')}: {player.score}</PlayerScore>
       </PlayerInfo>
       
-      <LibraryTitle>拼图库</LibraryTitle>
+      <LibraryTitle>{t('game.pieceLibrary')}</LibraryTitle>
       
       <ControlsHint>
-        <strong>操作提示：</strong><br />
-        点击拼图选择 • 向右键旋转 • Shift键翻转
+        <strong>{t('game.operationTips')}：</strong><br />
+        {t('game.clickToSelect')} • {t('game.rightKeyRotate')} • {t('game.shiftKeyFlip')}
       </ControlsHint>
       
-             {[5, 4, 3, 2, 1].map(type => (
-         <PieceTypeSection key={type}>
-           <TypeTitle color={player.color}>
-             {type}格拼图 ({getRemainingCount(type)}/{getTotalCount(type)})
-           </TypeTitle>
+      {[5, 4, 3, 2, 1].map(type => (
+        <PieceTypeSection key={type}>
+          <TypeTitle color={player.color}>
+            {type}{t('game.blockPiece')} ({getRemainingCount(type)}/{getTotalCount(type)})
+          </TypeTitle>
           <PiecesGrid>
             {piecesByType[type]?.map(piece => (
               <PieceItem
@@ -209,24 +290,24 @@ const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({
                   }
                 }}
               >
-                                 <PieceShape 
-                   rows={piece.shape.length} 
-                   cols={piece.shape[0]?.length || 1}
-                 >
-                   <PieceGrid 
-                     rows={piece.shape.length} 
-                     cols={piece.shape[0]?.length || 1}
-                   >
-                     {piece.shape.map((row, rowIndex) =>
-                       row.map((cell, colIndex) => (
-                         <ShapeCell
-                           key={`${rowIndex}-${colIndex}`}
-                           isFilled={cell === 1}
-                         />
-                       ))
-                     )}
-                   </PieceGrid>
-                 </PieceShape>
+                <PieceShape 
+                  rows={piece.shape.length} 
+                  cols={piece.shape[0]?.length || 1}
+                >
+                  <PieceGrid 
+                    rows={piece.shape.length} 
+                    cols={piece.shape[0]?.length || 1}
+                  >
+                    {piece.shape.map((row, rowIndex) =>
+                      row.map((cell, colIndex) => (
+                        <ShapeCell
+                          key={`${rowIndex}-${colIndex}`}
+                          isFilled={cell === 1}
+                        />
+                      ))
+                    )}
+                  </PieceGrid>
+                </PieceShape>
               </PieceItem>
             ))}
           </PiecesGrid>

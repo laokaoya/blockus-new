@@ -7,10 +7,12 @@ import { getUniqueTransformations } from './pieceTransformations';
 export class AIPlayer {
   private color: PlayerColor;
   private colorIndex: number;
+  private difficulty: 'easy' | 'medium' | 'hard';
   
-  constructor(color: PlayerColor) {
+  constructor(color: PlayerColor, difficulty: 'easy' | 'medium' | 'hard' = 'medium') {
     this.color = color;
     this.colorIndex = this.getColorIndex(color);
+    this.difficulty = difficulty;
   }
   
   // 公共方法：获取颜色
@@ -71,16 +73,28 @@ export class AIPlayer {
       
       if (scoredPieces.length === 0) continue;
       
-      // 按分数排序，选择前3个最佳选项中的一个随机选择
+      // 按分数排序，根据难度选择不同数量的选项
       scoredPieces.sort((a, b) => b.score - a.score);
-      const topChoices = scoredPieces.slice(0, Math.min(3, scoredPieces.length));
       
-      // 随机选择一个，但偏向分数更高的
-      const randomIndex = this.getWeightedRandomIndex(topChoices.map(item => item.score));
-      const selectedPiece = topChoices[randomIndex];
-      
-      if (selectedPiece.bestMove) {
-        return selectedPiece.bestMove;
+      let topChoices: typeof scoredPieces;
+      switch (this.difficulty) {
+        case 'easy':
+          // 简单模式：随机选择前5个选项中的任意一个
+          topChoices = scoredPieces.slice(0, Math.min(5, scoredPieces.length));
+          const randomIndex = Math.floor(Math.random() * topChoices.length);
+          return topChoices[randomIndex].bestMove;
+        case 'medium':
+          // 中等模式：选择前3个最佳选项中的一个，偏向分数更高的
+          topChoices = scoredPieces.slice(0, Math.min(3, scoredPieces.length));
+          const weightedIndex = this.getWeightedRandomIndex(topChoices.map(item => item.score));
+          return topChoices[weightedIndex].bestMove;
+        case 'hard':
+          // 困难模式：总是选择最高分的选项
+          return scoredPieces[0].bestMove;
+        default:
+          topChoices = scoredPieces.slice(0, Math.min(3, scoredPieces.length));
+          const defaultIndex = this.getWeightedRandomIndex(topChoices.map(item => item.score));
+          return topChoices[defaultIndex].bestMove;
       }
     }
     
@@ -119,16 +133,49 @@ export class AIPlayer {
     const { x, y } = position;
     const { shape } = piece;
     
+    // 根据难度调整评分权重
+    const weights = this.getDifficultyWeights();
+    
     // 优先选择靠近中心的位置
-    score += this.getCenterDistanceScore(x, y, board.length);
+    score += this.getCenterDistanceScore(x, y, board.length) * weights.centerWeight;
     
     // 避免被对手包围
-    score += this.getSurroundingScore(board, x, y, shape);
+    score += this.getSurroundingScore(board, x, y, shape) * weights.surroundingWeight;
     
     // 优先选择能连接更多己方拼图的位置
-    score += this.getConnectionScore(board, x, y, shape);
+    score += this.getConnectionScore(board, x, y, shape) * weights.connectionWeight;
     
     return score;
+  }
+  
+  // 根据难度获取评分权重
+  private getDifficultyWeights() {
+    switch (this.difficulty) {
+      case 'easy':
+        return {
+          centerWeight: 0.5,    // 简单模式不太重视中心位置
+          surroundingWeight: 0.3, // 不太重视周围环境
+          connectionWeight: 0.2   // 不太重视连接性
+        };
+      case 'medium':
+        return {
+          centerWeight: 1.0,    // 中等模式正常权重
+          surroundingWeight: 1.0,
+          connectionWeight: 1.0
+        };
+      case 'hard':
+        return {
+          centerWeight: 1.5,    // 困难模式更重视策略
+          surroundingWeight: 1.3,
+          connectionWeight: 1.2
+        };
+      default:
+        return {
+          centerWeight: 1.0,
+          surroundingWeight: 1.0,
+          connectionWeight: 1.0
+        };
+    }
   }
   
   // 计算到中心的距离分数
