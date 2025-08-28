@@ -39,7 +39,8 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  overflow-y: auto;
+  padding: 20px;
   z-index: 1000;
   animation: ${css`${fadeIn} 0.8s ease-out`};
 `;

@@ -44,6 +44,10 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     if (savedLanguage && (savedLanguage === 'zh' || savedLanguage === 'en')) {
       setCurrentLanguage(savedLanguage);
       i18n.setLanguage(savedLanguage);
+    } else {
+      // 如果没有保存的语言设置，使用默认的英文
+      setCurrentLanguage('en');
+      i18n.setLanguage('en');
     }
   }, []);
 

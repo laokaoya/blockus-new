@@ -9,7 +9,7 @@ export const languages = {
 };
 
 class I18nManager {
-  private currentLanguage: Language = 'zh';
+  private currentLanguage: Language = 'en';
 
   constructor() {
     // 从localStorage加载语言设置
@@ -17,8 +17,8 @@ class I18nManager {
     if (savedLanguage && (savedLanguage === 'zh' || savedLanguage === 'en')) {
       this.currentLanguage = savedLanguage;
     } else {
-      // 默认使用中文
-      this.currentLanguage = 'zh';
+      // 默认使用英文
+      this.currentLanguage = 'en';
     }
   }
 

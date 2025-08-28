@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useLanguage } from '../contexts/LanguageContext';
+import GameRulesModal from './GameRulesModal';
 
 interface UserStats {
   totalGames: number;
@@ -209,6 +210,8 @@ const MainLobby: React.FC = () => {
     bestScore: 0
   });
 
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+
   // 从localStorage加载用户数据
   useEffect(() => {
     const savedStats = localStorage.getItem('userStats');
@@ -239,6 +242,14 @@ const MainLobby: React.FC = () => {
 
   const handleViewStats = () => {
     navigate('/statistics');
+  };
+
+  const handleViewRules = () => {
+    setIsRulesModalOpen(true);
+  };
+
+  const handleCloseRules = () => {
+    setIsRulesModalOpen(false);
   };
 
   return (
@@ -293,10 +304,18 @@ const MainLobby: React.FC = () => {
         <ActionButton onClick={handleViewStats}>
           {t('statistics.viewDetails')}
         </ActionButton>
+        <ActionButton onClick={handleViewRules}>
+          📋 {t('menu.viewRules')}
+        </ActionButton>
         <ActionButton onClick={handleSettings}>
           {t('menu.settings')}
         </ActionButton>
       </BottomActions>
+
+      <GameRulesModal 
+        isOpen={isRulesModalOpen} 
+        onClose={handleCloseRules} 
+      />
     </LobbyContainer>
   );
 };

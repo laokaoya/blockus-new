@@ -16,9 +16,10 @@ import { useLanguage } from '../contexts/LanguageContext';
 const GameContainer = styled.div`
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 20px;
+  overflow-y: auto;
   
   @media (max-width: 768px) {
     padding: 10px;

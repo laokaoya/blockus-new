@@ -98,7 +98,7 @@ const SectionTitle = styled.h2`
   margin: 0 0 20px 0;
   color: #333;
   font-size: 1.5rem;
-  text-align: center;
+  text-align: left;
 `;
 
 const SettingItem = styled.div`
@@ -240,6 +240,7 @@ const RulesSection = styled.div`
   padding: 30px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   height: fit-content;
+  text-align: left;
   
   @media (max-width: 768px) {
     padding: 20px;
@@ -251,10 +252,12 @@ const RulesList = styled.ul`
   padding-left: 20px;
   color: #333;
   line-height: 1.6;
+  text-align: left;
 `;
 
 const RuleItem = styled.li`
   margin-bottom: 12px;
+  text-align: left;
   
   &:last-child {
     margin-bottom: 0;
