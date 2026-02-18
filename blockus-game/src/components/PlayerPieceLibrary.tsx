@@ -115,7 +115,7 @@ const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({
   const { t } = useLanguage();
   
   const handlePieceClick = (piece: Piece) => {
-    if (!piece.isUsed) {
+    if (!piece.isUsed && selectedPiece?.id !== piece.id) {
       onPieceSelect(piece);
     }
   };
@@ -135,8 +135,10 @@ const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({
               onClick={() => handlePieceClick(piece)}
               onMouseDown={(e) => {
                 if (!piece.isUsed && onStartDrag) {
-                  onPieceSelect(piece);
-                  onStartDrag(piece, e);
+                  if (selectedPiece?.id !== piece.id) {
+                    onPieceSelect(piece);
+                  }
+                  onStartDrag(isSelected && selectedPiece ? selectedPiece : piece, e);
                 }
               }}
             >
