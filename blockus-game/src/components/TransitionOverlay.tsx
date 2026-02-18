@@ -52,7 +52,7 @@ const OverlayContainer = styled.div<{ $isActive: boolean }>`
   align-items: center;
   background: black;
   opacity: 0;
-  transition: opacity 0.1s ease;
+  transition: opacity 0.4s ease;
 
   ${props => props.$isActive && css`
     opacity: 1;
@@ -111,11 +111,11 @@ const LoadingText = styled.div`
   letter-spacing: 5px;
   z-index: 10;
   text-shadow: 0 0 10px #fff;
-  animation: blink 0.2s infinite;
+  animation: blink 0.8s ease-in-out infinite;
 
   @keyframes blink {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+    50% { opacity: 0.3; }
   }
 `;
 
@@ -153,7 +153,7 @@ const TransitionOverlay: React.FC = () => {
 
     const timer = setTimeout(() => {
       setIsActive(false);
-    }, 600); // 动画持续时间
+    }, 1400);
 
     return () => clearTimeout(timer);
   }, [location]); // 监听 location 变化
