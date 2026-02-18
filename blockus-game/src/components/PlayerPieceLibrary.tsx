@@ -18,33 +18,30 @@ const LibraryContainer = styled.div`
   flex-direction: row;
   align-items: center;
   background: transparent;
-  padding: 0 20px;
+  padding: 0 10px;
   width: 100%;
-  max-width: 1200px;
   height: 100%;
-  gap: 20px;
+  gap: 0;
   
-  /* 横向滚动容器 */
   overflow-x: auto;
   overflow-y: hidden;
   
-  /* 隐藏滚动条 */
   &::-webkit-scrollbar {
-    height: 6px;
+    height: 4px;
   }
   &::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    border-radius: 2px;
   }
 `;
 
 const PiecesGrid = styled.div`
   display: flex;
   flex-direction: row;
-  gap: 12px;
+  gap: 8px;
   height: 100%;
   align-items: center;
-  padding: 10px 0;
+  padding: 8px 0;
 `;
 
 const PieceItem = styled.div<{ 
@@ -55,8 +52,8 @@ const PieceItem = styled.div<{
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 80px; /* Reduced from 100px */
-  height: 80px; /* Reduced from 100px */
+  min-width: 64px;
+  height: 64px;
   background: ${props => props.isUsed ? 'transparent' : 'rgba(255, 255, 255, 0.05)'};
   border: 1px solid ${props => props.isSelected ? 'var(--primary-color)' : 'rgba(255, 255, 255, 0.1)'};
   border-radius: 8px; /* Slightly sharper corners */

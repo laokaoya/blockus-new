@@ -24,10 +24,14 @@ const ControlsContainer = styled.div`
   min-height: auto;
   max-height: none;
   overflow: visible;
-  pointer-events: none; /* Allow clicks to pass through empty areas */
-  
-  & > * {
-    pointer-events: auto; /* Re-enable clicks for children */
+
+  @media (max-width: 768px) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    gap: 0;
+    width: 100%;
+    padding: 8px 0;
   }
 `;
 
@@ -40,12 +44,24 @@ const GameStatus = styled.div`
   display: flex;
   flex-direction: column;
   gap: 15px;
+
+  @media (max-width: 768px) {
+    flex-direction: row;
+    gap: 0;
+    width: 100%;
+    justify-content: space-around;
+    align-items: center;
+  }
 `;
 
 const StatusSection = styled.div`
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+
+  @media (max-width: 768px) {
+    align-items: center;
+  }
 `;
 
 const StatusTitle = styled.h3`
@@ -57,6 +73,12 @@ const StatusTitle = styled.h3`
   font-family: 'Rajdhani', sans-serif;
   font-weight: 600;
   opacity: 0.8;
+
+  @media (max-width: 768px) {
+    font-size: 11px;
+    margin: 0 0 2px 0;
+    letter-spacing: 1px;
+  }
 `;
 
 const StatusText = styled.div<{ isCurrentTurn: boolean }>`
@@ -65,6 +87,10 @@ const StatusText = styled.div<{ isCurrentTurn: boolean }>`
   font-weight: ${props => props.isCurrentTurn ? 'bold' : '500'};
   text-shadow: ${props => props.isCurrentTurn ? '0 0 15px rgba(16, 185, 129, 0.4)' : 'none'};
   font-family: 'Rajdhani', sans-serif;
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+  }
 `;
 
 const ScoreValue = styled.div`
@@ -80,6 +106,10 @@ const ScoreValue = styled.div`
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.3));
+
+  @media (max-width: 768px) {
+    font-size: 28px;
+  }
 `;
 
 const TimeDisplay = styled.div<{ timeLeft: number }>`
@@ -89,19 +119,20 @@ const TimeDisplay = styled.div<{ timeLeft: number }>`
   color: ${props => {
     if (props.timeLeft <= 5) return '#ef4444';
     if (props.timeLeft <= 10) return '#f59e0b';
-    return 'rgba(255, 255, 255, 0.1)'; /* Ghost style for normal time */
+    return 'rgba(255, 255, 255, 0.1)';
   }};
   text-align: right;
   line-height: 1;
-  
-  /* Text stroke effect for ghost style */
   -webkit-text-stroke: ${props => props.timeLeft > 10 ? '1px rgba(255, 255, 255, 0.3)' : 'none'};
-  
   text-shadow: 0 0 10px ${props => {
     if (props.timeLeft <= 5) return 'rgba(239, 68, 68, 0.4)';
     if (props.timeLeft <= 10) return 'rgba(245, 158, 11, 0.4)';
     return 'none';
   }};
+
+  @media (max-width: 768px) {
+    font-size: 28px;
+  }
 `;
 
 const ButtonsContainer = styled.div`

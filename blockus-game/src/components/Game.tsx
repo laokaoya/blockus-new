@@ -63,6 +63,7 @@ const GameContent = styled.div`
   }
 `;
 
+
 const LeftPanel = styled.div`
   width: 280px;
   display: flex;
@@ -81,14 +82,15 @@ const LeftPanel = styled.div`
   @media (max-width: 768px) {
     width: 100%;
     height: auto;
-    max-height: 120px; // Limit height on mobile
+    max-height: 90px;
     flex-direction: row;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 10px;
+    padding: 6px 10px;
     overflow-x: auto;
     overflow-y: hidden;
     background: rgba(15, 23, 42, 0.4);
+    flex-shrink: 0;
   }
 `;
 
@@ -100,6 +102,10 @@ const BoardArea = styled.div`
   position: relative;
   padding: 20px;
   overflow: hidden;
+
+  @media (max-width: 768px) {
+    padding: 8px;
+  }
 `;
 
 const RightPanel = styled.div`
@@ -108,15 +114,26 @@ const RightPanel = styled.div`
   flex-direction: column;
   padding: 20px;
   z-index: 10;
-  pointer-events: none; // Allow clicks to pass through empty areas
+  pointer-events: none;
+
+  & > * {
+    pointer-events: auto;
+  }
+
+  @media (max-width: 1024px) {
+    width: 160px;
+    padding: 12px;
+  }
 
   @media (max-width: 768px) {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: auto;
-    padding: 0;
-    pointer-events: none;
+    width: 100%;
+    flex-direction: row;
+    padding: 0 10px;
+    height: auto;
+    order: -1;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
 `;
 
@@ -144,24 +161,10 @@ const PieceLibraryWrapper = styled.div`
   height: 100%;
   overflow: hidden;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
 `;
 
-const SettleActionArea = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-left: 20px;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  height: 70%;
-  min-width: 140px;
-
-  @media (max-width: 768px) {
-    min-width: 100px;
-    padding-left: 10px;
-  }
-`;
 
 // ScoreDisplay removed
 // const ScoreDisplay = styled.div...
@@ -407,10 +410,6 @@ const SinglePlayerGame: React.FC = () => {
                 onStartDrag={handleStartDrag}
               />
             </PieceLibraryWrapper>
-            
-            <SettleActionArea>
-              {/* Settle button removed, auto-settle logic handled in hooks */}
-            </SettleActionArea>
           </BottomDock>
         </GameContainer>
       )}
@@ -613,10 +612,6 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
                 />
               )}
             </PieceLibraryWrapper>
-            
-            <SettleActionArea>
-              {/* Settle button removed, auto-settle logic handled in hooks */}
-            </SettleActionArea>
           </BottomDock>
 
           {isSpectateMode && (
