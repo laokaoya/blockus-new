@@ -165,9 +165,59 @@ const PieceLibraryWrapper = styled.div`
   align-items: center;
 `;
 
+const PieceActions = styled.div<{ $visible: boolean }>`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 12px 0 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  margin-right: 12px;
+  height: 70%;
+  justify-content: center;
+  opacity: ${props => props.$visible ? 1 : 0.3};
+  pointer-events: ${props => props.$visible ? 'auto' : 'none'};
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
 
-// ScoreDisplay removed
-// const ScoreDisplay = styled.div...
+  @media (max-width: 768px) {
+    padding: 0 8px 0 0;
+    margin-right: 8px;
+    gap: 4px;
+  }
+`;
+
+const ActionBtn = styled.button`
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  &:active {
+    transform: scale(0.9);
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  @media (max-width: 768px) {
+    width: 38px;
+    height: 38px;
+    font-size: 16px;
+  }
+`;
 
 // --- UI Components ---
 
@@ -402,6 +452,16 @@ const SinglePlayerGame: React.FC = () => {
           </GameContent>
 
           <BottomDock>
+            <PieceActions $visible={!!gameState.selectedPiece}>
+              <ActionBtn
+                onClick={() => { soundManager.rotatePiece(); rotateSelectedPiece(); }}
+                title={t('game.rotate') || 'Rotate'}
+              >↻</ActionBtn>
+              <ActionBtn
+                onClick={() => { soundManager.flipPiece(); flipSelectedPiece(); }}
+                title={t('game.flip') || 'Flip'}
+              >⇔</ActionBtn>
+            </PieceActions>
             <PieceLibraryWrapper>
               <PlayerPieceLibrary 
                 player={player}
@@ -602,6 +662,16 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
           </GameContent>
 
           <BottomDock>
+            <PieceActions $visible={!!gameState.selectedPiece && !isSpectateMode}>
+              <ActionBtn
+                onClick={() => { soundManager.rotatePiece(); rotateSelectedPiece(); }}
+                title={t('game.rotate') || 'Rotate'}
+              >↻</ActionBtn>
+              <ActionBtn
+                onClick={() => { soundManager.flipPiece(); flipSelectedPiece(); }}
+                title={t('game.flip') || 'Flip'}
+              >⇔</ActionBtn>
+            </PieceActions>
             <PieceLibraryWrapper>
               {myPlayer && (
                 <PlayerPieceLibrary 
