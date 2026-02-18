@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+build/
+dist/
+**/build/
+**/dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel
+
+# Logs
+*.log
+npm-debug.log*
+
+# Generated solution docs
+blockus-game/COMPLETE_SOLUTION.md
+blockus-game/FINAL_WORKING_SOLUTION.md
+blockus-game/FIREBASE_SETUP.md
+blockus-game/MULTIPLAYER_FEATURES.md
+blockus-game/REAL_CROSS_DEVICE_SOLUTION.md
+blockus-game/SIMPLE_CROSS_DEVICE_SOLUTION.md
+blockus-game/SIMPLE_SOLUTION.md
+blockus-game/ULTIMATE_SOLUTION.md
+blockus-game/WORKING_CROSS_DEVICE_SOLUTION.md
+
+# Old duplicate server
+blockus-game/server/

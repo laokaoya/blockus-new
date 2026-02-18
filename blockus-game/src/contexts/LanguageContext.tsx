@@ -23,6 +23,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   const handleLanguageChange = (language: Language) => {
     i18n.setLanguage(language);
     setCurrentLanguage(language);
+    localStorage.setItem('languageSetByUser', 'true');
     
     // 通知所有注册的回调
     languageChangeCallbacks.forEach(callback => callback(language));
@@ -40,14 +41,17 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
 
   // 从localStorage加载语言设置
   useEffect(() => {
+    const userExplicitlySet = localStorage.getItem('languageSetByUser');
     const savedLanguage = localStorage.getItem('language') as Language;
-    if (savedLanguage && (savedLanguage === 'zh' || savedLanguage === 'en')) {
+    
+    if (userExplicitlySet === 'true' && savedLanguage && (savedLanguage === 'zh' || savedLanguage === 'en')) {
       setCurrentLanguage(savedLanguage);
       i18n.setLanguage(savedLanguage);
     } else {
-      // 如果没有保存的语言设置，使用默认的英文
-      setCurrentLanguage('en');
-      i18n.setLanguage('en');
+      // 用户从未手动选择过语言，强制使用中文
+      setCurrentLanguage('zh');
+      i18n.setLanguage('zh');
+      localStorage.setItem('language', 'zh');
     }
   }, []);
 

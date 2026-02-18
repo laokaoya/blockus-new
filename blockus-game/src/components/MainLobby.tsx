@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useRoom } from '../contexts/RoomContext';
 import GameRulesModal from './GameRulesModal';
+import RoomList from './RoomList';
+import soundManager from '../utils/soundManager';
 
 interface UserStats {
   totalGames: number;
@@ -13,194 +17,239 @@ interface UserStats {
 }
 
 const LobbyContainer = styled.div`
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  padding: 20px;
+  background: radial-gradient(circle at 50% 0%, rgba(30, 41, 59, 0.3) 0%, transparent 70%);
+  overflow: hidden;
+  
+  @media (max-width: 768px) {
+    padding: 16px;
+    overflow-y: auto;
+  }
+`;
+
+const TopBar = styled.div`
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-`;
-
-const Header = styled.div`
-  text-align: center;
-  margin-bottom: 40px;
-  color: white;
-`;
-
-const Title = styled.h1`
-  font-size: 3rem;
-  margin: 0;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-  
-  @media (max-width: 768px) {
-    font-size: 2.5rem;
-  }
-  
-  @media (max-width: 480px) {
-    font-size: 2rem;
-  }
-`;
-
-const Subtitle = styled.p`
-  font-size: 1.2rem;
-  margin: 10px 0 0 0;
-  opacity: 0.9;
-  
-  @media (max-width: 768px) {
-    font-size: 1.1rem;
-  }
-  
-  @media (max-width: 480px) {
-    font-size: 1rem;
-  }
-`;
-
-const UserInfoCard = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
-  padding: 30px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  text-align: center;
   margin-bottom: 30px;
-  min-width: 300px;
+  padding: 0 10px;
+`;
+
+const LogoSection = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const Logo = styled.h1`
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: 2px;
+  background: linear-gradient(to right, #fff, #a5b4fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
   
   @media (max-width: 768px) {
-    padding: 20px;
-    min-width: 280px;
+    font-size: 1.8rem;
   }
 `;
 
-const UserAvatar = styled.div`
-  width: 80px;
-  height: 80px;
+const SubLogo = styled.span`
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  opacity: 0.8;
+`;
+
+const UserSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+`;
+
+const UserProfileCompact = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 16px 6px 6px;
+  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+`;
+
+const AvatarSmall = styled.div<{ image?: string }>`
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #FFD700, #FFA500);
-  margin: 0 auto 20px;
+  background: ${props => props.image ? `url(${props.image}) center/cover` : 'linear-gradient(135deg, #6366f1, #8b5cf6)'};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
-  color: white;
-  font-weight: bold;
-`;
-
-const UserName = styled.h2`
-  margin: 0 0 15px 0;
-  color: #333;
-  font-size: 1.5rem;
-`;
-
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-  margin-top: 20px;
-`;
-
-const StatItem = styled.div`
-  text-align: center;
-`;
-
-const StatValue = styled.div`
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #667eea;
-`;
-
-const StatLabel = styled.div`
-  font-size: 0.9rem;
-  color: #666;
-  margin-top: 5px;
-`;
-
-const GameOptions = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  max-width: 800px;
-  width: 100%;
-  margin-bottom: 30px;
-  
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 15px;
-  }
-`;
-
-const GameOptionCard = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
-  padding: 30px;
-  text-align: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-  }
-  
-  @media (max-width: 768px) {
-    padding: 20px;
-  }
-`;
-
-const OptionIcon = styled.div`
-  font-size: 3rem;
-  margin-bottom: 20px;
-`;
-
-const OptionTitle = styled.h3`
-  margin: 0 0 15px 0;
-  color: #333;
-  font-size: 1.3rem;
-`;
-
-const OptionDescription = styled.p`
-  margin: 0;
-  color: #666;
-  font-size: 0.9rem;
-  line-height: 1.4;
-`;
-
-const BottomActions = styled.div`
-  display: flex;
-  gap: 20px;
-  margin-top: 20px;
-  
-  @media (max-width: 768px) {
-    flex-direction: column;
-    gap: 15px;
-    align-items: center;
-  }
-`;
-
-const ActionButton = styled.button`
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50px;
-  padding: 12px 24px;
   font-size: 1rem;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+`;
+
+const UserInfoCompact = styled.div`
+  display: flex;
+  flex-direction: column;
+  
+  @media (max-width: 768px) {
+    display: none;
+  }
+`;
+
+const UserNameCompact = styled.span`
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+`;
+
+const UserStatsCompact = styled.span`
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-family: 'Rajdhani', sans-serif;
+`;
+
+const IconButton = styled.button`
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  font-size: 1.2rem;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.1);
     transform: translateY(-2px);
   }
+`;
+
+const ContentGrid = styled.div`
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 30px;
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  height: calc(100vh - 120px); /* Subtract header height */
   
-  @media (max-width: 768px) {
-    padding: 10px 20px;
-    font-size: 0.9rem;
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    height: auto;
+  }
+`;
+
+const MenuPanel = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const MenuButton = styled.button<{ $primary?: boolean }>`
+  background: ${props => props.$primary 
+    ? 'var(--primary-gradient)' 
+    : 'rgba(30, 41, 59, 0.6)'};
+  border: 1px solid ${props => props.$primary ? 'transparent' : 'rgba(255, 255, 255, 0.1)'};
+  padding: 20px 24px;
+  border-radius: 16px;
+  color: white;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  backdrop-filter: blur(10px);
+  
+  &:hover {
+    transform: translateX(5px);
+    background: ${props => props.$primary 
+      ? 'var(--primary-gradient)' 
+      : 'rgba(30, 41, 59, 0.8)'};
+    border-color: ${props => props.$primary ? 'transparent' : 'var(--primary-color)'};
+    box-shadow: ${props => props.$primary 
+      ? '0 0 30px rgba(99, 102, 241, 0.4)' 
+      : '0 0 20px rgba(0, 0, 0, 0.2)'};
+  }
+`;
+
+const ButtonIcon = styled.span`
+  font-size: 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const ButtonContent = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const ButtonTitle = styled.span`
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+`;
+
+const ButtonDesc = styled.span`
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+`;
+
+const RoomListWrapper = styled.div`
+  height: 100%;
+  overflow: hidden;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  
+  /* Make RoomList take full height */
+  & > div {
+    height: 100%;
+    margin: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
   }
 `;
 
 const MainLobby: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user, isAuthenticated } = useAuth();
+  const { currentRoom } = useRoom();
   
   const [userStats, setUserStats] = useState<UserStats>({
     totalGames: 0,
@@ -212,16 +261,39 @@ const MainLobby: React.FC = () => {
 
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
 
-  // 从localStorage加载用户数据
+  // 从用户数据加载统计信息
   useEffect(() => {
-    const savedStats = localStorage.getItem('userStats');
-    if (savedStats) {
-      setUserStats(JSON.parse(savedStats));
+    if (user) {
+      setUserStats({
+        totalGames: user.stats.totalGames,
+        totalWins: user.stats.totalWins,
+        totalScore: user.stats.totalScore,
+        winRate: user.stats.winRate,
+        bestScore: user.stats.bestScore
+      });
     }
-  }, []);
+  }, [user]);
+
+  // 如果用户未登录，重定向到欢迎页面
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/welcome');
+    }
+  }, [isAuthenticated, navigate]);
+
+  // 如果用户在房间中，重定向到房间页面
+  useEffect(() => {
+    if (currentRoom && currentRoom.id) {
+      if (currentRoom.status === 'playing') {
+        navigate(`/game?roomId=${currentRoom.id}`);
+      } else {
+        navigate(`/room/${currentRoom.id}`);
+      }
+    }
+  }, [currentRoom, navigate]);
 
   const handleQuickStart = () => {
-    // 设置默认游戏设置
+    soundManager.buttonClick();
     const defaultSettings = {
       aiDifficulty: 'medium',
       timeLimit: 60,
@@ -229,88 +301,92 @@ const MainLobby: React.FC = () => {
       soundEnabled: true
     };
     localStorage.setItem('gameSettings', JSON.stringify(defaultSettings));
-    navigate('/game');
+    navigate('/game', { state: { showTransition: true } });
   };
 
   const handleCustomGame = () => {
+    soundManager.buttonClick();
     navigate('/game-settings');
   };
 
+  const handleViewProfile = () => {
+    soundManager.buttonClick();
+    navigate('/profile');
+  };
+
   const handleSettings = () => {
+    soundManager.buttonClick();
     navigate('/settings');
   };
 
-  const handleViewStats = () => {
-    navigate('/statistics');
-  };
-
   const handleViewRules = () => {
+    soundManager.buttonClick();
     setIsRulesModalOpen(true);
   };
 
   const handleCloseRules = () => {
+    soundManager.buttonClick();
     setIsRulesModalOpen(false);
   };
 
   return (
     <LobbyContainer>
-      <Header>
-        <Title>{t('game.title')}</Title>
-        <Subtitle>{t('game.description')}</Subtitle>
-      </Header>
+      <TopBar>
+        <LogoSection>
+          <Logo>{t('game.gameName')}</Logo>
+          <SubLogo>{t('game.description')}</SubLogo>
+        </LogoSection>
+        
+        <UserSection>
+          <UserProfileCompact onClick={handleViewProfile} onMouseEnter={() => soundManager.buttonHover()}>
+            <AvatarSmall image={user?.profile.avatar}>
+              {!user?.profile.avatar && user?.profile.nickname?.charAt(0).toUpperCase()}
+            </AvatarSmall>
+            <UserInfoCompact>
+              <UserNameCompact>{user?.profile.nickname || t('player.player')}</UserNameCompact>
+              <UserStatsCompact>
+                {t('statistics.totalWins')}: {userStats.totalWins} | {t('statistics.winRate')}: {userStats.winRate.toFixed(0)}%
+              </UserStatsCompact>
+            </UserInfoCompact>
+          </UserProfileCompact>
+          
+          <IconButton onClick={handleSettings} onMouseEnter={() => soundManager.buttonHover()} title={t('menu.settings')}>
+            ⚙️
+          </IconButton>
+        </UserSection>
+      </TopBar>
 
-      <UserInfoCard>
-        <UserAvatar>👤</UserAvatar>
-        <UserName>{t('player.player')}</UserName>
-        <StatsGrid>
-          <StatItem>
-            <StatValue>{userStats.totalGames}</StatValue>
-            <StatLabel>{t('statistics.totalGames')}</StatLabel>
-          </StatItem>
-          <StatItem>
-            <StatValue>{userStats.totalWins}</StatValue>
-            <StatLabel>{t('statistics.totalWins')}</StatLabel>
-          </StatItem>
-          <StatItem>
-            <StatValue>{userStats.winRate.toFixed(1)}%</StatValue>
-            <StatLabel>{t('statistics.winRate')}</StatLabel>
-          </StatItem>
-          <StatItem>
-            <StatValue>{userStats.bestScore}</StatValue>
-            <StatLabel>{t('statistics.bestScore')}</StatLabel>
-          </StatItem>
-        </StatsGrid>
-      </UserInfoCard>
+      <ContentGrid>
+        <MenuPanel>
+          <MenuButton onClick={handleQuickStart} $primary onMouseEnter={() => soundManager.buttonHover()}>
+            <ButtonIcon>🚀</ButtonIcon>
+            <ButtonContent>
+              <ButtonTitle>{t('lobby.singlePlayer')}</ButtonTitle>
+              <ButtonDesc>{t('lobby.singlePlayerDesc')}</ButtonDesc>
+            </ButtonContent>
+          </MenuButton>
 
-      <GameOptions>
-        <GameOptionCard onClick={handleQuickStart}>
-          <OptionIcon>🚀</OptionIcon>
-          <OptionTitle>{t('game.quickStart')}</OptionTitle>
-          <OptionDescription>
-            {t('game.quickStartDesc')}
-          </OptionDescription>
-        </GameOptionCard>
+          <MenuButton onClick={handleCustomGame} onMouseEnter={() => soundManager.buttonHover()}>
+            <ButtonIcon>⚔️</ButtonIcon>
+            <ButtonContent>
+              <ButtonTitle>{t('lobby.customGame')}</ButtonTitle>
+              <ButtonDesc>{t('lobby.customGameDesc')}</ButtonDesc>
+            </ButtonContent>
+          </MenuButton>
 
-        <GameOptionCard onClick={handleCustomGame}>
-          <OptionIcon>⚙️</OptionIcon>
-          <OptionTitle>{t('game.customGame')}</OptionTitle>
-          <OptionDescription>
-            {t('game.customGameDesc')}
-          </OptionDescription>
-        </GameOptionCard>
-      </GameOptions>
+          <MenuButton onClick={handleViewRules} onMouseEnter={() => soundManager.buttonHover()}>
+            <ButtonIcon>📖</ButtonIcon>
+            <ButtonContent>
+              <ButtonTitle>{t('menu.viewRules')}</ButtonTitle>
+              <ButtonDesc>{t('help.objective')}</ButtonDesc>
+            </ButtonContent>
+          </MenuButton>
+        </MenuPanel>
 
-      <BottomActions>
-        <ActionButton onClick={handleViewStats}>
-          {t('statistics.viewDetails')}
-        </ActionButton>
-        <ActionButton onClick={handleViewRules}>
-          📋 {t('menu.viewRules')}
-        </ActionButton>
-        <ActionButton onClick={handleSettings}>
-          {t('menu.settings')}
-        </ActionButton>
-      </BottomActions>
+        <RoomListWrapper>
+          <RoomList />
+        </RoomListWrapper>
+      </ContentGrid>
 
       <GameRulesModal 
         isOpen={isRulesModalOpen} 

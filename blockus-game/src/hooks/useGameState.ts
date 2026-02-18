@@ -6,6 +6,7 @@ import { PIECE_SHAPES, PIECE_COUNTS, PLAYER_COLORS, PLAYER_NAMES } from '../cons
 import { canPlacePiece, placePiece, calculateScore, isGameFinished, getWinner } from '../utils/gameEngine';
 import { AIPlayer } from '../utils/aiPlayer';
 import { rotatePiece, flipPiece } from '../utils/pieceTransformations';
+import soundManager from '../utils/soundManager';
 
 const BOARD_SIZE = 20;
 const DEFAULT_TURN_TIME_LIMIT = 60; // 默认时间限制改为60秒
@@ -61,6 +62,7 @@ export function useGameState() {
   const [gameState, setGameState] = useState<GameState>(() => initializeGameState());
   const [aiPlayers, setAiPlayers] = useState<AIPlayer[]>([]);
   const [thinkingAI, setThinkingAI] = useState<string | null>(null); // AI思考状态
+  const [lastAIMove, setLastAIMove] = useState<Array<{ x: number; y: number }>>([]); // AI最近放置的格子
   
   // 初始化AI玩家
   useEffect(() => {
@@ -137,6 +139,7 @@ export function useGameState() {
   
   // 选择拼图
   const selectPiece = useCallback((piece: Piece | null) => {
+    if (piece) soundManager.selectPiece();
     setGameState(prev => ({
       ...prev,
       selectedPiece: piece
@@ -147,7 +150,7 @@ export function useGameState() {
   const rotateSelectedPiece = useCallback(() => {
     setGameState(prev => {
       if (!prev.selectedPiece) return prev;
-      
+      soundManager.rotatePiece();
       return {
         ...prev,
         selectedPiece: rotatePiece(prev.selectedPiece)
@@ -159,7 +162,7 @@ export function useGameState() {
   const flipSelectedPiece = useCallback(() => {
     setGameState(prev => {
       if (!prev.selectedPiece) return prev;
-      
+      soundManager.flipPiece();
       return {
         ...prev,
         selectedPiece: flipPiece(prev.selectedPiece)
@@ -167,6 +170,40 @@ export function useGameState() {
     });
   }, []);
   
+  // 检查玩家是否可以继续放置拼图
+  const canPlayerContinue = useCallback((player: Player) => {
+    if (player.isSettled) return false;
+    
+    const availablePieces = player.pieces.filter(p => !p.isUsed);
+    if (availablePieces.length === 0) return false;
+    
+    for (const piece of availablePieces) {
+      for (let y = 0; y < gameState.board.length; y++) {
+        for (let x = 0; x < gameState.board[y].length; x++) {
+          const colorIndex = gameState.players.findIndex(p => p.id === player.id) + 1;
+          if (canPlacePiece(gameState.board, piece, { x, y }, colorIndex)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }, [gameState.board, gameState.players]);
+
+  // 查找下一个活跃玩家（未结算的）
+  const findNextActivePlayer = useCallback((currentIndex: number, players: Player[]): number => {
+    let nextIndex = (currentIndex + 1) % players.length;
+    let attempts = 0;
+    
+    // 最多尝试players.length次，避免无限循环
+    while (players[nextIndex].isSettled && attempts < players.length) {
+      nextIndex = (nextIndex + 1) % players.length;
+      attempts++;
+    }
+    
+    return nextIndex;
+  }, []);
+
   // 放置拼图
   const placePieceOnBoard = useCallback((position: Position) => {
     if (!gameState.selectedPiece) return false;
@@ -178,8 +215,11 @@ export function useGameState() {
     if (!currentPlayer.isCurrentTurn) return false;
     
     if (!canPlacePiece(gameState.board, gameState.selectedPiece, position, colorIndex)) {
+      soundManager.invalidMove();
       return false;
     }
+    
+    soundManager.placePiece();
     
     // 放置拼图
     const newBoard = placePiece(gameState.board, gameState.selectedPiece, position, colorIndex);
@@ -241,7 +281,7 @@ export function useGameState() {
     }));
     
     return true;
-  }, [gameState]);
+  }, [gameState, findNextActivePlayer, gameSettings.timeLimit]);
   
     // AI回合
   const processAITurn = useCallback(() => {
@@ -252,6 +292,7 @@ export function useGameState() {
     
     // 设置AI思考状态
     setThinkingAI(currentPlayer.color);
+    soundManager.aiTurn();
     
     // AI思考时间根据回合数调整：前8回合2-3秒，之后3-5秒
     let thinkingTime;
@@ -307,6 +348,11 @@ export function useGameState() {
           }
         }
         
+        // AI放置音效和高亮提示
+        soundManager.aiPlace();
+        setLastAIMove(boardChanges.map(c => ({ x: c.x, y: c.y })));
+        setTimeout(() => setLastAIMove([]), 1200); // 1.2秒后清除高亮
+        
         setGameState(prev => ({
           ...prev,
           board: newBoard,
@@ -345,13 +391,14 @@ export function useGameState() {
       // 清除AI思考状态
       setThinkingAI(null);
     }, thinkingTime);
-  }, [gameState, aiPlayers]);
+  }, [gameState, aiPlayers, findNextActivePlayer, gameSettings.timeLimit]);
   
   // 结算玩家
   const settlePlayer = useCallback(() => {
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     
     if (currentPlayer.color !== 'red') return;
+    soundManager.settle();
     
     const newPlayers = gameState.players.map(player => 
       player.id === currentPlayer.id ? { ...player, isSettled: true } : player
@@ -371,41 +418,7 @@ export function useGameState() {
       timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? gameSettings.timeLimit : prev.timeLeft,
       turnCount: prev.turnCount + 1 // 增加回合计数
     }));
-  }, [gameState]);
-  
-  // 检查玩家是否可以继续放置拼图
-  const canPlayerContinue = useCallback((player: Player) => {
-    if (player.isSettled) return false;
-    
-    const availablePieces = player.pieces.filter(p => !p.isUsed);
-    if (availablePieces.length === 0) return false;
-    
-    for (const piece of availablePieces) {
-      for (let y = 0; y < gameState.board.length; y++) {
-        for (let x = 0; x < gameState.board[y].length; x++) {
-          const colorIndex = gameState.players.findIndex(p => p.id === player.id) + 1;
-          if (canPlacePiece(gameState.board, piece, { x, y }, colorIndex)) {
-            return true;
-          }
-        }
-      }
-    }
-    return false;
-  }, [gameState.board, gameState.players]);
-  
-  // 查找下一个活跃玩家（未结算的）
-  const findNextActivePlayer = useCallback((currentIndex: number, players: Player[]): number => {
-    let nextIndex = (currentIndex + 1) % players.length;
-    let attempts = 0;
-    
-    // 最多尝试players.length次，避免无限循环
-    while (players[nextIndex].isSettled && attempts < players.length) {
-      nextIndex = (nextIndex + 1) % players.length;
-      attempts++;
-    }
-    
-    return nextIndex;
-  }, []);
+  }, [gameState, findNextActivePlayer, gameSettings.timeLimit]);
   
   // 重置游戏
   const resetGame = useCallback(() => {
@@ -426,12 +439,15 @@ export function useGameState() {
     
     // 只有人类玩家（红色）有时间限制
     if (currentPlayer.color !== 'red') return;
+    if (currentPlayer.isSettled) return;
     
     const timer = setInterval(() => {
       setGameState(prev => {
+        const currPlayer = prev.players[prev.currentPlayerIndex];
+        if (!currPlayer || currPlayer.color !== 'red' || currPlayer.isSettled) return prev;
+
         if (prev.timeLeft <= 1) {
-          // 人类玩家超时，但不立即结算，而是跳过当前回合
-          // 让玩家有机会在下一轮重新尝试
+          // 人类玩家超时，跳过当前回合
           const nextPlayerIndex = findNextActivePlayer(prev.currentPlayerIndex, prev.players);
           return {
             ...prev,
@@ -440,9 +456,16 @@ export function useGameState() {
               isCurrentTurn: index === nextPlayerIndex
             })),
             currentPlayerIndex: nextPlayerIndex,
-            timeLeft: nextPlayerIndex === 0 ? gameSettings.timeLimit : prev.timeLeft,
+            selectedPiece: null,
+            selectedPiecePosition: null,
+            timeLeft: gameSettings.timeLimit,
             turnCount: prev.turnCount + 1
           };
+        }
+        
+        // 最后10秒倒计时警告
+        if (prev.timeLeft <= 10 && prev.timeLeft > 0) {
+          soundManager.timeWarning();
         }
         
         return {
@@ -453,11 +476,19 @@ export function useGameState() {
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [gameState.gamePhase, gameState.currentPlayerIndex, findNextActivePlayer, gameSettings.timeLimit]);
+  }, [gameState.gamePhase, gameState.currentPlayerIndex, gameState.players, findNextActivePlayer, gameSettings.timeLimit]);
   
   // 检查游戏是否结束
   useEffect(() => {
     if (isGameFinished(gameState.players)) {
+      // 判断玩家是否获胜
+      const humanScore = gameState.players[0]?.score || 0;
+      const maxScore = Math.max(...gameState.players.map(p => p.score));
+      if (humanScore === maxScore) {
+        soundManager.gameWin();
+      } else {
+        soundManager.gameLose();
+      }
       setGameState(prev => ({
         ...prev,
         gamePhase: 'finished'
@@ -465,21 +496,54 @@ export function useGameState() {
     }
   }, [gameState.players]);
   
-  // 检查是否所有玩家都无法继续 - 但不自动结算，只提示
+  // 当所有玩家都无法继续时，自动将所有人标记为已结算，触发游戏结束
   useEffect(() => {
-    if (gameState.gamePhase === 'playing') {
-      const allPlayersStuck = gameState.players.every(player => 
-        player.isSettled || !canPlayerContinue(player)
-      );
-      
-      if (allPlayersStuck) {
-        // 所有玩家都无法继续，但不自动结算
-        // 游戏继续，等待玩家主动结算
-        console.log('所有玩家都无法继续，请主动结算');
-      }
+    if (gameState.gamePhase !== 'playing') return;
+    
+    const allPlayersStuck = gameState.players.every(player => 
+      player.isSettled || !canPlayerContinue(player)
+    );
+    
+    if (allPlayersStuck) {
+      // 短暂延迟后自动结算，给玩家一个反应时间
+      const timer = setTimeout(() => {
+        setGameState(prev => ({
+          ...prev,
+          players: prev.players.map(player => ({
+            ...player,
+            isSettled: true
+          })),
+          gamePhase: 'finished'
+        }));
+      }, 1500);
+      return () => clearTimeout(timer);
     }
   }, [gameState.gamePhase, gameState.players, canPlayerContinue]);
   
+  // 自动检测当前玩家是否可以继续，如果不能则自动结算
+  useEffect(() => {
+    if (gameState.gamePhase !== 'playing') return;
+    
+    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    
+    // 只检查人类玩家（红色），AI有自己的逻辑
+    if (currentPlayer.color === 'red' && !currentPlayer.isSettled) {
+      // 使用 setTimeout 避免在渲染过程中更新状态
+      const timer = setTimeout(() => {
+        if (!canPlayerContinue(currentPlayer)) {
+          // 播放提示音
+          soundManager.invalidMove(); // 或者使用专门的提示音
+          // 自动结算
+          settlePlayer();
+          // 可以添加一个 Toast 提示用户 "无路可走，自动结算"
+          // console.log('无路可走，自动结算');
+        }
+      }, 1000); // 给一点延迟，让玩家看清局面
+      
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.currentPlayerIndex, gameState.gamePhase, canPlayerContinue, settlePlayer, gameState.players]);
+
   // 自动处理AI回合
   useEffect(() => {
     if (gameState.gamePhase === 'playing' && 
@@ -487,7 +551,16 @@ export function useGameState() {
         !gameState.players[gameState.currentPlayerIndex].isSettled) {
       processAITurn();
     }
-  }, [gameState.currentPlayerIndex, gameState.gamePhase, processAITurn]);
+  }, [gameState.currentPlayerIndex, gameState.gamePhase, processAITurn, gameState.players]);
+
+  // 轮到人类玩家时播放提示音
+  useEffect(() => {
+    if (gameState.gamePhase === 'playing' && 
+        gameState.players[gameState.currentPlayerIndex].color === 'red' &&
+        gameState.turnCount > 1) { // 不在游戏第一回合播放
+      soundManager.yourTurn();
+    }
+  }, [gameState.currentPlayerIndex, gameState.gamePhase, gameState.turnCount, gameState.players]);
   
   // 找到拼图在原始拼图库中的形状索引
   const findShapeIndex = useCallback((transformedPiece: Piece, originalPieces: Piece[]): number => {
@@ -541,6 +614,7 @@ export function useGameState() {
     rotateSelectedPiece,
     flipSelectedPiece,
     thinkingAI,
+    lastAIMove,
     canPlayerContinue,
     gameSettings,
     currentTurnTime: gameState.timeLeft,

@@ -1,7 +1,7 @@
 // 游戏棋盘组件
 
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { GameState, Position, Piece } from '../types/game';
 import { canPlacePiece } from '../utils/gameEngine';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -12,6 +12,9 @@ interface GameBoardProps {
   onCellHover: (position: Position) => void;
   onPiecePlace: (position: Position) => void;
   onPieceCancel?: () => void;
+  onRotate?: () => void;
+  onFlip?: () => void;
+  lastAIMove?: Array<{ x: number; y: number }>;
   showHints?: boolean;
 }
 
@@ -19,86 +22,24 @@ const BoardContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #f5f5f5;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  justify-content: center;
   position: relative;
   
-  @media (max-width: 768px) {
-    padding: 15px;
-  }
+  width: 100%;
+  height: 100%;
+  max-width: 80vh; 
+  max-height: 80vh;
+  aspect-ratio: 1/1;
   
-  @media (max-width: 480px) {
-    padding: 10px;
+  @media (max-width: 768px) {
+    max-width: 95vw;
+    max-height: 95vw;
   }
 `;
 
-// 垃圾桶图标
+// 移除 TrashBin，改为拖拽到区域外或特定区域删除（后续优化）
 const TrashBin = styled.div<{ isVisible: boolean; isHovered: boolean }>`
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 50px;
-  height: 50px;
-  background: ${props => props.isHovered ? '#ff6b6b' : '#ff4757'};
-  border-radius: 8px;
-  display: ${props => props.isVisible ? 'flex' : 'none'};
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  z-index: 1000;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  
-  &:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-  }
-  
-  &::before {
-    content: '🗑️';
-    font-size: 24px;
-    color: white;
-  }
-  
-  @media (max-width: 768px) {
-    top: 15px;
-    right: 15px;
-    width: 40px;
-    height: 40px;
-    
-    &::before {
-      font-size: 20px;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    top: 10px;
-    right: 10px;
-    width: 35px;
-    height: 35px;
-    
-    &::before {
-      font-size: 18px;
-    }
-  }
-`;
-
-const BoardTitle = styled.h2`
-  margin: 0 0 20px 0;
-  color: #333;
-  font-size: 24px;
-  
-  @media (max-width: 768px) {
-    font-size: 20px;
-    margin: 0 0 15px 0;
-  }
-  
-  @media (max-width: 480px) {
-    font-size: 18px;
-    margin: 0 0 10px 0;
-  }
+  display: none; 
 `;
 
 const BoardGrid = styled.div`
@@ -106,26 +47,47 @@ const BoardGrid = styled.div`
   grid-template-columns: repeat(20, 1fr);
   grid-template-rows: repeat(20, 1fr);
   gap: 1px;
-  background: #ccc;
-  border: 2px solid #333;
-  width: 600px;
-  height: 600px;
-  max-width: 90vw;
-  max-height: 90vw;
   
-  @media (max-width: 768px) {
-    width: 400px;
-    height: 400px;
-    max-width: 85vw;
-    max-height: 85vw;
-  }
+  /* 去边框化，增强通透感 */
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 2px;
   
-  @media (max-width: 480px) {
-    width: 300px;
-    height: 300px;
-    max-width: 80vw;
-    max-height: 80vw;
+  width: 100%;
+  height: 100%;
+  
+  /* Enhanced glow effect */
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), 0 0 10px rgba(99, 102, 241, 0.1);
+  backdrop-filter: blur(4px);
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 6px;
+    background: linear-gradient(45deg, rgba(255,255,255,0.1), transparent 40%, transparent 60%, rgba(255,255,255,0.1));
+    z-index: -1;
+    pointer-events: none;
   }
+`;
+
+// 起始位置颜色映射：0=非起始位置, 1=红, 2=黄, 3=蓝, 4=绿
+const STARTING_COLORS: { [key: number]: { bg: string; border: string; glow: string } } = {
+  1: { bg: 'rgba(239, 68, 68, 0.15)', border: 'var(--player-red-main)', glow: 'var(--player-red-glow)' },
+  2: { bg: 'rgba(234, 179, 8, 0.15)', border: 'var(--player-yellow-main)', glow: 'var(--player-yellow-glow)' },
+  3: { bg: 'rgba(59, 130, 246, 0.15)', border: 'var(--player-blue-main)', glow: 'var(--player-blue-glow)' },
+  4: { bg: 'rgba(34, 197, 94, 0.15)', border: 'var(--player-green-main)', glow: 'var(--player-green-glow)' },
+};
+
+const aiMoveFlash = keyframes`
+  0% { box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+  30% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.4); }
+  100% { box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
 `;
 
 const Cell = styled.div<{ 
@@ -133,58 +95,58 @@ const Cell = styled.div<{
   playerColor: number;
   isHighlighted: boolean;
   isInvalid: boolean;
+  isPreview: boolean;
+  isPreviewValid: boolean;
   isCurrentTurn: boolean;
-  isStartingPosition: boolean;
+  startingPlayerColor: number;
+  isRecentAIMove: boolean;
 }>`
   width: 100%;
   height: 100%;
+  border-radius: 1px;
+  
+  /* 基础网格线 */
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.03);
+  
   background: ${props => {
     if (props.isOccupied) {
-      const colors = ['transparent', '#FF4444', '#FFDD44', '#4444FF', '#44FF44'];
+      // 占位格子：发光渐变
+      const colors = ['transparent', 'var(--player-red-main)', 'var(--player-yellow-main)', 'var(--player-blue-main)', 'var(--player-green-main)'];
       return colors[props.playerColor] || '#ccc';
     }
-    if (props.isStartingPosition) {
-      return 'rgba(255, 215, 0, 0.3)'; // 起始位置 - 金色半透明
+    if (props.isHighlighted) return 'rgba(16, 185, 129, 0.4)';
+    if (props.isInvalid) return 'rgba(239, 68, 68, 0.3)';
+    if (props.isPreview && props.isPreviewValid) return 'rgba(16, 185, 129, 0.25)';
+    if (props.isPreview && !props.isPreviewValid) return 'rgba(239, 68, 68, 0.2)';
+    
+    // 起始点标记
+    if (props.startingPlayerColor > 0) {
+      return STARTING_COLORS[props.startingPlayerColor]?.bg || 'rgba(255, 215, 0, 0.1)';
     }
-    if (props.isHighlighted) {
-      return 'rgba(255, 255, 0, 0.3)';
-    }
-    if (props.isInvalid) {
-      return 'rgba(255, 0, 0, 0.2)';
-    }
-    if (props.isCurrentTurn) {
-      return 'rgba(0, 255, 0, 0.1)';
-    }
-    return '#fff';
+    
+    return 'transparent'; // 空格子完全透明
   }};
-  border: ${props => {
-    if (props.isStartingPosition) return '2px solid #FFD700'; // 起始位置 - 金色边框
-    if (props.isHighlighted) return '2px solid #FFD700';
-    if (props.isInvalid) return '2px solid #FF4444';
-    return '1px solid #ddd';
-  }};
-  cursor: ${props => props.isHighlighted ? 'pointer' : 'default'};
-  transition: all 0.3s ease;
-  position: relative;
+  
+  /* 占位格子特效 */
+  ${props => props.isOccupied && `
+    box-shadow: 0 0 8px ${
+      props.playerColor === 1 ? 'var(--player-red-glow)' :
+      props.playerColor === 2 ? 'var(--player-yellow-glow)' :
+      props.playerColor === 3 ? 'var(--player-blue-glow)' :
+      props.playerColor === 4 ? 'var(--player-green-glow)' : 'none'
+    }, inset 0 0 4px rgba(255,255,255,0.3);
+    border: 1px solid rgba(255,255,255,0.2);
+    z-index: 1;
+  `}
+  
+  cursor: ${props => (props.isHighlighted || (props.isPreview && props.isPreviewValid)) ? 'pointer' : 'default'};
+  transition: all 0.15s ease;
+  
+  ${props => props.isRecentAIMove && css`animation: ${aiMoveFlash} 1.2s ease-out;`}
   
   &:hover {
-    transform: ${props => props.isHighlighted ? 'scale(1.1)' : 'scale(1)'};
-    box-shadow: ${props => props.isHighlighted ? '0 0 8px rgba(255, 215, 0, 0.6)' : 'none'};
+    background: ${props => !props.isOccupied && !props.isHighlighted ? 'rgba(255, 255, 255, 0.05)' : ''};
   }
-  
-  ${props => props.isStartingPosition && `
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
-    animation: glow 2s ease-in-out infinite alternate;
-    
-    @keyframes glow {
-      from {
-        box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
-      }
-      to {
-        box-shadow: 0 0 25px rgba(255, 215, 0, 1), 0 0 35px rgba(255, 215, 0, 0.6);
-      }
-    }
-  `}
 `;
 
 
@@ -194,7 +156,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
   onCellClick, 
   onCellHover,
   onPiecePlace,
-  onPieceCancel
+  onPieceCancel,
+  onRotate,
+  onFlip,
+  lastAIMove = []
 }) => {
   const { t } = useLanguage();
   const { board, players, currentPlayerIndex, selectedPiece } = gameState;
@@ -206,6 +171,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const [dragMode, setDragMode] = useState<'none' | 'dragging' | 'placing'>('none');
   const [isTrashHovered, setIsTrashHovered] = useState(false);
   const [originalPiecePosition, setOriginalPiecePosition] = useState<Position | null>(null);
+  
+  // 悬停预览状态
+  const [hoverPosition, setHoverPosition] = useState<Position | null>(null);
   
   // 全局鼠标事件监听
   useEffect(() => {
@@ -257,10 +225,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
       }
     };
   }, [dragMode, selectedPiece]);
+
+  // Safety check
+  if (!currentPlayer) {
+    return null;
+  }
   
   // 检查拼图是否可以放置在指定位置
   const canPlaceAt = (x: number, y: number): boolean => {
-    if (!selectedPiece || currentPlayer.color !== 'red') return false;
+    if (!selectedPiece) return false;
     
     const colorIndex = currentPlayerIndex + 1;
     return canPlacePiece(board, selectedPiece, { x, y }, colorIndex);
@@ -268,7 +241,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   
   // 开始拖拽
   const startDrag = (x: number, y: number, e: React.MouseEvent) => {
-    if (!selectedPiece || currentPlayer.color !== 'red') return;
+    if (!selectedPiece) return;
     
     setIsDragging(true);
     setDragMode('dragging');
@@ -277,7 +250,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   
   // 从拼图库开始拖拽
   const startDragFromLibrary = (e: React.MouseEvent) => {
-    if (!selectedPiece || currentPlayer.color !== 'red') return;
+    if (!selectedPiece) return;
     
     setIsDragging(true);
     setDragMode('dragging');
@@ -325,8 +298,13 @@ const GameBoard: React.FC<GameBoardProps> = ({
         setIsDragging(false);
         setDragMode('none');
       }
+    } else if (!isDragging && selectedPiece) {
+      // 选中拼图后直接点击棋盘放置（悬停预览模式）
+      if (canPlaceAt(x, y)) {
+        onPiecePlace({ x, y });
+        setHoverPosition(null);
+      }
     } else if (!isDragging) {
-      // 如果没有拖拽，正常处理点击
       onCellClick({ x, y });
     }
   };
@@ -338,7 +316,21 @@ const GameBoard: React.FC<GameBoardProps> = ({
   
   const handleCellHover = (x: number, y: number) => {
     if (isDragging) return;
+    setHoverPosition({ x, y });
     onCellHover({ x, y });
+  };
+  
+  // 鼠标离开棋盘时清除预览
+  const handleBoardLeave = () => {
+    setHoverPosition(null);
+  };
+  
+  // 右键旋转拼图
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (selectedPiece) {
+      e.preventDefault();
+      if (onRotate) onRotate();
+    }
   };
   
   // 检查位置是否在拼图范围内
@@ -370,6 +362,18 @@ const GameBoard: React.FC<GameBoardProps> = ({
            !canPlaceAt(mousePosition.x, mousePosition.y);
   };
   
+  // 检查位置是否在悬停预览范围内（选中拼图但未拖拽时）
+  const isInHoverPreview = (x: number, y: number): boolean => {
+    if (dragMode !== 'none' || !selectedPiece || !hoverPosition) return false;
+    return isPositionInPiece(x, y, hoverPosition.x, hoverPosition.y);
+  };
+
+  // 悬停预览位置是否可放置
+  const isHoverPositionValid = (): boolean => {
+    if (!hoverPosition || !selectedPiece) return false;
+    return canPlaceAt(hoverPosition.x, hoverPosition.y);
+  };
+
   // 处理垃圾桶点击（退回拼图）
   const handleTrashClick = () => {
     if (dragMode === 'dragging' && selectedPiece) {
@@ -389,14 +393,21 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const handleTrashHover = (isHovered: boolean) => {
     setIsTrashHovered(isHovered);
   };
+
+  // 获取起始位置对应的玩家颜色索引（0=非起始, 1=红, 2=黄, 3=蓝, 4=绿）
+  // 只有未被占据的起始角落才显示标记
+  const getStartingPlayerColor = (x: number, y: number): number => {
+    if (board[y][x] !== 0) return 0;
+    const size = board.length;
+    if (x === 0 && y === 0) return 1;           // 红色 - 左上角
+    if (x === size - 1 && y === 0) return 2;     // 黄色 - 右上角
+    if (x === size - 1 && y === size - 1) return 3; // 蓝色 - 右下角
+    if (x === 0 && y === size - 1) return 4;     // 绿色 - 左下角
+    return 0;
+  };
   
     return (
     <BoardContainer>
-      <BoardTitle>
-        {currentPlayer.name === 'Player' ? t('player.player') : currentPlayer.name} {t('game.turn')}
-        {currentPlayer.color === 'red' && ` - ${t('game.timeLeft')}: ${gameState.timeLeft}${t('settings.seconds')}`}
-      </BoardTitle>
-      
       {/* 垃圾桶图标 */}
       <TrashBin
         isVisible={dragMode === 'dragging'}
@@ -410,6 +421,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
       <BoardGrid
         data-board-grid
         onMouseMove={handleDrag}
+        onMouseLeave={handleBoardLeave}
+        onContextMenu={handleContextMenu}
       >
         {board.map((row, y) =>
           row.map((cell, x) => (
@@ -419,8 +432,11 @@ const GameBoard: React.FC<GameBoardProps> = ({
               playerColor={cell}
               isHighlighted={shouldHighlight(x, y)}
               isInvalid={shouldShowInvalid(x, y)}
+              isPreview={isInHoverPreview(x, y)}
+              isPreviewValid={isHoverPositionValid()}
               isCurrentTurn={currentPlayer.isCurrentTurn}
-              isStartingPosition={x === 0 && y === 0} // 左上角为起始位置
+              startingPlayerColor={getStartingPlayerColor(x, y)}
+              isRecentAIMove={lastAIMove.some(m => m.x === x && m.y === y)}
               onClick={() => handleBoardClick(x, y)}
               onMouseEnter={() => handleCellHover(x, y)}
               onMouseDown={(e) => startDrag(x, y, e)}

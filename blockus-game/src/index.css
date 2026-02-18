@@ -1,11 +1,90 @@
+:root {
+  /* 核心背景色 - 深邃宇宙蓝 */
+  --bg-color: #0b1120;
+  --bg-gradient: radial-gradient(circle at 50% 0%, #1e293b 0%, #0b1120 100%);
+  
+  /* 表面颜色 (卡片/面板) - 增强玻璃感 */
+  --surface-color: rgba(30, 41, 59, 0.6);
+  --surface-border: rgba(255, 255, 255, 0.08);
+  --surface-highlight: rgba(255, 255, 255, 0.1);
+  --glass-effect: blur(16px) saturate(180%);
+  
+  /* 文本颜色 */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  
+  /* 品牌色 */
+  --primary-color: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-gradient: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+  
+  /* 玩家颜色 - 霓虹渐变 */
+  --player-red-main: #ef4444;
+  --player-red-gradient: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  --player-red-glow: rgba(239, 68, 68, 0.5);
+  
+  --player-yellow-main: #eab308;
+  --player-yellow-gradient: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+  --player-yellow-glow: rgba(234, 179, 8, 0.5);
+  
+  --player-blue-main: #3b82f6;
+  --player-blue-gradient: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  --player-blue-glow: rgba(59, 130, 246, 0.5);
+  
+  --player-green-main: #22c55e;
+  --player-green-gradient: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+  --player-green-glow: rgba(34, 197, 94, 0.5);
+
+  /* 功能色 */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  
+  /* 布局 */
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 8px;
+  --shadow-lg: 0 20px 40px -5px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.3);
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Rajdhani', 'Orbitron', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background-color: var(--bg-color);
+  background-image: var(--bg-gradient);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden; /* 防止水平滚动 */
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Rajdhani', 'Orbitron', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: 1px;
+}
+
+button {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 code {

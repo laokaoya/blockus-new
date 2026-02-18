@@ -1,0 +1,21 @@
+{
+  "name": "blockus-fullstack",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Blockus - Online Block Strategy Game",
+  "scripts": {
+    "install:client": "cd blockus-game && npm install",
+    "install:server": "cd server && npm install",
+    "install:all": "npm run install:client && npm run install:server",
+    "build:client": "cd blockus-game && npm run build",
+    "build:server": "cd server && npm run build",
+    "build": "npm run build:client && npm run build:server",
+    "start": "cd server && npm start",
+    "dev:client": "cd blockus-game && npm start",
+    "dev:server": "cd server && npm run dev",
+    "postinstall": "npm run install:all"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

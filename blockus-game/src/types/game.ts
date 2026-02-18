@@ -24,6 +24,8 @@ export interface Player {
 
 export interface GameMove {
   playerColor: PlayerColor;
+  pieceId?: string;
+  position?: { x: number; y: number };
   boardChanges: Array<{
     x: number;
     y: number;
@@ -50,6 +52,71 @@ export interface Position {
   y: number;
 }
 
+// 用户相关类型
+export interface UserProfile {
+  id: string;
+  nickname: string;
+  age?: number;
+  gender?: 'male' | 'female' | 'other';
+  location?: string;
+  avatar?: string; // 头像图片的base64或URL
+  bio?: string; // 一句话介绍
+  createdAt: number;
+  lastLoginAt: number;
+}
+
+export interface UserStats {
+  totalGames: number;
+  totalWins: number;
+  totalScore: number;
+  winRate: number;
+  bestScore: number;
+  averageScore: number;
+  totalPlayTime: number; // 总游戏时长（分钟）
+}
+
+export interface User {
+  profile: UserProfile;
+  stats: UserStats;
+}
+
+// 房间相关类型
+export interface RoomPlayer {
+  id: string;
+  nickname: string;
+  avatar?: string;
+  isHost: boolean;
+  isAI: boolean;
+  aiDifficulty?: 'easy' | 'medium' | 'hard';
+  isReady: boolean;
+  color?: PlayerColor;
+}
+
+export interface GameRoom {
+  id: string;
+  name: string;
+  password?: string;
+  hostId: string;
+  players: RoomPlayer[];
+  spectators?: string[];
+  maxPlayers: number;
+  status: 'waiting' | 'playing' | 'finished';
+  gameSettings: GameSettings;
+  createdAt: number;
+  lastActivityAt: number;
+}
+
+export interface RoomMessage {
+  id: string;
+  roomId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: number;
+  type: 'chat' | 'system';
+}
+
+// 扩展游戏设置类型
 export interface GameSettings {
   boardSize: number;
   turnTimeLimit: number;
@@ -57,4 +124,6 @@ export interface GameSettings {
   timeLimit: number;
   showHints: boolean;
   soundEnabled: boolean;
+  allowSpectators: boolean;
+  privateRoom: boolean;
 }

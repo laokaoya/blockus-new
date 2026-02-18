@@ -4,195 +4,171 @@ import React from 'react';
 import styled from 'styled-components';
 import { GameState } from '../types/game';
 import { useLanguage } from '../contexts/LanguageContext';
+import soundManager from '../utils/soundManager';
 
 interface GameControlsProps {
   gameState: GameState;
   onSettle: () => void;
   onReset: () => void;
   canPlayerContinue: (player: any) => boolean;
+  myScore?: number;
 }
 
 const ControlsContainer = styled.div`
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px;
-  background: #f5f5f5;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  min-height: 180px;
-  max-height: 280px;
-  overflow-y: auto;
+  align-items: flex-end;
+  gap: 20px;
+  padding: 0;
+  background: transparent;
+  min-height: auto;
+  max-height: none;
+  overflow: visible;
+  pointer-events: none; /* Allow clicks to pass through empty areas */
   
-  /* 确保内容完全可见 */
-  &:hover {
-    max-height: 320px;
-    transition: max-height 0.3s ease;
-  }
-  
-  /* 自定义滚动条样式 */
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 3px;
-  }
-  
-  &::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-  }
-  
-  @media (max-width: 768px) {
-    padding: 6px;
-    min-height: 160px;
-    max-height: 240px;
-    
-    &:hover {
-      max-height: 280px;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    padding: 5px;
-    min-height: 140px;
-    max-height: 200px;
-    
-    &:hover {
-      max-height: 240px;
-    }
+  & > * {
+    pointer-events: auto; /* Re-enable clicks for children */
   }
 `;
 
 const GameStatus = styled.div`
-  text-align: center;
-  padding: 8px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  min-width: 260px;
-  
-  @media (max-width: 768px) {
-    min-width: 220px;
-    padding: 6px;
-  }
-  
-  @media (max-width: 480px) {
-    min-width: 200px;
-    padding: 5px;
-  }
+  text-align: right;
+  padding: 0;
+  background: transparent;
+  border: none;
+  min-width: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+`;
+
+const StatusSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 `;
 
 const StatusTitle = styled.h3`
-  margin: 0 0 6px 0;
-  color: #333;
+  margin: 0 0 4px 0;
+  color: var(--text-secondary);
   font-size: 14px;
-  
-  @media (max-width: 768px) {
-    font-size: 13px;
-    margin: 0 0 5px 0;
-  }
-  
-  @media (max-width: 480px) {
-    font-size: 12px;
-    margin: 0 0 4px 0;
-  }
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  opacity: 0.8;
 `;
 
 const StatusText = styled.div<{ isCurrentTurn: boolean }>`
-  font-size: 14px;
-  color: ${props => props.isCurrentTurn ? '#4CAF50' : '#666'};
-  font-weight: ${props => props.isCurrentTurn ? 'bold' : 'normal'};
-  margin: 2px 0;
+  font-size: 24px;
+  color: ${props => props.isCurrentTurn ? '#10b981' : 'var(--text-primary)'};
+  font-weight: ${props => props.isCurrentTurn ? 'bold' : '500'};
+  text-shadow: ${props => props.isCurrentTurn ? '0 0 15px rgba(16, 185, 129, 0.4)' : 'none'};
+  font-family: 'Rajdhani', sans-serif;
+`;
+
+const ScoreValue = styled.div`
+  font-size: 48px;
+  font-weight: 700;
+  font-family: 'Orbitron', sans-serif;
+  color: #fbbf24;
+  text-align: right;
+  line-height: 1;
+  text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
   
-  @media (max-width: 768px) {
-    font-size: 13px;
-  }
-  
-  @media (max-width: 480px) {
-    font-size: 12px;
-  }
+  background: linear-gradient(to bottom, #fbbf24, #d97706);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.3));
 `;
 
 const TimeDisplay = styled.div<{ timeLeft: number }>`
-  font-size: 18px;
-  font-weight: bold;
+  font-size: 48px;
+  font-weight: 700;
+  font-family: 'Orbitron', sans-serif;
   color: ${props => {
-    if (props.timeLeft <= 5) return '#f44336';
-    if (props.timeLeft <= 10) return '#ff9800';
-    return '#4CAF50';
+    if (props.timeLeft <= 5) return '#ef4444';
+    if (props.timeLeft <= 10) return '#f59e0b';
+    return 'rgba(255, 255, 255, 0.1)'; /* Ghost style for normal time */
   }};
-  text-align: center;
-  margin: 4px 0;
+  text-align: right;
+  line-height: 1;
   
-  @media (max-width: 768px) {
-    font-size: 16px;
-    margin: 3px 0;
-  }
+  /* Text stroke effect for ghost style */
+  -webkit-text-stroke: ${props => props.timeLeft > 10 ? '1px rgba(255, 255, 255, 0.3)' : 'none'};
   
-  @media (max-width: 480px) {
-    font-size: 14px;
-    margin: 2px 0;
-  }
+  text-shadow: 0 0 10px ${props => {
+    if (props.timeLeft <= 5) return 'rgba(239, 68, 68, 0.4)';
+    if (props.timeLeft <= 10) return 'rgba(245, 158, 11, 0.4)';
+    return 'none';
+  }};
 `;
 
 const ButtonsContainer = styled.div`
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin: 2px 0;
-  
-  @media (max-width: 768px) {
-    gap: 5px;
-    margin: 1px 0;
-  }
-  
-  @media (max-width: 480px) {
-    gap: 4px;
-  }
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
 `;
 
 const Button = styled.button<{ variant: 'primary' | 'secondary' | 'danger'; isUrgent?: boolean }>`
-  padding: 8px 16px;
+  padding: 10px 20px; /* Increased padding */
   border: none;
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: 8px;
+  font-size: 14px; /* Increased from 13px */
   font-weight: bold;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 90px;
+  min-width: 100px; /* Increased min-width */
   
   background: ${props => {
     switch (props.variant) {
-      case 'primary': return '#4CAF50';
-      case 'secondary': return '#2196F3';
-      case 'danger': return '#f44336';
-      default: return '#4CAF50';
+      case 'primary': return 'rgba(16, 185, 129, 0.2)';
+      case 'secondary': return 'rgba(59, 130, 246, 0.2)';
+      case 'danger': return 'rgba(239, 68, 68, 0.2)';
+      default: return 'rgba(16, 185, 129, 0.2)';
     }
   }};
   
-  color: white;
+  color: ${props => {
+    switch (props.variant) {
+      case 'primary': return '#10b981';
+      case 'secondary': return '#3b82f6';
+      case 'danger': return '#ef4444';
+      default: return '#10b981';
+    }
+  }};
+  
+  border: 1px solid ${props => {
+    switch (props.variant) {
+      case 'primary': return 'rgba(16, 185, 129, 0.3)';
+      case 'secondary': return 'rgba(59, 130, 246, 0.3)';
+      case 'danger': return 'rgba(239, 68, 68, 0.3)';
+      default: return 'rgba(16, 185, 129, 0.3)';
+    }
+  }};
   
   ${props => props.isUrgent && `
     transform: scale(1.05);
-    box-shadow: 0 0 20px rgba(244, 67, 54, 0.5);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
   `}
   
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
+    background: ${props => {
+      switch (props.variant) {
+        case 'primary': return 'rgba(16, 185, 129, 0.3)';
+        case 'secondary': return 'rgba(59, 130, 246, 0.3)';
+        case 'danger': return 'rgba(239, 68, 68, 0.3)';
+        default: return 'rgba(16, 185, 129, 0.3)';
+      }
+    }};
   }
   
   &:disabled {
-    background: #ccc;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    border-color: var(--surface-border);
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
@@ -200,149 +176,110 @@ const Button = styled.button<{ variant: 'primary' | 'secondary' | 'danger'; isUr
 `;
 
 const GamePhaseDisplay = styled.div<{ phase: string }>`
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 8px 16px; /* Increased padding */
+  border-radius: 8px;
   font-weight: bold;
   text-align: center;
   background: ${props => {
     switch (props.phase) {
-      case 'waiting': return '#2196F3';
-      case 'playing': return '#4CAF50';
-      case 'settling': return '#ff9800';
-      case 'finished': return '#f44336';
-      default: return '#666';
+      case 'waiting': return 'rgba(59, 130, 246, 0.2)';
+      case 'playing': return 'rgba(16, 185, 129, 0.2)';
+      case 'settling': return 'rgba(245, 158, 11, 0.2)';
+      case 'finished': return 'rgba(239, 68, 68, 0.2)';
+      default: return 'rgba(255, 255, 255, 0.1)';
     }
   }};
-  color: white;
+  color: ${props => {
+    switch (props.phase) {
+      case 'waiting': return '#3b82f6';
+      case 'playing': return '#10b981';
+      case 'settling': return '#f59e0b';
+      case 'finished': return '#ef4444';
+      default: return 'var(--text-secondary)';
+    }
+  }};
+  border: 1px solid ${props => {
+    switch (props.phase) {
+      case 'waiting': return 'rgba(59, 130, 246, 0.3)';
+      case 'playing': return 'rgba(16, 185, 129, 0.3)';
+      case 'settling': return 'rgba(245, 158, 11, 0.3)';
+      case 'finished': return 'rgba(239, 68, 68, 0.3)';
+      default: return 'var(--surface-border)';
+    }
+  }};
   margin-bottom: 6px;
-  font-size: 13px;
+  font-size: 14px; /* Increased from 13px */
 `;
 
 const GameControls: React.FC<GameControlsProps> = ({ 
   gameState, 
   onSettle, 
   onReset, 
-  canPlayerContinue 
+  canPlayerContinue,
+  myScore
 }) => {
   const { t } = useLanguage();
-  const { gamePhase, players, currentPlayerIndex, turnCount, timeLeft } = gameState;
-  const currentPlayer = players[currentPlayerIndex];
   
-  const isGameOver = gamePhase === 'finished';
-  const canSettle = gamePhase === 'playing' && currentPlayer.color === 'red' && !currentPlayer.isSettled;
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  const isCurrentTurn = currentPlayer.isCurrentTurn;
+  const isGameOver = gameState.gamePhase === 'finished';
+  
+  // 判断是否可以结算
+  // 只有在自己的回合，且还没有结算过的玩家才能结算
+  const canSettle = isCurrentTurn && !currentPlayer.isSettled;
+  
+  // 判断是否应该提示结算（没有合法落子位置）
   const shouldShowSettleHint = canSettle && !canPlayerContinue(currentPlayer);
+
+  const handleResetClick = () => {
+    soundManager.buttonClick();
+    onReset();
+  };
 
   return (
     <ControlsContainer>
-      {/* 游戏状态显示 */}
       <GameStatus>
-        <StatusTitle>
-          {gamePhase === 'playing' ? t('game.gameInProgress') : t('game.gameOver')}
-        </StatusTitle>
+        <StatusSection>
+          <StatusTitle>{t('game.status')}</StatusTitle>
+          <StatusText isCurrentTurn={isCurrentTurn}>
+            {isCurrentTurn ? t('game.yourTurn') : `${currentPlayer.name} ${t('game.turn')}`}
+          </StatusText>
+        </StatusSection>
         
-        <StatusText isCurrentTurn={false}>
-          {t('game.currentTurn')}: {currentPlayer.name === 'Player' ? t('player.player') : currentPlayer.name}
-        </StatusText>
-        
-        <StatusText isCurrentTurn={false}>
-          {t('game.status')}: {gamePhase === 'playing' ? t('game.inProgress') : t('game.finished')}
-        </StatusText>
-        
-        <StatusText isCurrentTurn={false}>
-          {t('game.turn')}: {turnCount}
-        </StatusText>
-        
-        {/* 显示结算状态 */}
-        <StatusText isCurrentTurn={false}>
-          {t('game.settled')}: {players.filter(p => p.isSettled).length}/4
-        </StatusText>
-        
-        {gamePhase === 'playing' && currentPlayer.color === 'red' && (
-          <TimeDisplay timeLeft={timeLeft}>
-            ⏰ {timeLeft}{t('settings.seconds')}
-          </TimeDisplay>
+        {myScore !== undefined && (
+          <StatusSection>
+            <StatusTitle>{t('game.score') || 'SCORE'}</StatusTitle>
+            <ScoreValue>{myScore}</ScoreValue>
+          </StatusSection>
+        )}
+
+        {gameState.timeLeft > 0 && (
+          <StatusSection>
+            <StatusTitle>{t('game.time') || 'TIME'}</StatusTitle>
+            <TimeDisplay timeLeft={gameState.timeLeft}>
+              {gameState.timeLeft}s
+            </TimeDisplay>
+          </StatusSection>
         )}
       </GameStatus>
       
-      {/* 按钮区域 - 始终显示 */}
       <ButtonsContainer>
-        {canSettle && (
-          <Button 
-            variant={shouldShowSettleHint ? 'danger' : 'secondary'} 
-            onClick={onSettle}
-            isUrgent={shouldShowSettleHint}
-          >
-            {shouldShowSettleHint ? `🏁 ${t('game.endSettle')}` : t('game.settle')}
-          </Button>
-        )}
+        {/* Settle button removed from here to avoid duplication with the floating button */}
         
-        {/* 调试信息 - 显示为什么按钮不显示 */}
-        {!canSettle && currentPlayer.color === 'red' && (
-          <div style={{ 
-            fontSize: '11px', 
-            color: '#666', 
-            textAlign: 'center',
-            padding: '4px',
-            background: '#f0f0f0',
-            borderRadius: '4px',
-            margin: '2px 0'
-          }}>
-            {currentPlayer.isSettled ? t('game.settled') : gamePhase !== 'playing' ? `${t('game.gamePhase')}: ${gamePhase}` : t('game.canContinue')}
-          </div>
-        )}
+        {/* ... Debug Info ... */}
         
-        {/* 游戏结束提示 - 只有当玩家无法继续时才显示 */}
-        {gamePhase === 'playing' && 
-         currentPlayer.color === 'red' && 
-         !currentPlayer.isSettled && 
-         !canPlayerContinue(currentPlayer) && (
-          <div style={{ 
-            fontSize: '11px', 
-            color: '#ff9800', 
-            textAlign: 'center',
-            padding: '4px',
-            background: '#fff3e0',
-            borderRadius: '4px',
-            margin: '2px 0',
-            fontWeight: 'bold'
-          }}>
-            💡 {t('game.cannotPlaceHint')}
-          </div>
-        )}
+        {/* ... Game Over Hint ... */}
         
         {isGameOver && (
-          <Button variant="primary" onClick={onReset}>
+          <Button 
+            variant="primary" 
+            onClick={handleResetClick}
+            onMouseEnter={() => soundManager.buttonHover()}
+          >
             {t('game.restart')}
           </Button>
         )}
       </ButtonsContainer>
-      
-      {/* 游戏结果 - 只在游戏结束时显示 */}
-      {isGameOver && (
-        <GameStatus>
-          <StatusTitle>🏆 {t('game.finalRanking')}</StatusTitle>
-          {players
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 3) // 只显示前3名，节省空间
-            .map((player, index) => (
-              <StatusText key={player.id} isCurrentTurn={false}>
-                {index + 1}. {player.name}: {player.score}{t('game.points')}
-              </StatusText>
-            ))
-          }
-        </GameStatus>
-      )}
-      
-      {/* 滚动提示 */}
-      <div style={{ 
-        fontSize: '11px', 
-        color: '#999', 
-        textAlign: 'center', 
-        marginTop: '4px',
-        fontStyle: 'italic'
-      }}>
-        💡 {t('game.hoverHint')}
-      </div>
     </ControlsContainer>
   );
 };

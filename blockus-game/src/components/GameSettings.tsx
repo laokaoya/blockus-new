@@ -11,24 +11,30 @@ interface GameSettings {
 }
 
 const SettingsContainer = styled.div`
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  height: 100vh;
   padding: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  overflow-y: auto;
+  padding-bottom: 60px;
 `;
 
 const Header = styled.div`
   text-align: center;
   margin-bottom: 30px;
-  color: white;
+  color: var(--text-primary);
 `;
 
 const Title = styled.h1`
   font-size: 2.5rem;
   margin: 0;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  font-weight: 800;
+  letter-spacing: -1px;
+  background: linear-gradient(to right, #fff, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   
   @media (max-width: 768px) {
     font-size: 2rem;
@@ -38,7 +44,7 @@ const Title = styled.h1`
 const Subtitle = styled.p`
   font-size: 1.1rem;
   margin: 10px 0 0 0;
-  opacity: 0.9;
+  color: var(--text-secondary);
   
   @media (max-width: 768px) {
     font-size: 1rem;
@@ -84,10 +90,12 @@ const RightPanel = styled.div`
 `;
 
 const SettingsCard = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
+  background: var(--surface-color);
+  backdrop-filter: var(--glass-effect);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
   padding: 30px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
   
   @media (max-width: 768px) {
     padding: 20px;
@@ -96,7 +104,7 @@ const SettingsCard = styled.div`
 
 const SectionTitle = styled.h2`
   margin: 0 0 20px 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 1.5rem;
   text-align: left;
 `;
@@ -112,8 +120,8 @@ const SettingItem = styled.div`
 const SettingLabel = styled.label`
   display: block;
   margin-bottom: 10px;
-  color: #333;
-  font-weight: bold;
+  color: var(--text-secondary);
+  font-weight: 600;
   font-size: 1rem;
 `;
 
@@ -130,16 +138,17 @@ const DifficultyOptions = styled.div`
 const DifficultyButton = styled.button<{ isSelected: boolean }>`
   flex: 1;
   padding: 12px 20px;
-  border: 2px solid ${props => props.isSelected ? '#667eea' : '#ddd'};
-  border-radius: 10px;
-  background: ${props => props.isSelected ? '#667eea' : 'white'};
-  color: ${props => props.isSelected ? 'white' : '#333'};
+  border: 1px solid ${props => props.isSelected ? 'var(--primary-color)' : 'var(--surface-border)'};
+  border-radius: var(--radius-md);
+  background: ${props => props.isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
+  color: ${props => props.isSelected ? 'var(--primary-color)' : 'var(--text-secondary)'};
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   font-weight: ${props => props.isSelected ? 'bold' : 'normal'};
   
   &:hover {
-    border-color: #667eea;
+    border-color: var(--primary-color);
+    background: ${props => props.isSelected ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
     transform: translateY(-2px);
   }
   
@@ -158,7 +167,7 @@ const Slider = styled.input`
   flex: 1;
   height: 6px;
   border-radius: 3px;
-  background: #ddd;
+  background: rgba(255, 255, 255, 0.1);
   outline: none;
   -webkit-appearance: none;
   
@@ -168,15 +177,16 @@ const Slider = styled.input`
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #667eea;
+    background: var(--primary-color);
     cursor: pointer;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
   }
   
   &::-moz-range-thumb {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #667eea;
+    background: var(--primary-color);
     cursor: pointer;
     border: none;
   }
@@ -184,7 +194,7 @@ const Slider = styled.input`
 
 const TimeValue = styled.span`
   font-weight: bold;
-  color: #667eea;
+  color: var(--primary-color);
   min-width: 60px;
   text-align: center;
 `;
@@ -202,7 +212,7 @@ const ToggleInput = styled.input`
   height: 0;
   
   &:checked + span {
-    background-color: #667eea;
+    background-color: var(--primary-color);
   }
   
   &:checked + span:before {
@@ -217,7 +227,8 @@ const ToggleSlider = styled.span`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #ccc;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--surface-border);
   transition: 0.4s;
   border-radius: 34px;
   
@@ -226,19 +237,22 @@ const ToggleSlider = styled.span`
     content: "";
     height: 26px;
     width: 26px;
-    left: 4px;
-    bottom: 4px;
+    left: 3px;
+    bottom: 3px;
     background-color: white;
     transition: 0.4s;
     border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   }
 `;
 
 const RulesSection = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
+  background: var(--surface-color);
+  backdrop-filter: var(--glass-effect);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
   padding: 30px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
   height: fit-content;
   text-align: left;
   
@@ -250,7 +264,7 @@ const RulesSection = styled.div`
 const RulesList = styled.ul`
   margin: 0;
   padding-left: 20px;
-  color: #333;
+  color: var(--text-secondary);
   line-height: 1.6;
   text-align: left;
 `;
@@ -287,15 +301,16 @@ const Button = styled.button<{ variant: 'primary' | 'secondary' }>`
   transition: all 0.3s ease;
   
   background: ${props => props.variant === 'primary' 
-    ? 'linear-gradient(135deg, #667eea, #764ba2)' 
-    : 'rgba(255, 255, 255, 0.2)'
+    ? 'var(--primary-gradient)' 
+    : 'rgba(255, 255, 255, 0.1)'
   };
   color: white;
-  border: ${props => props.variant === 'secondary' ? '2px solid rgba(255, 255, 255, 0.3)' : 'none'};
+  border: ${props => props.variant === 'secondary' ? '1px solid var(--surface-border)' : 'none'};
   
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    background: ${props => props.variant === 'secondary' ? 'rgba(255, 255, 255, 0.15)' : 'var(--primary-gradient)'};
   }
   
   @media (max-width: 768px) {

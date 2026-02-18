@@ -9,16 +9,15 @@ export const languages = {
 };
 
 class I18nManager {
-  private currentLanguage: Language = 'en';
+  private currentLanguage: Language = 'zh';
 
   constructor() {
-    // 从localStorage加载语言设置
+    const userExplicitlySet = localStorage.getItem('languageSetByUser');
     const savedLanguage = localStorage.getItem('language') as Language;
-    if (savedLanguage && (savedLanguage === 'zh' || savedLanguage === 'en')) {
+    if (userExplicitlySet === 'true' && savedLanguage && (savedLanguage === 'zh' || savedLanguage === 'en')) {
       this.currentLanguage = savedLanguage;
     } else {
-      // 默认使用英文
-      this.currentLanguage = 'en';
+      this.currentLanguage = 'zh';
     }
   }
 

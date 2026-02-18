@@ -14,6 +14,7 @@ const ModalOverlay = styled.div<{ isOpen: boolean }>`
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
   display: ${props => props.isOpen ? 'flex' : 'none'};
   justify-content: center;
   align-items: center;
@@ -22,19 +23,22 @@ const ModalOverlay = styled.div<{ isOpen: boolean }>`
 `;
 
 const ModalContent = styled.div`
-  background: white;
-  border-radius: 20px;
+  background: var(--surface-color);
+  backdrop-filter: var(--glass-effect);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
   padding: 30px;
   max-width: 600px;
   width: 100%;
-  max-height: 80vh;
+  max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
   text-align: left;
   
   @media (max-width: 768px) {
     padding: 20px;
     margin: 10px;
+    max-height: 95vh;
   }
 `;
 
@@ -44,13 +48,13 @@ const ModalHeader = styled.div`
   align-items: center;
   margin-bottom: 25px;
   padding-bottom: 15px;
-  border-bottom: 2px solid #f0f0f0;
+  border-bottom: 1px solid var(--surface-border);
   text-align: left;
 `;
 
 const ModalTitle = styled.h2`
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 1.8rem;
   text-align: left;
   
@@ -60,11 +64,11 @@ const ModalTitle = styled.h2`
 `;
 
 const CloseButton = styled.button`
-  background: none;
+  background: rgba(255, 255, 255, 0.1);
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
   padding: 5px;
   border-radius: 50%;
   width: 40px;
@@ -75,8 +79,8 @@ const CloseButton = styled.button`
   transition: all 0.3s ease;
   
   &:hover {
-    background: #f0f0f0;
-    color: #333;
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
   }
 `;
 
@@ -86,7 +90,7 @@ const Section = styled.div`
 `;
 
 const SectionTitle = styled.h3`
-  color: #333;
+  color: var(--text-primary);
   font-size: 1.3rem;
   margin: 0 0 15px 0;
   display: flex;
@@ -100,7 +104,7 @@ const SectionIcon = styled.span`
 `;
 
 const SectionDescription = styled.p`
-  color: #666;
+  color: var(--text-secondary);
   line-height: 1.6;
   margin: 0 0 15px 0;
   text-align: left;
@@ -114,7 +118,7 @@ const RulesList = styled.ul`
 `;
 
 const RuleItem = styled.li`
-  color: #555;
+  color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 10px;
   padding-left: 20px;
@@ -123,7 +127,7 @@ const RuleItem = styled.li`
   
   &:before {
     content: '•';
-    color: #667eea;
+    color: var(--primary-color);
     font-weight: bold;
     position: absolute;
     left: 0;
@@ -138,7 +142,7 @@ const ControlsList = styled.ul`
 `;
 
 const ControlItem = styled.li`
-  color: #555;
+  color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 8px;
   padding-left: 20px;
@@ -147,7 +151,7 @@ const ControlItem = styled.li`
   
   &:before {
     content: '→';
-    color: #667eea;
+    color: var(--primary-color);
     font-weight: bold;
     position: absolute;
     left: 0;
@@ -155,9 +159,9 @@ const ControlItem = styled.li`
 `;
 
 const StartingPositionImage = styled.div`
-  background: #f8f9fa;
-  border: 2px solid #e9ecef;
-  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
   padding: 20px;
   margin-top: 15px;
   text-align: center;
@@ -165,13 +169,13 @@ const StartingPositionImage = styled.div`
 
 const ImageCaption = styled.div`
   font-weight: bold;
-  color: #333;
+  color: var(--text-primary);
   font-size: 1.1rem;
   margin-bottom: 10px;
 `;
 
 const ImageDescription = styled.div`
-  color: #666;
+  color: var(--text-secondary);
   line-height: 1.6;
   font-size: 0.95rem;
 `;
@@ -181,7 +185,8 @@ const RuleImage = styled.img`
   height: auto;
   border-radius: 8px;
   margin: 10px 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--surface-border);
 `;
 
 const GameRulesModal: React.FC<GameRulesModalProps> = ({ isOpen, onClose }) => {
