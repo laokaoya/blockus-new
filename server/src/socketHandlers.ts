@@ -121,7 +121,7 @@ export function setupSocketHandlers(
           nickname: socket.data.nickname,
           isHost: false,
           isAI: false,
-          isReady: true,
+          isReady: false,
         },
       });
 

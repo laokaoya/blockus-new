@@ -90,7 +90,7 @@ export class RoomManager {
       nickname,
       isHost: false,
       isAI: false,
-      isReady: true,
+      isReady: false,
       color: availableColor,
     };
 
@@ -236,10 +236,10 @@ export class RoomManager {
     const room = this.rooms.get(roomId);
     if (!room) return { canStart: false, error: 'ROOM_NOT_FOUND' };
     if (room.hostId !== requesterId) return { canStart: false, error: 'NOT_HOST' };
-    if (room.players.length < 2) return { canStart: false, error: 'NOT_ENOUGH_PLAYERS' };
+    if (room.players.length !== 4) return { canStart: false, error: 'NEED_FOUR_PLAYERS' };
     if (room.status !== 'waiting') return { canStart: false, error: 'GAME_ALREADY_STARTED' };
 
-    const allReady = room.players.every(p => p.isReady || p.isAI);
+    const allReady = room.players.every(p => p.isReady);
     if (!allReady) return { canStart: false, error: 'PLAYERS_NOT_READY' };
 
     return { canStart: true };

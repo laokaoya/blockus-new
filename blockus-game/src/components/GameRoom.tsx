@@ -363,6 +363,26 @@ const LoadingSpinner = styled.div`
   }
 `;
 
+const ReadyButton = styled.button<{ $isReady: boolean }>`
+  background: ${props => props.$isReady ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)'};
+  color: ${props => props.$isReady ? '#10b981' : '#f59e0b'};
+  border: 1px solid ${props => props.$isReady ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'};
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  
+  &:hover {
+    transform: translateY(-2px);
+    background: ${props => props.$isReady ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'};
+  }
+`;
+
 const GameRoom: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams();
@@ -414,7 +434,10 @@ const GameRoom: React.FC = () => {
   }
 
   const isHost = targetRoom.hostId === user.profile.id;
-  const canStartGame = targetRoom.players.length >= 2 && targetRoom.players.length <= 4;
+  const myPlayer = targetRoom.players.find(p => p.id === user.profile.id);
+  const allReady = targetRoom.players.every(p => p.isReady);
+  const hasFourPlayers = targetRoom.players.length === 4;
+  const canStart = isHost && hasFourPlayers && allReady;
   const canAddAI = targetRoom.players.length < 4;
 
   const handleLeaveRoom = () => {
@@ -428,15 +451,25 @@ const GameRoom: React.FC = () => {
     await addAI(targetRoom.id, selectedAIDifficulty);
   };
 
+  const handleToggleReady = async () => {
+    soundManager.buttonClick();
+    if (!myPlayer) return;
+    try {
+      await socketService.setReady(targetRoom.id, !myPlayer.isReady);
+    } catch (error) {
+      console.error('切换准备状态失败:', error);
+    }
+  };
+
   const handleStartGame = async () => {
     soundManager.buttonClick();
-    if (canStartGame) {
+    if (canStart) {
       try {
         const success = await startGame(targetRoom.id);
         if (success) {
           navigate(`/game?roomId=${targetRoom.id}`, { state: { showTransition: true } });
         } else {
-          alert(t('gameRoom.startFailed') || '开始游戏失败，请确认所有玩家已准备');
+          alert(t('gameRoom.startFailed') || '开始游戏失败，请确认房间满4人且所有玩家已准备');
         }
       } catch (error) {
         console.error('开始游戏出错:', error);
@@ -502,35 +535,53 @@ const GameRoom: React.FC = () => {
           </PlayersSection>
           
           <Sidebar>
-            <ControlPanel>
-              <SectionTitle>{t('gameRoom.addAIPlayer')}</SectionTitle>
-              <AIControls>
-                <AISelect
-                  value={selectedAIDifficulty}
-                  onChange={(e) => setSelectedAIDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
-                  onMouseEnter={() => soundManager.buttonHover()}
-                >
-                  <option value="easy">{t('settings.easy')}</option>
-                  <option value="medium">{t('settings.medium')}</option>
-                  <option value="hard">{t('settings.hard')}</option>
-                </AISelect>
-                <AddAIButton 
-                  onClick={handleAddAI} 
-                  disabled={!canAddAI}
-                  onMouseEnter={() => soundManager.buttonHover()}
-                >
-                  {canAddAI ? t('gameRoom.addAI') : t('gameRoom.roomFull')}
-                </AddAIButton>
-              </AIControls>
-            </ControlPanel>
+            {isHost && (
+              <ControlPanel>
+                <SectionTitle>{t('gameRoom.addAIPlayer')}</SectionTitle>
+                <AIControls>
+                  <AISelect
+                    value={selectedAIDifficulty}
+                    onChange={(e) => setSelectedAIDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
+                    onMouseEnter={() => soundManager.buttonHover()}
+                  >
+                    <option value="easy">{t('settings.easy')}</option>
+                    <option value="medium">{t('settings.medium')}</option>
+                    <option value="hard">{t('settings.hard')}</option>
+                  </AISelect>
+                  <AddAIButton 
+                    onClick={handleAddAI} 
+                    disabled={!canAddAI}
+                    onMouseEnter={() => soundManager.buttonHover()}
+                  >
+                    {canAddAI ? t('gameRoom.addAI') : t('gameRoom.roomFull')}
+                  </AddAIButton>
+                </AIControls>
+              </ControlPanel>
+            )}
+
+            {myPlayer && !myPlayer.isHost && (
+              <ReadyButton 
+                $isReady={myPlayer.isReady}
+                onClick={handleToggleReady}
+                onMouseEnter={() => soundManager.buttonHover()}
+              >
+                {myPlayer.isReady 
+                  ? (t('gameRoom.cancelReady') || '取消准备') 
+                  : (t('gameRoom.ready') || '准备')}
+              </ReadyButton>
+            )}
 
             {isHost && (
               <StartGameButton 
                 onClick={handleStartGame}
-                disabled={!canStartGame}
+                disabled={!canStart}
                 onMouseEnter={() => soundManager.buttonHover()}
               >
-                {canStartGame ? t('gameRoom.startGame') : t('gameRoom.waitingForPlayers')}
+                {!hasFourPlayers 
+                  ? (t('gameRoom.needFourPlayers') || '需要4名玩家')
+                  : !allReady 
+                    ? (t('gameRoom.waitingReady') || '等待所有玩家准备')
+                    : (t('gameRoom.startGame') || '开始游戏')}
               </StartGameButton>
             )}
           </Sidebar>

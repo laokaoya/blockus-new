@@ -406,11 +406,12 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ isOpen, onClose, onCr
           </div>
           
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1e293b', fontWeight: '500', cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={isPrivate}
                 onChange={(e) => setIsPrivate(e.target.checked)}
+                style={{ width: '18px', height: '18px', accentColor: '#6366f1' }}
               />
               {t('room.setPassword')}
             </label>
