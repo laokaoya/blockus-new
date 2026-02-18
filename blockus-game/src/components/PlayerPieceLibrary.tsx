@@ -123,41 +123,45 @@ const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({
   return (
     <LibraryContainer>
       <PiecesGrid>
-        {player.pieces.sort((a, b) => b.type - a.type).map(piece => (
-          <PieceItem
-            key={piece.id}
-            isSelected={selectedPiece?.id === piece.id}
-            isUsed={piece.isUsed}
-            color={player.color}
-            onClick={() => handlePieceClick(piece)}
-            onMouseDown={(e) => {
-              if (!piece.isUsed && onStartDrag) {
-                onPieceSelect(piece);
-                onStartDrag(piece, e);
-              }
-            }}
-          >
-            <PieceShape 
-              rows={piece.shape.length} 
-              cols={piece.shape[0]?.length || 1}
+        {player.pieces.sort((a, b) => b.type - a.type).map(piece => {
+          const isSelected = selectedPiece?.id === piece.id;
+          const displayShape = isSelected && selectedPiece ? selectedPiece.shape : piece.shape;
+          return (
+            <PieceItem
+              key={piece.id}
+              isSelected={isSelected}
+              isUsed={piece.isUsed}
+              color={player.color}
+              onClick={() => handlePieceClick(piece)}
+              onMouseDown={(e) => {
+                if (!piece.isUsed && onStartDrag) {
+                  onPieceSelect(piece);
+                  onStartDrag(piece, e);
+                }
+              }}
             >
-              <PieceGrid 
-                rows={piece.shape.length} 
-                cols={piece.shape[0]?.length || 1}
+              <PieceShape 
+                rows={displayShape.length} 
+                cols={displayShape[0]?.length || 1}
               >
-                {piece.shape.map((row, rowIndex) =>
-                  row.map((cell, colIndex) => (
-                    <ShapeCell
-                      key={`${rowIndex}-${colIndex}`}
-                      isFilled={cell === 1}
-                      color={player.color}
-                    />
-                  ))
-                )}
-              </PieceGrid>
-            </PieceShape>
-          </PieceItem>
-        ))}
+                <PieceGrid 
+                  rows={displayShape.length} 
+                  cols={displayShape[0]?.length || 1}
+                >
+                  {displayShape.map((row, rowIndex) =>
+                    row.map((cell, colIndex) => (
+                      <ShapeCell
+                        key={`${rowIndex}-${colIndex}`}
+                        isFilled={cell === 1}
+                        color={player.color}
+                      />
+                    ))
+                  )}
+                </PieceGrid>
+              </PieceShape>
+            </PieceItem>
+          );
+        })}
       </PiecesGrid>
     </LibraryContainer>
   );
