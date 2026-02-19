@@ -36,18 +36,16 @@ const Content = styled.div`
 `;
 
 const Title = styled.h1`
-  font-size: 5rem;
-  font-weight: 900;
-  margin: 0 0 20px 0;
-  background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  letter-spacing: 4px;
+  font-size: 4rem;
+  font-weight: 800;
+  margin: 0 0 10px 0;
+  color: #fff;
+  letter-spacing: 2px;
   font-family: 'Rajdhani', sans-serif;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
   
   @media (max-width: 768px) {
-    font-size: 3.5rem;
+    font-size: 3rem;
   }
 `;
 

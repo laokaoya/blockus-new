@@ -68,6 +68,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         score,
         isSettled,
         isCurrentTurn,
+        isAI: false // 多人游戏暂时不区分 AI 标识，或者需要服务端下发
       };
     });
   }, []);
@@ -213,6 +214,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     unsubscribers.push(
       socketService.on('game:turnChanged', (data: { roomId: string; currentPlayerIndex: number; timeLeft: number }) => {
         if (data.roomId !== roomId) return;
+        const safeTimeLeft = Number.isFinite(data.timeLeft) && data.timeLeft >= 0 ? data.timeLeft : 60;
 
         setGameState(prev => {
           const newPlayers = prev.players.map((p, idx) => ({
@@ -224,7 +226,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
             ...prev,
             players: newPlayers,
             currentPlayerIndex: data.currentPlayerIndex,
-            timeLeft: data.timeLeft,
+            timeLeft: safeTimeLeft,
           };
         });
 
@@ -245,8 +247,9 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     unsubscribers.push(
       socketService.on('game:timeUpdate', (data: { roomId: string; timeLeft: number }) => {
         if (data.roomId !== roomId) return;
-        setGameState(prev => ({ ...prev, timeLeft: data.timeLeft }));
-        if (data.timeLeft <= 10 && data.timeLeft > 0) {
+        const safeTimeLeft = Number.isFinite(data.timeLeft) && data.timeLeft >= 0 ? data.timeLeft : 0;
+        setGameState(prev => ({ ...prev, timeLeft: safeTimeLeft }));
+        if (safeTimeLeft <= 10 && safeTimeLeft > 0) {
           soundManager.timeWarning();
         }
       })
@@ -477,6 +480,22 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     
     return () => clearTimeout(timer);
   }, [isMyTurn, gameState.gamePhase, gameState.board, gameState.players, myUserId, myColor, settlePlayer]);
+
+  // 超时兜底：如果本地看到自己时间已到但服务端未及时切人，主动结算避免卡死
+  useEffect(() => {
+    if (gameState.gamePhase !== 'playing') return;
+    if (!isMyTurn) return;
+    if (gameState.timeLeft > 0) return;
+
+    const myPlayer = gameState.players.find(p => p.id === myUserId);
+    if (!myPlayer || myPlayer.isSettled) return;
+
+    const timer = setTimeout(() => {
+      settlePlayer();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [gameState.gamePhase, gameState.timeLeft, gameState.players, isMyTurn, myUserId, settlePlayer]);
 
   // 监听当前玩家变化，设置 AI 思考状态
   useEffect(() => {

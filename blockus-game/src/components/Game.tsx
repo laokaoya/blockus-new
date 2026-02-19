@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { useGameState } from '../hooks/useGameState';
 import { useMultiplayerGame } from '../hooks/useMultiplayerGame';
@@ -7,6 +7,8 @@ import PlayerPieceLibrary from './PlayerPieceLibrary';
 import AIPlayersInfo from './AIPlayersInfo';
 import GameControls from './GameControls';
 import GameOver from './GameOver';
+import GameRulesModal from './GameRulesModal';
+import ChatBox from './ChatBox';
 import { Position, Piece } from '../types/game';
 import { canPlacePiece } from '../utils/gameEngine';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -14,6 +16,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useRoom } from '../contexts/RoomContext';
 import soundManager from '../utils/soundManager';
+import { BookIcon, SettingsIcon, RotateIcon, FlipIcon, EyeIcon } from './Icons';
 
 // --- Responsive Layout Components ---
 
@@ -193,7 +196,6 @@ const ActionBtn = styled.button`
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
-  font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -201,6 +203,11 @@ const ActionBtn = styled.button`
   transition: all 0.15s ease;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
 
   &:hover {
     background: rgba(255, 255, 255, 0.15);
@@ -215,7 +222,11 @@ const ActionBtn = styled.button`
   @media (max-width: 768px) {
     width: 38px;
     height: 38px;
-    font-size: 16px;
+    
+    svg {
+      width: 18px;
+      height: 18px;
+    }
   }
 `;
 
@@ -252,27 +263,44 @@ const SettingsButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
   cursor: pointer;
   transition: all 0.2s ease;
   
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+
   &:hover {
     background: rgba(255, 255, 255, 0.2);
     transform: rotate(90deg);
   }
 `;
 
-const GameTitle = styled.h1`
+const RulesButton = styled.button`
+  background: rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
-  font-size: 1.2rem;
-  margin: 0;
-  font-weight: 700;
-  letter-spacing: 1px;
+  border: 1px solid var(--surface-border);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
   
-  @media (max-width: 768px) {
-    display: none; // Hide title on mobile to save space
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
   }
 `;
+
 
 // SettleButton removed
 // const SettleButton = styled.button...
@@ -313,12 +341,15 @@ const SinglePlayerGame: React.FC = () => {
     canPlayerContinue, gameSettings
   } = useGameState();
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
+  const [showRulesModal, setShowRulesModal] = useState(false);
   const navigate = useNavigate();
   const { t } = useLanguage();
   
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const player = gameState.players[0];
   const aiPlayers = gameState.players.slice(1);
+  const selectedPieceRef = useRef(gameState.selectedPiece);
+  const isHumanTurnRef = useRef(currentPlayer.color === 'red');
 
   const handleBackToLobby = () => {
     soundManager.buttonClick();
@@ -328,6 +359,11 @@ const SinglePlayerGame: React.FC = () => {
   const handleSettings = () => {
     soundManager.buttonClick();
     navigate('/settings');
+  };
+
+  const handleShowRules = () => {
+    soundManager.buttonClick();
+    setShowRulesModal(true);
   };
   
   const handlePieceSelect = (piece: Piece) => {
@@ -385,23 +421,31 @@ const SinglePlayerGame: React.FC = () => {
   };
 
   useEffect(() => {
+    selectedPieceRef.current = gameState.selectedPiece;
+    isHumanTurnRef.current = currentPlayer.color === 'red';
+  }, [gameState.selectedPiece, currentPlayer.color]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (currentPlayer.color === 'red' && gameState.selectedPiece) {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      if (isHumanTurnRef.current && selectedPieceRef.current) {
         if (e.key === 'ArrowRight') { 
           e.preventDefault(); 
-          soundManager.rotatePiece();
           rotateSelectedPiece(); 
         }
-        else if (e.shiftKey && e.key === 'Shift') { 
+        else if (e.key === 'Shift') { 
           e.preventDefault(); 
-          soundManager.flipPiece();
           flipSelectedPiece(); 
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentPlayer.color, gameState.selectedPiece, rotateSelectedPiece, flipSelectedPiece]);
+  }, [rotateSelectedPiece, flipSelectedPiece]);
 
   return (
     <>
@@ -414,11 +458,13 @@ const SinglePlayerGame: React.FC = () => {
               <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()}>
                 ← {t('common.back')}
               </BackButton>
-              <GameTitle>{t('game.title')}</GameTitle>
             </HeaderLeft>
             <HeaderRight>
+              <RulesButton onClick={handleShowRules} onMouseEnter={() => soundManager.buttonHover()} title={t('help.title')}>
+                <BookIcon />
+              </RulesButton>
               <SettingsButton onClick={handleSettings} onMouseEnter={() => soundManager.buttonHover()} title={t('menu.settings')}>
-                ⚙️
+                <SettingsIcon />
               </SettingsButton>
             </HeaderRight>
           </Header>
@@ -447,6 +493,7 @@ const SinglePlayerGame: React.FC = () => {
                 onReset={handleReset} 
                 canPlayerContinue={canPlayerContinue} 
                 myScore={player?.score}
+                myColor="red"
               />
             </RightPanel>
           </GameContent>
@@ -455,12 +502,12 @@ const SinglePlayerGame: React.FC = () => {
             <PieceActions $visible={!!gameState.selectedPiece}>
               <ActionBtn
                 onClick={() => { soundManager.rotatePiece(); rotateSelectedPiece(); }}
-                title={t('game.rotate') || 'Rotate'}
-              >↻</ActionBtn>
+                aria-label={t('game.rotate') || 'Rotate piece'}
+              ><RotateIcon /></ActionBtn>
               <ActionBtn
                 onClick={() => { soundManager.flipPiece(); flipSelectedPiece(); }}
-                title={t('game.flip') || 'Flip'}
-              >⇔</ActionBtn>
+                aria-label={t('game.flip') || 'Flip piece'}
+              ><FlipIcon /></ActionBtn>
             </PieceActions>
             <PieceLibraryWrapper>
               <PlayerPieceLibrary 
@@ -473,6 +520,7 @@ const SinglePlayerGame: React.FC = () => {
           </BottomDock>
         </GameContainer>
       )}
+      <GameRulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
     </>
   );
 };
@@ -485,6 +533,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   const { isSpectating, leaveRoom } = useRoom();
   const [searchParams] = useSearchParams();
   const isSpectateMode = searchParams.get('spectate') === 'true' || isSpectating;
+  const [showRulesModal, setShowRulesModal] = useState(false);
 
   const mp = useMultiplayerGame({
     roomId,
@@ -504,6 +553,9 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   const myPlayer = gameState.players.find(p => p.id === user?.profile.id);
   const otherPlayers = gameState.players.filter(p => p.id !== user?.profile.id);
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  const selectedPieceRef = useRef(gameState.selectedPiece);
+  const isMyTurnRef = useRef(isMyTurn);
+  const isSpectateRef = useRef(isSpectateMode);
 
   const handleBackToLobby = async () => {
     soundManager.buttonClick();
@@ -514,6 +566,11 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   const handleSettings = () => {
     soundManager.buttonClick();
     navigate('/settings');
+  };
+
+  const handleShowRules = () => {
+    soundManager.buttonClick();
+    setShowRulesModal(true);
   };
   
   const handlePieceSelect = (piece: Piece) => {
@@ -569,23 +626,32 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   };
 
   useEffect(() => {
+    selectedPieceRef.current = gameState.selectedPiece;
+    isMyTurnRef.current = isMyTurn;
+    isSpectateRef.current = isSpectateMode;
+  }, [gameState.selectedPiece, isMyTurn, isSpectateMode]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isSpectateMode && isMyTurn && gameState.selectedPiece) {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      if (!isSpectateRef.current && isMyTurnRef.current && selectedPieceRef.current) {
         if (e.key === 'ArrowRight') { 
           e.preventDefault(); 
-          soundManager.rotatePiece();
           rotateSelectedPiece(); 
         }
-        else if (e.shiftKey && e.key === 'Shift') { 
+        else if (e.key === 'Shift') { 
           e.preventDefault(); 
-          soundManager.flipPiece();
           flipSelectedPiece(); 
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSpectateMode, isMyTurn, gameState.selectedPiece, rotateSelectedPiece, flipSelectedPiece]);
+  }, [rotateSelectedPiece, flipSelectedPiece]);
 
   // Add loading check
   if (!gameState.players || gameState.players.length === 0) {
@@ -622,11 +688,13 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
               <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()}>
                 ← {t('common.back')}
               </BackButton>
-              <GameTitle>{t('game.title')}</GameTitle>
             </HeaderLeft>
             <HeaderRight>
+              <RulesButton onClick={handleShowRules} onMouseEnter={() => soundManager.buttonHover()} title={t('help.title')}>
+                <BookIcon />
+              </RulesButton>
               <SettingsButton onClick={handleSettings} onMouseEnter={() => soundManager.buttonHover()} title={t('menu.settings')}>
-                ⚙️
+                <SettingsIcon />
               </SettingsButton>
             </HeaderRight>
           </Header>
@@ -656,6 +724,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
                   onReset={handleBackToLobby} 
                   canPlayerContinue={canPlayerContinue}
                   myScore={myPlayer?.score}
+                  myColor={myPlayer?.color}
                 />
               )}
             </RightPanel>
@@ -665,12 +734,12 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
             <PieceActions $visible={!!gameState.selectedPiece && !isSpectateMode}>
               <ActionBtn
                 onClick={() => { soundManager.rotatePiece(); rotateSelectedPiece(); }}
-                title={t('game.rotate') || 'Rotate'}
-              >↻</ActionBtn>
+                aria-label={t('game.rotate') || 'Rotate piece'}
+              ><RotateIcon /></ActionBtn>
               <ActionBtn
                 onClick={() => { soundManager.flipPiece(); flipSelectedPiece(); }}
-                title={t('game.flip') || 'Flip'}
-              >⇔</ActionBtn>
+                aria-label={t('game.flip') || 'Flip piece'}
+              ><FlipIcon /></ActionBtn>
             </PieceActions>
             <PieceLibraryWrapper>
               {myPlayer && (
@@ -685,10 +754,12 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
           </BottomDock>
 
           {isSpectateMode && (
-            <SpectatorBadge>👁 观战模式</SpectatorBadge>
+            <SpectatorBadge><EyeIcon /> {t('room.spectate') || '观战模式'}</SpectatorBadge>
           )}
+          <ChatBox />
         </GameContainer>
       )}
+      <GameRulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
     </>
   );
 };

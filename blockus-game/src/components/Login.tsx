@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { UserProfile } from '../types/game';
+import { UserIcon } from './Icons';
 
 const LoginContainer = styled.div`
   height: 100vh;
@@ -37,7 +38,8 @@ const Title = styled.h1`
   margin-bottom: 10px;
   font-size: 2rem;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: 1px;
+  font-family: 'Rajdhani', sans-serif;
 `;
 
 const Subtitle = styled.p`
@@ -148,6 +150,11 @@ const AvatarPreview = styled.div<{ image?: string }>`
   color: white;
   border: 2px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
+  
+  svg {
+    width: 32px;
+    height: 32px;
+  }
 `;
 
 const AvatarInput = styled.input`
@@ -368,7 +375,7 @@ const Login: React.FC = () => {
             <Label>{t('login.avatarLabel')}</Label>
             <AvatarSection>
               <AvatarPreview image={avatar} onClick={handleAvatarClick}>
-                {!avatar && '👤'}
+                {!avatar && <UserIcon />}
               </AvatarPreview>
               <div>
                 <UploadButton type="button" onClick={handleAvatarClick}>

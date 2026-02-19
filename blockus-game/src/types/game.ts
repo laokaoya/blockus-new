@@ -20,6 +20,7 @@ export interface Player {
   score: number;
   isSettled: boolean;
   isCurrentTurn: boolean;
+  isAI?: boolean;
 }
 
 export interface GameMove {

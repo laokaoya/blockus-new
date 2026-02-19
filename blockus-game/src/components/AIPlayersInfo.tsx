@@ -321,7 +321,7 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({
             </PlayerHeader>
             
             <ScoreBadge>
-              {player.score} pts
+              {player.score} {t('gameOver.points') || 'pts'}
             </ScoreBadge>
           </PlayerCard>
         ))}
@@ -335,7 +335,7 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({
                 <PlayerAvatar color={viewingPlayer.color} style={{ width: 30, height: 30, fontSize: 14 }}>
                   {viewingPlayer.name.charAt(0)}
                 </PlayerAvatar>
-                {viewingPlayer.name}'s Pieces
+                {viewingPlayer.name} - {t('game.viewPieces') || 'Pieces'}
               </ModalTitle>
               <CloseButton onClick={closePiecesModal}>&times;</CloseButton>
             </ModalHeader>

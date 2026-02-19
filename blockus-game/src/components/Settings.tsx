@@ -406,9 +406,8 @@ const Settings: React.FC = () => {
     soundManager.setVolume(0.8);
   };
 
-  // 返回主页面
-  const handleBackToLobby = () => {
-    navigate('/');
+  const handleBack = () => {
+    navigate(-1);
   };
 
   return (
@@ -563,7 +562,7 @@ const Settings: React.FC = () => {
         <Button variant="secondary" onClick={handleResetSettings}>
           {t('common.reset')}
         </Button>
-        <Button variant="secondary" onClick={handleBackToLobby}>
+        <Button variant="secondary" onClick={handleBack}>
           {t('common.back')}
         </Button>
       </ActionButtons>

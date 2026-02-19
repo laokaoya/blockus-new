@@ -22,6 +22,17 @@ interface RoomContextType {
   setReady: (roomId: string, isReady: boolean) => Promise<boolean>;
   spectateGame: (roomId: string) => Promise<boolean>;
   refreshRooms: () => Promise<void>;
+  chatMessages: ChatMessage[];
+  sendChatMessage: (content: string) => void;
+}
+
+export interface ChatMessage {
+  roomId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: number;
+  type: 'chat' | 'system';
 }
 
 const RoomContext = createContext<RoomContextType | undefined>(undefined);
@@ -45,6 +56,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
   const [isSpectating, setIsSpectating] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   // 监听 Socket 事件
   useEffect(() => {
@@ -76,7 +88,12 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     unsubscribers.push(
       socketService.on('room:deleted', (roomId: string) => {
         setRooms(prev => prev.filter(r => r.id !== roomId));
-        setCurrentRoom(prev => prev?.id === roomId ? null : prev);
+        if (currentRoom?.id === roomId) {
+          setChatMessages([]); // 清空聊天记录
+          setCurrentRoom(null);
+        } else {
+          setCurrentRoom(prev => prev?.id === roomId ? null : prev);
+        }
       })
     );
 
@@ -117,6 +134,13 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
           }
           return prev;
         });
+      })
+    );
+
+    // 房间聊天
+    unsubscribers.push(
+      socketService.on('room:chat', (data: ChatMessage) => {
+        setChatMessages(prev => [...prev, data]);
       })
     );
 
@@ -184,10 +208,11 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     if (!user || !socketService.isConnected) return false;
 
     const result = await socketService.joinRoom(roomId, password);
-    if (result.success && result.room) {
-      setCurrentRoom(result.room);
-      return true;
-    }
+      if (result.success && result.room) {
+        setChatMessages([]); // 清空聊天记录
+        setCurrentRoom(result.room);
+        return true;
+      }
     return false;
   }, [user]);
 
@@ -197,6 +222,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         await socketService.leaveRoom(currentRoom.id);
       }
       setCurrentRoom(null);
+      setChatMessages([]); // 清空聊天记录
       setIsSpectating(false);
     }
   }, [currentRoom]);
@@ -309,6 +335,12 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     return false;
   }, [user]);
 
+  const sendChatMessage = useCallback((content: string) => {
+    if (currentRoom && socketService.isConnected) {
+      socketService.sendChat(currentRoom.id, content);
+    }
+  }, [currentRoom]);
+
   const refreshRooms = useCallback(async () => {
     if (!socketService.isConnected) return;
     setIsLoading(true);
@@ -341,6 +373,8 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     setReady,
     spectateGame,
     refreshRooms,
+    chatMessages,
+    sendChatMessage,
   };
 
   return (

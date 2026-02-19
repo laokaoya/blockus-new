@@ -1,8 +1,15 @@
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { TokenPayload } from './types';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'blockus-game-secret-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('[Auth] WARNING: JWT_SECRET not set! Using random secret (tokens will invalidate on restart)');
+    return crypto.randomBytes(32).toString('hex');
+  }
+  return 'blockus-dev-secret-key';
+})();
 const TOKEN_EXPIRY = '7d';
 
 // 生成 JWT token

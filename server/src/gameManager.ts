@@ -19,6 +19,7 @@ interface ActiveGame {
   onTimeUpdate: (roomId: string, timeLeft: number) => void;
   onAIMove: (roomId: string, move: GameMove, gameState: GameState) => void;
   onAISettle: (roomId: string, playerId: string) => void;
+  timeoutCounts: Record<string, number>;
 }
 
 export class GameManager {
@@ -34,6 +35,9 @@ export class GameManager {
     onAIMove: (roomId: string, move: GameMove, gameState: GameState) => void,
     onAISettle: (roomId: string, playerId: string) => void
   ): { gameState: GameState; playerColors: Record<string, PlayerColor> } {
+    const normalizedTurnTimeLimit =
+      Number.isFinite(turnTimeLimit) && turnTimeLimit > 0 ? turnTimeLimit : 60;
+
     // 创建空棋盘
     const board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(0));
 
@@ -42,6 +46,7 @@ export class GameManager {
     const colorPlayerMap: Record<string, string> = {};
     const playerPieces: Record<string, Piece[]> = {};
     const aiPlayers = new Map<string, AIPlayer>();
+    const timeoutCounts: Record<string, number> = {};
 
     players.forEach((player, index) => {
       const color = player.color || PLAYER_COLORS[index];
@@ -55,6 +60,7 @@ export class GameManager {
       if (player.isAI) {
         aiPlayers.set(player.id, new AIPlayer(color, player.aiDifficulty || 'medium'));
       }
+      timeoutCounts[player.id] = 0;
     });
 
     const gameState: GameState = {
@@ -81,11 +87,12 @@ export class GameManager {
       playerPieces,
       aiPlayers,
       turnTimer: null,
-      turnTimeLimit,
+      turnTimeLimit: normalizedTurnTimeLimit,
       onTurnTimeout,
       onTimeUpdate,
       onAIMove,
       onAISettle,
+      timeoutCounts,
     };
 
     this.games.set(roomId, game);
@@ -228,6 +235,17 @@ export class GameManager {
     this.startTurnTimer(roomId);
   }
 
+  // 当前玩家超时，跳过本回合（不结算）
+  skipCurrentTurn(roomId: string): { success: boolean; gameState?: GameState } {
+    const game = this.games.get(roomId);
+    if (!game || game.state.gamePhase !== 'playing') {
+      return { success: false };
+    }
+
+    this.advanceTurn(roomId);
+    return { success: true, gameState: game.state };
+  }
+
   // 检查并处理 AI 回合
   private checkAndProcessAITurn(roomId: string): void {
     const game = this.games.get(roomId);
@@ -291,9 +309,11 @@ export class GameManager {
   // 启动回合计时器
   private startTurnTimer(roomId: string): void {
     const game = this.games.get(roomId);
-    if (!game || game.turnTimeLimit <= 0) return;
+    if (!game) return;
+    const safeTurnTimeLimit =
+      Number.isFinite(game.turnTimeLimit) && game.turnTimeLimit > 0 ? game.turnTimeLimit : 60;
 
-    let timeLeft = game.turnTimeLimit;
+    let timeLeft = safeTurnTimeLimit;
     
     game.turnTimer = setInterval(() => {
       timeLeft--;
@@ -301,6 +321,24 @@ export class GameManager {
 
       if (timeLeft <= 0) {
         this.clearTurnTimer(roomId);
+
+        const currentPlayer = game.players[game.state.currentPlayerIndex];
+        const timeoutPlayerId = currentPlayer?.id;
+
+        if (timeoutPlayerId) {
+          game.timeoutCounts[timeoutPlayerId] = (game.timeoutCounts[timeoutPlayerId] || 0) + 1;
+
+          // 同一玩家累计超时 3 次，直接结算
+          if (game.timeoutCounts[timeoutPlayerId] >= 3) {
+            this.settlePlayer(roomId, timeoutPlayerId);
+          } else {
+            // 由 GameManager 自身推进回合，避免仅广播但未真正切人的问题
+            this.skipCurrentTurn(roomId);
+          }
+        } else {
+          this.skipCurrentTurn(roomId);
+        }
+
         game.onTurnTimeout(roomId);
       }
     }, 1000);

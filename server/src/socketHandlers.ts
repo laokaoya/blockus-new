@@ -50,14 +50,18 @@ export function setupSocketHandlers(
       if (!data.nickname || data.nickname.trim().length === 0) {
         return callback({ success: false, error: 'NICKNAME_REQUIRED' });
       }
+      const nickname = data.nickname.trim().substring(0, 20);
+      if (nickname.length < 1) {
+        return callback({ success: false, error: 'NICKNAME_REQUIRED' });
+      }
 
-      const { token, userId } = generateToken(data.nickname.trim(), data.avatar);
+      const { token, userId } = generateToken(nickname, data.avatar);
       socket.data.userId = userId;
-      socket.data.nickname = data.nickname.trim();
+      socket.data.nickname = nickname;
 
-      socket.emit('authenticated', { userId, nickname: data.nickname.trim() });
+      socket.emit('authenticated', { userId, nickname });
       callback({ success: true, token, userId });
-      console.log(`[Auth] User logged in: ${data.nickname} (${userId})`);
+      console.log(`[Auth] User logged in: ${nickname} (${userId})`);
     });
 
     // ===================== 房间操作 =====================
@@ -73,12 +77,15 @@ export function setupSocketHandlers(
         return callback({ success: false, error: 'NOT_AUTHENTICATED' });
       }
 
+      const roomName = (data.name || '').trim().substring(0, 30) || 'Game Room';
+      const roomPassword = data.password ? String(data.password).substring(0, 20) : undefined;
+
       try {
         const room = roomManager.createRoom(
           socket.data.userId,
           socket.data.nickname,
-          data.name,
-          data.password,
+          roomName,
+          roomPassword,
           data.settings
         );
 
@@ -305,18 +312,29 @@ export function setupSocketHandlers(
         room.gameSettings.turnTimeLimit,
         // 回合超时回调
         (roomId) => {
-          const currentPlayer = gameManager.getCurrentPlayer(roomId);
-          if (currentPlayer) {
-            // 超时自动跳过
-            const state = gameManager.getGameState(roomId);
-            if (state) {
-              io.to(roomId).emit('game:turnChanged', {
+          // GameManager 已在超时处推进回合，这里只负责广播最新状态
+          const state = gameManager.getGameState(roomId);
+          if (!state) return;
+
+          if (state.gamePhase === 'finished') {
+            const rankings = gameManager.getRankings(roomId);
+            if (rankings) {
+              io.to(roomId).emit('game:finished', {
                 roomId,
-                currentPlayerIndex: state.currentPlayerIndex,
-                timeLeft: room.gameSettings.turnTimeLimit,
+                gameState: state,
+                rankings,
               });
+              roomManager.setGameFinished(roomId);
             }
+            return;
           }
+
+          const turnTimeLimit = room?.gameSettings.turnTimeLimit || 60;
+          io.to(roomId).emit('game:turnChanged', {
+            roomId,
+            currentPlayerIndex: state.currentPlayerIndex,
+            timeLeft: turnTimeLimit,
+          });
         },
         // 时间更新回调
         (roomId, timeLeft) => {

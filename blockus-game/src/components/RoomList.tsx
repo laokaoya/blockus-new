@@ -16,7 +16,7 @@ const RoomListContainer = styled.div`
   backdrop-filter: blur(12px);
   border: 1px solid var(--surface-border);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   
   &::before {
     content: '';
@@ -26,6 +26,133 @@ const RoomListContainer = styled.div`
     right: 0;
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  }
+`;
+
+const CreateRoomPanel = styled.div<{ isOpen: boolean }>`
+  background: rgba(15, 23, 42, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  max-height: ${props => props.isOpen ? '300px' : '0'};
+  transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  opacity: ${props => props.isOpen ? 1 : 0};
+  margin-bottom: ${props => props.isOpen ? '20px' : '0'};
+  border-radius: 16px;
+  border: ${props => props.isOpen ? '1px solid rgba(99, 102, 241, 0.3)' : 'none'};
+  box-shadow: ${props => props.isOpen ? '0 0 30px rgba(99, 102, 241, 0.15)' : 'none'};
+`;
+
+const PanelContent = styled.div`
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 20px;
+  align-items: end;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+`;
+
+const PanelInputGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const PanelLabel = styled.label`
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-family: 'Rajdhani', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+`;
+
+const PanelInput = styled.input`
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: white;
+  font-family: 'Rajdhani', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+  }
+`;
+
+const PanelButton = styled.button<{ variant?: 'primary' | 'secondary' }>`
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-family: 'Orbitron', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  height: 48px;
+
+  ${props => props.variant === 'primary' ? `
+    background: var(--primary-gradient);
+    color: white;
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 30px rgba(99, 102, 241, 0.6);
+    }
+  ` : `
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+  `}
+`;
+
+const ToggleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  user-select: none;
+`;
+
+const ToggleSwitch = styled.div<{ checked: boolean }>`
+  width: 40px;
+  height: 20px;
+  background: ${props => props.checked ? 'var(--primary-color)' : 'rgba(255, 255, 255, 0.1)'};
+  border-radius: 20px;
+  position: relative;
+  transition: all 0.3s ease;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: ${props => props.checked ? '22px' : '2px'};
+    top: 2px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   }
 `;
 
@@ -337,147 +464,207 @@ const LoadingState = styled.div`
   color: var(--text-muted);
 `;
 
-interface CreateRoomModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onCreateRoom: (name: string, password?: string) => void;
-}
+const ModalOverlay = styled.div<{ isOpen: boolean }>`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: ${props => props.isOpen ? 'flex' : 'none'};
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
 
-const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ isOpen, onClose, onCreateRoom }) => {
-  const { t } = useLanguage();
-  const [roomName, setRoomName] = useState('');
-  const [password, setPassword] = useState('');
-  const [isPrivate, setIsPrivate] = useState(false);
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+`;
 
-  if (!isOpen) return null;
+const ModalContainer = styled.div`
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 32px;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 0 40px rgba(99, 102, 241, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transform: translateY(0);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (roomName.trim()) {
-      onCreateRoom(roomName.trim(), isPrivate ? password : undefined);
-      onClose();
-      setRoomName('');
-      setPassword('');
-      setIsPrivate(false);
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+`;
+
+const ModalHeader = styled.div`
+  margin-bottom: 24px;
+  text-align: center;
+`;
+
+const ModalTitle = styled.h3`
+  margin: 0;
+  color: white;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: linear-gradient(to right, #fff, #a5b4fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 20px;
+`;
+
+const Label = styled.label`
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: 'Rajdhani', sans-serif;
+`;
+
+const Input = styled.input`
+  width: 100%;
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: white;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  font-family: 'Rajdhani', sans-serif;
+  letter-spacing: 0.5px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2), 0 0 15px rgba(99, 102, 241, 0.1);
+  }
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+  }
+`;
+
+const CheckboxGroup = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  user-select: none;
+  margin-bottom: 20px;
+  
+  &:hover {
+    color: white;
+  }
+`;
+
+const Checkbox = styled.input`
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  position: relative;
+  transition: all 0.2s ease;
+  cursor: pointer;
+
+  &:checked {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+  }
+
+  &:checked::after {
+    content: '✓';
+    position: absolute;
+    color: white;
+    font-size: 14px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: bold;
+  }
+  
+  &:hover {
+    border-color: var(--primary-color);
+  }
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+`;
+
+const ModalButton = styled.button<{ variant?: 'primary' | 'secondary' }>`
+  flex: 1;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-family: 'Rajdhani', sans-serif;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+
+  ${props => props.variant === 'primary' ? `
+    background: var(--primary-gradient);
+    color: white;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(99, 102, 241, 0.6);
+      filter: brightness(1.1);
     }
-  };
+    
+    &:active {
+      transform: translateY(0);
+    }
+  ` : `
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: 'white',
-        borderRadius: '20px',
-        padding: '30px',
-        maxWidth: '400px',
-        width: '90%'
-      }}>
-                 <h3 style={{ margin: '0 0 20px 0', color: '#1e293b', fontSize: '1.5rem', fontWeight: '600' }}>{t('room.createRoom')}</h3>
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '20px' }}>
-                         <label style={{ display: 'block', marginBottom: '8px', color: '#64748b', fontWeight: '500' }}>
-                {t('room.roomName')}
-              </label>
-            <input
-              type="text"
-              value={roomName}
-              onChange={(e) => setRoomName(e.target.value)}
-              placeholder={t('room.enterRoomName')}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '2px solid rgba(102, 126, 234, 0.2)',
-                borderRadius: '10px',
-                fontSize: '16px',
-                transition: 'border-color 0.3s ease'
-              }}
-              required
-            />
-          </div>
-          
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1e293b', fontWeight: '500', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={isPrivate}
-                onChange={(e) => setIsPrivate(e.target.checked)}
-                style={{ width: '18px', height: '18px', accentColor: '#6366f1' }}
-              />
-              {t('room.setPassword')}
-            </label>
-          </div>
-          
-          {isPrivate && (
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', color: '#64748b', fontWeight: '500' }}>
-                {t('room.roomPassword')}
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={t('room.enterRoomPassword')}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '2px solid rgba(102, 126, 234, 0.2)',
-                  borderRadius: '10px',
-                  fontSize: '16px',
-                  transition: 'border-color 0.3s ease'
-                }}
-                required={isPrivate}
-              />
-            </div>
-          )}
-          
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                background: 'linear-gradient(135deg, #6b7280, #4b5563)',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '20px',
-                cursor: 'pointer',
-                fontWeight: '500',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              {t('common.cancel')}
-            </button>
-            <button
-              type="submit"
-              style={{
-                background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '20px',
-                cursor: 'pointer',
-                fontWeight: '500',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              {t('room.create')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+    }
+  `}
+`;
+
 
 interface JoinRoomModalProps {
   isOpen: boolean;
@@ -493,86 +680,36 @@ const JoinRoomModal: React.FC<JoinRoomModalProps> = ({ isOpen, onClose, room, pa
   if (!isOpen || !room) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: 'white',
-        borderRadius: '20px',
-        padding: '30px',
-        maxWidth: '400px',
-        width: '90%'
-      }}>
-        <h3 style={{ margin: '0 0 20px 0', color: '#1e293b', fontSize: '1.5rem', fontWeight: '600' }}>
-          {t('room.joinRoom')}: {room.name}
-        </h3>
+    <ModalOverlay isOpen={isOpen} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <ModalContainer>
+        <ModalHeader>
+          <ModalTitle>
+            {t('room.joinRoom')}: {room.name}
+          </ModalTitle>
+        </ModalHeader>
         
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', color: '#64748b', fontWeight: '500' }}>
-            {t('room.roomPassword')}
-          </label>
-          <input
+        <FormGroup>
+          <Label>{t('room.roomPassword')}</Label>
+          <Input
             type="password"
             value={password}
             onChange={(e) => onPasswordChange(e.target.value)}
             placeholder={t('room.enterRoomPassword')}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '2px solid rgba(102, 126, 234, 0.2)',
-              borderRadius: '10px',
-              fontSize: '16px',
-              transition: 'border-color 0.3s ease'
-            }}
             required
+            autoFocus
           />
-        </div>
+        </FormGroup>
         
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: 'linear-gradient(135deg, #6b7280, #4b5563)',
-              color: 'white',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '20px',
-              cursor: 'pointer',
-              fontWeight: '500',
-              transition: 'all 0.3s ease'
-            }}
-          >
-            取消
-          </button>
-          <button
-            type="button"
-            onClick={onSubmit}
-            style={{
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              color: 'white',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '20px',
-              cursor: 'pointer',
-              fontWeight: '500',
-              transition: 'all 0.3s ease'
-            }}
-          >
+        <ButtonGroup>
+          <ModalButton type="button" variant="secondary" onClick={onClose}>
+            {t('common.cancel')}
+          </ModalButton>
+          <ModalButton type="button" variant="primary" onClick={onSubmit}>
             {t('room.join')}
-          </button>
-        </div>
-      </div>
-    </div>
+          </ModalButton>
+        </ButtonGroup>
+      </ModalContainer>
+    </ModalOverlay>
   );
 };
 
@@ -606,7 +743,13 @@ const RoomList: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  
+  // Create Room State
+  const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
+  const [newRoomName, setNewRoomName] = useState('');
+  const [newRoomPassword, setNewRoomPassword] = useState('');
+  const [isNewRoomPrivate, setIsNewRoomPrivate] = useState(false);
+
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<GameRoom | null>(null);
   const [joinPassword, setJoinPassword] = useState('');
@@ -621,10 +764,23 @@ const RoomList: React.FC = () => {
     return () => clearInterval(interval);
   }, [isOnline, refreshRooms]);
 
-  const handleCreateRoom = async (name: string, password?: string) => {
+  const handleToggleCreatePanel = () => {
+    soundManager.buttonClick();
+    setIsCreatePanelOpen(!isCreatePanelOpen);
+    if (!isCreatePanelOpen) {
+      // Reset form when opening
+      setNewRoomName('');
+      setNewRoomPassword('');
+      setIsNewRoomPrivate(false);
+    }
+  };
+
+  const handleCreateRoomSubmit = async () => {
+    if (!newRoomName.trim()) return;
+    
     soundManager.buttonClick();
     try {
-      const newRoom = await createRoom(name, password);
+      const newRoom = await createRoom(newRoomName.trim(), isNewRoomPrivate ? newRoomPassword : undefined);
       if (newRoom) {
         navigate(`/room/${newRoom.id}`);
       }
@@ -798,16 +954,57 @@ const RoomList: React.FC = () => {
             {t('common.refresh')}
           </RefreshButton>
           <CreateRoomButton 
-            onClick={() => {
-              soundManager.buttonClick();
-              setShowCreateModal(true);
-            }}
+            onClick={handleToggleCreatePanel}
             onMouseEnter={() => soundManager.buttonHover()}
           >
-            {t('room.createRoom')}
+            {isCreatePanelOpen ? t('common.cancel') : t('room.createRoom')}
           </CreateRoomButton>
         </div>
       </Header>
+
+      <CreateRoomPanel isOpen={isCreatePanelOpen}>
+        <PanelContent>
+          <PanelInputGroup>
+            <PanelLabel>{t('room.roomName')}</PanelLabel>
+            <PanelInput 
+              type="text" 
+              placeholder={t('room.enterRoomName')}
+              value={newRoomName}
+              onChange={(e) => setNewRoomName(e.target.value)}
+              autoFocus={isCreatePanelOpen}
+            />
+          </PanelInputGroup>
+
+          <PanelInputGroup>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <PanelLabel>{t('room.roomPassword')}</PanelLabel>
+              <ToggleContainer onClick={() => setIsNewRoomPrivate(!isNewRoomPrivate)}>
+                <span style={{ fontSize: '0.8rem', color: isNewRoomPrivate ? 'var(--primary-color)' : 'var(--text-secondary)' }}>
+                  {isNewRoomPrivate ? t('room.private') : t('room.public')}
+                </span>
+                <ToggleSwitch checked={isNewRoomPrivate} />
+              </ToggleContainer>
+            </div>
+            <PanelInput 
+              type="password" 
+              placeholder={isNewRoomPrivate ? t('room.enterRoomPassword') : t('room.noPassword')}
+              value={newRoomPassword}
+              onChange={(e) => setNewRoomPassword(e.target.value)}
+              disabled={!isNewRoomPrivate}
+              style={{ opacity: isNewRoomPrivate ? 1 : 0.5 }}
+            />
+          </PanelInputGroup>
+
+          <PanelButton 
+            variant="primary" 
+            onClick={handleCreateRoomSubmit}
+            disabled={!newRoomName.trim()}
+            style={{ opacity: !newRoomName.trim() ? 0.5 : 1 }}
+          >
+            {t('room.deploy')}
+          </PanelButton>
+        </PanelContent>
+      </CreateRoomPanel>
 
       {isLoading ? (
         <LoadingState>{t('common.loading') || '加载中...'}</LoadingState>
@@ -872,12 +1069,6 @@ const RoomList: React.FC = () => {
           </RoomCard>
         ))}
       </RoomGrid>
-
-      <CreateRoomModal 
-        isOpen={showCreateModal} 
-        onClose={() => setShowCreateModal(false)} 
-        onCreateRoom={handleCreateRoom} 
-      />
       
       <JoinRoomModal 
         isOpen={showJoinModal} 

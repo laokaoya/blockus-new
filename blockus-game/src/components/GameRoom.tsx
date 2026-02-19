@@ -416,7 +416,6 @@ const GameRoom: React.FC = () => {
 
     const timeout = setTimeout(() => {
       if (!targetRoom || !user) {
-        console.log('房间或用户不存在，重定向到首页');
         navigate('/', { replace: true });
       }
     }, 3000);

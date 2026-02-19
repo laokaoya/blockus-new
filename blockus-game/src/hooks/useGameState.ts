@@ -1,11 +1,11 @@
 // 游戏状态管理Hook
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, Player, Piece, Position, PlayerColor } from '../types/game';
 import { PIECE_SHAPES, PIECE_COUNTS, PLAYER_COLORS, PLAYER_NAMES } from '../constants/pieces';
 import { canPlacePiece, placePiece, calculateScore, isGameFinished, getWinner } from '../utils/gameEngine';
 import { AIPlayer } from '../utils/aiPlayer';
-import { rotatePiece, flipPiece } from '../utils/pieceTransformations';
+import { rotatePiece, flipPiece, getUniqueTransformations } from '../utils/pieceTransformations';
 import soundManager from '../utils/soundManager';
 
 const BOARD_SIZE = 20;
@@ -42,10 +42,12 @@ function getLocalizedPlayerName(color: PlayerColor, language: string = 'zh'): st
 export function useGameState() {
   // 从localStorage读取游戏设置
   const [gameSettings, setGameSettings] = useState<GameSettings>(() => {
-    const savedSettings = localStorage.getItem('gameSettings');
-    if (savedSettings) {
-      return JSON.parse(savedSettings);
-    }
+    try {
+      const savedSettings = localStorage.getItem('gameSettings');
+      if (savedSettings) {
+        return JSON.parse(savedSettings);
+      }
+    } catch { /* ignore corrupt data */ }
     return {
       aiDifficulty: 'medium',
       timeLimit: 60,
@@ -61,8 +63,11 @@ export function useGameState() {
   // 初始化游戏状态
   const [gameState, setGameState] = useState<GameState>(() => initializeGameState());
   const [aiPlayers, setAiPlayers] = useState<AIPlayer[]>([]);
-  const [thinkingAI, setThinkingAI] = useState<string | null>(null); // AI思考状态
-  const [lastAIMove, setLastAIMove] = useState<Array<{ x: number; y: number }>>([]); // AI最近放置的格子
+  const [thinkingAI, setThinkingAI] = useState<string | null>(null);
+  const [lastAIMove, setLastAIMove] = useState<Array<{ x: number; y: number }>>([]);
+  const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutCountRef = useRef<Record<string, number>>({});
   
   // 初始化AI玩家
   useEffect(() => {
@@ -133,7 +138,8 @@ export function useGameState() {
       pieces,
       score: 0,
       isSettled: false,
-      isCurrentTurn: false
+      isCurrentTurn: false,
+      isAI: color !== 'red' // 假设红色是玩家，其他是AI
     };
   }
   
@@ -177,12 +183,17 @@ export function useGameState() {
     const availablePieces = player.pieces.filter(p => !p.isUsed);
     if (availablePieces.length === 0) return false;
     
+    const colorIndex = gameState.players.findIndex(p => p.id === player.id) + 1;
+    const boardSize = gameState.board.length;
+    
     for (const piece of availablePieces) {
-      for (let y = 0; y < gameState.board.length; y++) {
-        for (let x = 0; x < gameState.board[y].length; x++) {
-          const colorIndex = gameState.players.findIndex(p => p.id === player.id) + 1;
-          if (canPlacePiece(gameState.board, piece, { x, y }, colorIndex)) {
-            return true;
+      const variants = getUniqueTransformations(piece);
+      for (const variant of variants) {
+        for (let y = 0; y < boardSize; y++) {
+          for (let x = 0; x < boardSize; x++) {
+            if (canPlacePiece(gameState.board, variant, { x, y }, colorIndex)) {
+              return true;
+            }
           }
         }
       }
@@ -271,7 +282,7 @@ export function useGameState() {
       currentPlayerIndex: nextPlayerIndex,
       selectedPiece: null,
       selectedPiecePosition: null,
-      timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? gameSettings.timeLimit : prev.timeLeft,
+      timeLeft: gameSettings.timeLimit,
       turnCount: prev.turnCount + 1, // 增加回合计数
       moves: [...prev.moves, {
         playerColor: currentPlayer.color,
@@ -302,18 +313,43 @@ export function useGameState() {
       thinkingTime = Math.random() * 2000 + 3000; // 3000-5000ms
     }
     
-    setTimeout(() => {
+    aiTimeoutRef.current = setTimeout(() => {
       const aiPlayer = aiPlayers.find(ai => ai.getColor() === currentPlayer.color);
-      if (!aiPlayer) return;
+      if (!aiPlayer) {
+        // 兜底：AI实例异常时，避免回合悬空导致卡死
+        setThinkingAI(null);
+        setGameState(prev => {
+          const curr = prev.players[prev.currentPlayerIndex];
+          if (!curr || curr.color === 'red') return prev;
+
+          const settledPlayers = prev.players.map(player =>
+            player.id === curr.id ? { ...player, isSettled: true } : player
+          );
+          const nextPlayerIndex = findNextActivePlayer(prev.currentPlayerIndex, settledPlayers);
+          const nextPlayers = settledPlayers.map((player, index) => ({
+            ...player,
+            isCurrentTurn: index === nextPlayerIndex
+          }));
+          const allSettled = nextPlayers.every(player => player.isSettled);
+
+          return {
+            ...prev,
+            players: nextPlayers,
+            currentPlayerIndex: nextPlayerIndex,
+            timeLeft: gameSettings.timeLimit,
+            turnCount: prev.turnCount + 1,
+            gamePhase: allSettled ? 'finished' : prev.gamePhase
+          };
+        });
+        return;
+      }
       
       const move = aiPlayer.makeMove(gameState.board, currentPlayer.pieces);
       
       if (move) {
-        // AI放置拼图
         const colorIndex = gameState.currentPlayerIndex + 1;
         const newBoard = placePiece(gameState.board, move.piece, move.position, colorIndex);
         
-        // 更新玩家状态
         const newPlayers = gameState.players.map(player => {
           if (player.id === currentPlayer.id) {
             const newPieces = player.pieces.map(p => 
@@ -325,14 +361,12 @@ export function useGameState() {
           return player;
         });
         
-        // 进入下一回合
         const nextPlayerIndex = findNextActivePlayer(gameState.currentPlayerIndex, newPlayers);
         const nextPlayers = newPlayers.map((player, index) => ({
           ...player,
           isCurrentTurn: index === nextPlayerIndex
         }));
         
-        // 计算AI移动的棋盘变化
         const boardChanges: Array<{ x: number; y: number; color: number }> = [];
         const { shape } = move.piece;
         
@@ -348,18 +382,18 @@ export function useGameState() {
           }
         }
         
-        // AI放置音效和高亮提示
         soundManager.aiPlace();
         setLastAIMove(boardChanges.map(c => ({ x: c.x, y: c.y })));
-        setTimeout(() => setLastAIMove([]), 1200); // 1.2秒后清除高亮
+        if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+        highlightTimeoutRef.current = setTimeout(() => setLastAIMove([]), 1200);
         
         setGameState(prev => ({
           ...prev,
           board: newBoard,
           players: nextPlayers,
           currentPlayerIndex: nextPlayerIndex,
-          timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? gameSettings.timeLimit : prev.timeLeft,
-          turnCount: prev.turnCount + 1, // 增加回合计数
+          timeLeft: gameSettings.timeLimit,
+          turnCount: prev.turnCount + 1,
           moves: [...prev.moves, {
             playerColor: currentPlayer.color,
             boardChanges: boardChanges,
@@ -367,12 +401,10 @@ export function useGameState() {
           }]
         }));
       } else {
-        // AI无法放置拼图，进入结算
         const newPlayers = gameState.players.map(player => 
           player.id === currentPlayer.id ? { ...player, isSettled: true } : player
         );
         
-        // 进入下一回合
         const nextPlayerIndex = findNextActivePlayer(gameState.currentPlayerIndex, newPlayers);
         const nextPlayers = newPlayers.map((player, index) => ({
           ...player,
@@ -383,12 +415,11 @@ export function useGameState() {
           ...prev,
           players: nextPlayers,
           currentPlayerIndex: nextPlayerIndex,
-          timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? gameSettings.timeLimit : prev.timeLeft,
-          turnCount: prev.turnCount + 1 // 增加回合计数
+          timeLeft: gameSettings.timeLimit,
+          turnCount: prev.turnCount + 1
         }));
       }
       
-      // 清除AI思考状态
       setThinkingAI(null);
     }, thinkingTime);
   }, [gameState, aiPlayers, findNextActivePlayer, gameSettings.timeLimit]);
@@ -415,7 +446,7 @@ export function useGameState() {
       ...prev,
       players: nextPlayers,
       currentPlayerIndex: nextPlayerIndex,
-      timeLeft: nextPlayers[nextPlayerIndex].color === 'red' ? gameSettings.timeLimit : prev.timeLeft,
+      timeLeft: gameSettings.timeLimit,
       turnCount: prev.turnCount + 1 // 增加回合计数
     }));
   }, [gameState, findNextActivePlayer, gameSettings.timeLimit]);
@@ -424,11 +455,13 @@ export function useGameState() {
   const resetGame = useCallback(() => {
     setGameState(initializeGameState());
     setThinkingAI(null); // 清除AI思考状态
+    timeoutCountRef.current = {};
   }, [gameSettings]);
 
   // 当游戏设置改变时，重新初始化游戏状态
   useEffect(() => {
     setGameState(initializeGameState());
+    timeoutCountRef.current = {};
   }, [gameSettings]);
   
   // 倒计时 - 只有人类玩家有时间限制
@@ -447,14 +480,70 @@ export function useGameState() {
         if (!currPlayer || currPlayer.color !== 'red' || currPlayer.isSettled) return prev;
 
         if (prev.timeLeft <= 1) {
+          const timeoutPlayerId = currPlayer.id;
+          const nextTimeoutCount = (timeoutCountRef.current[timeoutPlayerId] || 0) + 1;
+          timeoutCountRef.current[timeoutPlayerId] = nextTimeoutCount;
+
+          // 同一玩家累计超时 3 次，直接进入结算状态
+          if (nextTimeoutCount >= 3) {
+            const settledPlayers = prev.players.map((player, index) => ({
+              ...player,
+              isSettled: index === prev.currentPlayerIndex ? true : player.isSettled
+            }));
+            const nextPlayerIndexAfterSettle = findNextActivePlayer(prev.currentPlayerIndex, settledPlayers);
+            const nextPlayersAfterSettle = settledPlayers.map((player, index) => ({
+              ...player,
+              isCurrentTurn: index === nextPlayerIndexAfterSettle
+            }));
+            const allSettled = nextPlayersAfterSettle.every(player => player.isSettled);
+
+            return {
+              ...prev,
+              players: nextPlayersAfterSettle,
+              currentPlayerIndex: nextPlayerIndexAfterSettle,
+              selectedPiece: null,
+              selectedPiecePosition: null,
+              timeLeft: gameSettings.timeLimit,
+              turnCount: prev.turnCount + 1,
+              gamePhase: allSettled ? 'finished' : prev.gamePhase
+            };
+          }
+
           // 人类玩家超时，跳过当前回合
           const nextPlayerIndex = findNextActivePlayer(prev.currentPlayerIndex, prev.players);
+
+          // 兜底：如果没有其他可行动玩家，避免回到自己导致超时循环
+          if (nextPlayerIndex === prev.currentPlayerIndex) {
+            const settledPlayers = prev.players.map((player, index) => ({
+              ...player,
+              isSettled: index === prev.currentPlayerIndex ? true : player.isSettled
+            }));
+            const fallbackNextIndex = findNextActivePlayer(prev.currentPlayerIndex, settledPlayers);
+            const fallbackPlayers = settledPlayers.map((player, index) => ({
+              ...player,
+              isCurrentTurn: index === fallbackNextIndex
+            }));
+            const allSettled = fallbackPlayers.every(player => player.isSettled);
+
+            return {
+              ...prev,
+              players: fallbackPlayers,
+              currentPlayerIndex: fallbackNextIndex,
+              selectedPiece: null,
+              selectedPiecePosition: null,
+              timeLeft: gameSettings.timeLimit,
+              turnCount: prev.turnCount + 1,
+              gamePhase: allSettled ? 'finished' : prev.gamePhase
+            };
+          }
+
+          const nextPlayers = prev.players.map((player, index) => ({
+            ...player,
+            isCurrentTurn: index === nextPlayerIndex
+          }));
           return {
             ...prev,
-            players: prev.players.map((player, index) => ({
-              ...player,
-              isCurrentTurn: index === nextPlayerIndex
-            })),
+            players: nextPlayers,
             currentPlayerIndex: nextPlayerIndex,
             selectedPiece: null,
             selectedPiecePosition: null,
@@ -536,7 +625,6 @@ export function useGameState() {
           // 自动结算
           settlePlayer();
           // 可以添加一个 Toast 提示用户 "无路可走，自动结算"
-          // console.log('无路可走，自动结算');
         }
       }, 1000); // 给一点延迟，让玩家看清局面
       
@@ -603,6 +691,14 @@ export function useGameState() {
         name: getLocalizedPlayerName(player.color, language)
       }))
     }));
+  }, []);
+
+  // Cleanup AI timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current);
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+    };
   }, []);
 
   return {

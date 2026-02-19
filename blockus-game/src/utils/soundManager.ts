@@ -224,6 +224,14 @@ class SoundManager {
       osc.stop(ctx.currentTime + 0.4);
     } catch {}
   }
+
+  // 消息通知音效
+  messageNotification() {
+    this.playSequence([
+      { freq: 880, delay: 0, duration: 0.1, type: 'sine', gain: 0.3 },
+      { freq: 1760, delay: 0.1, duration: 0.15, type: 'sine', gain: 0.2 },
+    ]);
+  }
 }
 
 // 单例导出

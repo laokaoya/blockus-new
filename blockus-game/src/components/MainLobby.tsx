@@ -7,6 +7,7 @@ import { useRoom } from '../contexts/RoomContext';
 import GameRulesModal from './GameRulesModal';
 import RoomList from './RoomList';
 import soundManager from '../utils/soundManager';
+import { RocketIcon, SwordsIcon, BookIcon, SettingsIcon, UserIcon } from './Icons';
 
 interface UserStats {
   totalGames: number;
@@ -45,28 +46,18 @@ const LogoSection = styled.div`
 
 const Logo = styled.h1`
   font-family: 'Orbitron', sans-serif;
-  font-size: 2.5rem;
-  font-weight: 900;
+  font-size: 1.8rem;
+  font-weight: 800;
   margin: 0;
-  letter-spacing: 2px;
-  background: linear-gradient(to right, #fff, #a5b4fc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+  letter-spacing: 1px;
+  color: white;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
   
   @media (max-width: 768px) {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
   }
 `;
 
-const SubLogo = styled.span`
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 1rem;
-  color: var(--text-secondary);
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  opacity: 0.8;
-`;
 
 const UserSection = styled.div`
   display: flex;
@@ -99,10 +90,10 @@ const AvatarSmall = styled.div<{ image?: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
-  color: white;
-  font-weight: 600;
-  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+  svg {
+    width: 20px;
+    height: 20px;
+  }
 `;
 
 const UserInfoCompact = styled.div`
@@ -171,11 +162,11 @@ const MenuPanel = styled.div`
 
 const MenuButton = styled.button<{ $primary?: boolean }>`
   background: ${props => props.$primary 
-    ? 'var(--primary-gradient)' 
+    ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.8), rgba(79, 70, 229, 0.8))' 
     : 'rgba(30, 41, 59, 0.6)'};
-  border: 1px solid ${props => props.$primary ? 'transparent' : 'rgba(255, 255, 255, 0.1)'};
-  padding: 20px 24px;
-  border-radius: 16px;
+  border: 1px solid ${props => props.$primary ? 'rgba(165, 180, 252, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
+  padding: 24px 28px;
+  border-radius: 20px;
   color: white;
   text-align: left;
   cursor: pointer;
@@ -184,30 +175,50 @@ const MenuButton = styled.button<{ $primary?: boolean }>`
   overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 16px;
-  backdrop-filter: blur(10px);
+  gap: 20px;
+  backdrop-filter: blur(12px);
+  box-shadow: ${props => props.$primary 
+    ? '0 10px 30px -10px rgba(99, 102, 241, 0.6)' 
+    : '0 4px 6px -1px rgba(0, 0, 0, 0.1)'};
   
   &:hover {
-    transform: translateX(5px);
+    transform: translateY(-4px);
     background: ${props => props.$primary 
-      ? 'var(--primary-gradient)' 
+      ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(79, 70, 229, 0.9))' 
       : 'rgba(30, 41, 59, 0.8)'};
-    border-color: ${props => props.$primary ? 'transparent' : 'var(--primary-color)'};
+    border-color: ${props => props.$primary ? 'rgba(165, 180, 252, 0.5)' : 'rgba(255, 255, 255, 0.2)'};
     box-shadow: ${props => props.$primary 
-      ? '0 0 30px rgba(99, 102, 241, 0.4)' 
-      : '0 0 20px rgba(0, 0, 0, 0.2)'};
+      ? '0 20px 40px -12px rgba(99, 102, 241, 0.7)' 
+      : '0 10px 15px -3px rgba(0, 0, 0, 0.2)'};
+  }
+
+  &:active {
+    transform: translateY(-1px);
   }
 `;
 
-const ButtonIcon = styled.span`
+const ButtonIcon = styled.span<{ $color?: string }>`
   font-size: 1.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  color: ${props => props.$color || 'white'};
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: ${props => props.$color ? `rgba(${props.$color}, 0.15)` : 'rgba(255, 255, 255, 0.1)'};
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.3s ease;
+  
+  ${MenuButton}:hover & {
+    background: ${props => props.$color ? `rgba(${props.$color}, 0.25)` : 'rgba(255, 255, 255, 0.2)'};
+    transform: scale(1.1);
+  }
+
+  svg {
+    width: 24px;
+    height: 24px;
+    filter: drop-shadow(0 0 8px ${props => props.$color ? `rgba(${props.$color}, 0.5)` : 'rgba(255, 255, 255, 0.3)'});
+  }
 `;
 
 const ButtonContent = styled.div`
@@ -334,13 +345,12 @@ const MainLobby: React.FC = () => {
       <TopBar>
         <LogoSection>
           <Logo>{t('game.gameName')}</Logo>
-          <SubLogo>{t('game.description')}</SubLogo>
         </LogoSection>
         
         <UserSection>
           <UserProfileCompact onClick={handleViewProfile} onMouseEnter={() => soundManager.buttonHover()}>
             <AvatarSmall image={user?.profile.avatar}>
-              {!user?.profile.avatar && user?.profile.nickname?.charAt(0).toUpperCase()}
+              {!user?.profile.avatar && (user?.profile.nickname ? user.profile.nickname.charAt(0).toUpperCase() : <UserIcon />)}
             </AvatarSmall>
             <UserInfoCompact>
               <UserNameCompact>{user?.profile.nickname || t('player.player')}</UserNameCompact>
@@ -351,7 +361,7 @@ const MainLobby: React.FC = () => {
           </UserProfileCompact>
           
           <IconButton onClick={handleSettings} onMouseEnter={() => soundManager.buttonHover()} title={t('menu.settings')}>
-            ⚙️
+            <SettingsIcon />
           </IconButton>
         </UserSection>
       </TopBar>
@@ -359,7 +369,7 @@ const MainLobby: React.FC = () => {
       <ContentGrid>
         <MenuPanel>
           <MenuButton onClick={handleQuickStart} $primary onMouseEnter={() => soundManager.buttonHover()}>
-            <ButtonIcon>🚀</ButtonIcon>
+            <ButtonIcon $color="255, 255, 255"><RocketIcon /></ButtonIcon>
             <ButtonContent>
               <ButtonTitle>{t('lobby.singlePlayer')}</ButtonTitle>
               <ButtonDesc>{t('lobby.singlePlayerDesc')}</ButtonDesc>
@@ -367,7 +377,7 @@ const MainLobby: React.FC = () => {
           </MenuButton>
 
           <MenuButton onClick={handleCustomGame} onMouseEnter={() => soundManager.buttonHover()}>
-            <ButtonIcon>⚔️</ButtonIcon>
+            <ButtonIcon $color="99, 102, 241"><SwordsIcon /></ButtonIcon>
             <ButtonContent>
               <ButtonTitle>{t('lobby.customGame')}</ButtonTitle>
               <ButtonDesc>{t('lobby.customGameDesc')}</ButtonDesc>
@@ -375,7 +385,7 @@ const MainLobby: React.FC = () => {
           </MenuButton>
 
           <MenuButton onClick={handleViewRules} onMouseEnter={() => soundManager.buttonHover()}>
-            <ButtonIcon>📖</ButtonIcon>
+            <ButtonIcon $color="16, 185, 129"><BookIcon /></ButtonIcon>
             <ButtonContent>
               <ButtonTitle>{t('menu.viewRules')}</ButtonTitle>
               <ButtonDesc>{t('help.objective')}</ButtonDesc>

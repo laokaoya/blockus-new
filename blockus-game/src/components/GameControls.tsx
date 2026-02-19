@@ -12,6 +12,7 @@ interface GameControlsProps {
   onReset: () => void;
   canPlayerContinue: (player: any) => boolean;
   myScore?: number;
+  myColor?: string;
 }
 
 const ControlsContainer = styled.div`
@@ -247,19 +248,16 @@ const GameControls: React.FC<GameControlsProps> = ({
   onSettle, 
   onReset, 
   canPlayerContinue,
-  myScore
+  myScore,
+  myColor = 'red'
 }) => {
   const { t } = useLanguage();
   
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-  const isCurrentTurn = currentPlayer.isCurrentTurn;
+  const isMyTurn = currentPlayer.color === myColor;
   const isGameOver = gameState.gamePhase === 'finished';
   
-  // 判断是否可以结算
-  // 只有在自己的回合，且还没有结算过的玩家才能结算
-  const canSettle = isCurrentTurn && !currentPlayer.isSettled;
-  
-  // 判断是否应该提示结算（没有合法落子位置）
+  const canSettle = isMyTurn && !currentPlayer.isSettled;
   const shouldShowSettleHint = canSettle && !canPlayerContinue(currentPlayer);
 
   const handleResetClick = () => {
@@ -272,8 +270,8 @@ const GameControls: React.FC<GameControlsProps> = ({
       <GameStatus>
         <StatusSection>
           <StatusTitle>{t('game.status')}</StatusTitle>
-          <StatusText isCurrentTurn={isCurrentTurn}>
-            {isCurrentTurn ? t('game.yourTurn') : `${currentPlayer.name} ${t('game.turn')}`}
+          <StatusText isCurrentTurn={isMyTurn}>
+            {isMyTurn ? t('game.yourTurn') : `${currentPlayer.name} ${t('game.turn')}`}
           </StatusText>
         </StatusSection>
         
