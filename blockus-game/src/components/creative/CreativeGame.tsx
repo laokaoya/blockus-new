@@ -439,7 +439,7 @@ const CreativeGame: React.FC = () => {
           )}
         </GameContainer>
       )}
-      <GameRulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
+      <GameRulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} mode="creative" />
     </>
   );
 };

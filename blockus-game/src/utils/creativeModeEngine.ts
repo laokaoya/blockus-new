@@ -402,6 +402,7 @@ export function initCreativePlayerStates(players: Player[]): CreativePlayerState
     color: p.color,
     itemCards: [],
     statusEffects: [],
+    bonusScore: 0,
   }));
 }
 

@@ -1,6 +1,6 @@
 // 游戏棋盘组件
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { GameState, Position, Piece } from '../types/game';
 import { SpecialTile, SpecialTileType } from '../types/creative';
@@ -154,11 +154,11 @@ const Cell = styled.div<{
 `;
 
 // --- 创意模式特殊方格覆盖层 ---
-const SPECIAL_TILE_STYLES: Record<SpecialTileType, { bg: string; icon: string; color: string }> = {
-  gold:    { bg: 'rgba(251, 191, 36, 0.25)', icon: '★', color: '#fbbf24' },
-  purple:  { bg: 'rgba(139, 92, 246, 0.25)', icon: '?', color: '#a78bfa' },
-  red:     { bg: 'rgba(248, 113, 113, 0.25)', icon: '!', color: '#f87171' },
-  barrier: { bg: 'rgba(107, 114, 128, 0.5)',  icon: '×', color: '#9ca3af' },
+const SPECIAL_TILE_STYLES: Record<SpecialTileType, { bg: string; icon: string; color: string; solid?: boolean }> = {
+  gold:    { bg: 'rgba(251, 191, 36, 0.3)', icon: '★', color: '#fbbf24' },
+  purple:  { bg: 'rgba(167, 139, 250, 0.3)', icon: '?', color: '#a78bfa' },
+  red:     { bg: 'rgba(248, 113, 113, 0.3)', icon: '!', color: '#f87171' },
+  barrier: { bg: 'rgba(55, 55, 60, 0.95)', icon: '×', color: '#6b7280', solid: true },
 };
 
 const specialPulse = keyframes`
@@ -174,18 +174,24 @@ const SpecialTileOverlay = styled.div<{ tileType: SpecialTileType }>`
   align-items: center;
   justify-content: center;
   background: ${props => SPECIAL_TILE_STYLES[props.tileType].bg};
-  border: 1px solid ${props => SPECIAL_TILE_STYLES[props.tileType].color};
+  border: ${props => props.tileType === 'barrier'
+    ? '1.5px solid #4b5563'
+    : `1px solid ${SPECIAL_TILE_STYLES[props.tileType].color}`};
   border-radius: 2px;
   pointer-events: none;
   z-index: 2;
-  animation: ${specialPulse} 2s ease-in-out infinite;
+  ${props => props.tileType !== 'barrier' && css`
+    animation: ${specialPulse} 2s ease-in-out infinite;
+  `}
   
   &::after {
     content: '${props => SPECIAL_TILE_STYLES[props.tileType].icon}';
-    color: ${props => SPECIAL_TILE_STYLES[props.tileType].color};
-    font-size: 0.6em;
+    color: ${props => props.tileType === 'barrier' ? '#9ca3af' : SPECIAL_TILE_STYLES[props.tileType].color};
+    font-size: ${props => props.tileType === 'barrier' ? '0.8em' : '0.6em'};
     font-weight: 900;
-    text-shadow: 0 0 4px ${props => SPECIAL_TILE_STYLES[props.tileType].color};
+    text-shadow: ${props => props.tileType === 'barrier'
+      ? 'none'
+      : `0 0 4px ${SPECIAL_TILE_STYLES[props.tileType].color}`};
     line-height: 1;
   }
 `;
@@ -222,6 +228,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
   
   // 悬停预览状态
   const [hoverPosition, setHoverPosition] = useState<Position | null>(null);
+
+  // 触摸交互标记：防止移动端 touch 后的兼容性 mouse 事件干扰
+  const isTouchActiveRef = useRef(false);
   
   // 全局鼠标事件监听
   useEffect(() => {
@@ -287,8 +296,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
     return canPlacePiece(board, selectedPiece, { x, y }, colorIndex);
   };
   
-  // 开始拖拽
+  // 开始拖拽（仅桌面端鼠标）
   const startDrag = (x: number, y: number, e: React.MouseEvent) => {
+    if (isTouchActiveRef.current) return;
     if (!selectedPiece) return;
     
     setIsDragging(true);
@@ -339,15 +349,16 @@ const GameBoard: React.FC<GameBoardProps> = ({
   
   // 处理棋盘点击（放置拼图）
   const handleBoardClick = (x: number, y: number) => {
+    // 触摸交互期间跳过浏览器合成的 click 事件，避免重复放置
+    if (isTouchActiveRef.current) return;
+
     if (dragMode === 'dragging' && selectedPiece) {
-      // 如果正在拖拽，点击就放置
       if (canPlaceAt(x, y)) {
         onPiecePlace({ x, y });
         setIsDragging(false);
         setDragMode('none');
       }
     } else if (!isDragging && selectedPiece) {
-      // 选中拼图后直接点击棋盘放置（悬停预览模式）
       if (canPlaceAt(x, y)) {
         onPiecePlace({ x, y });
         setHoverPosition(null);
@@ -363,7 +374,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   };
   
   const handleCellHover = (x: number, y: number) => {
-    if (isDragging) return;
+    if (isDragging || isTouchActiveRef.current) return;
     setHoverPosition({ x, y });
     onCellHover({ x, y });
   };
@@ -384,6 +395,12 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!selectedPiece || e.touches.length !== 1) return;
+    isTouchActiveRef.current = true;
+    // 重置被兼容性鼠标事件污染的拖拽状态
+    if (dragMode !== 'none') {
+      setDragMode('none');
+      setIsDragging(false);
+    }
     const pos = touchToBoardPos(e.touches[0], e.currentTarget);
     if (pos) {
       setHoverPosition(pos);
@@ -399,11 +416,16 @@ const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!selectedPiece || !hoverPosition) return;
+    if (!selectedPiece || !hoverPosition) {
+      // 延迟清除触摸标记，覆盖浏览器兼容性 mouse 事件窗口
+      setTimeout(() => { isTouchActiveRef.current = false; }, 400);
+      return;
+    }
     if (canPlaceAt(hoverPosition.x, hoverPosition.y)) {
       onPiecePlace(hoverPosition);
     }
     setHoverPosition(null);
+    setTimeout(() => { isTouchActiveRef.current = false; }, 400);
   };
   
   // 右键旋转拼图
@@ -502,6 +524,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
       <BoardGrid
         data-board-grid
         onMouseMove={handleDrag}
+        onMouseUp={endDrag}
         onMouseLeave={handleBoardLeave}
         onContextMenu={handleContextMenu}
         onTouchStart={handleTouchStart}

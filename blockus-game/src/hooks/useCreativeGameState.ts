@@ -274,7 +274,7 @@ export function useCreativeGameState() {
       return updated;
     });
 
-    // 应用分数变化
+    // 应用分数变化 + 同步 bonusScore
     if (result.selfScoreChange || result.targetScoreChange) {
       setGameState(prev => ({
         ...prev,
@@ -288,9 +288,21 @@ export function useCreativeGameState() {
           return p;
         }),
       }));
+      setCreativeState(prev => ({
+        ...prev,
+        creativePlayers: prev.creativePlayers.map(cp => {
+          if (cp.playerId === selfId && result.selfScoreChange) {
+            return { ...cp, bonusScore: cp.bonusScore + result.selfScoreChange };
+          }
+          if (targetId && cp.playerId === targetId && result.targetScoreChange) {
+            return { ...cp, bonusScore: cp.bonusScore + result.targetScoreChange };
+          }
+          return cp;
+        }),
+      }));
     }
 
-    // 回收最近棋子（黑洞）
+    // 回收最近棋子（黑洞）— 回收减少 baseScore，bonusScore 不变
     if (result.targetUndoLastMove && targetId) {
       undoLastMoveForPlayer(targetId);
     }
@@ -436,8 +448,11 @@ export function useCreativeGameState() {
       return player;
     });
 
-    // 计算基础分数
-    let newScore = calculateScore(newBoard, colorIndex);
+    // 计算基础分数（棋盘格子数）+ 累计 bonusScore
+    const baseScore = calculateScore(newBoard, colorIndex);
+    const currentBonus = playerCreative?.bonusScore ?? 0;
+    let newScore = baseScore + currentBonus;
+
     const hasDouble = playerCreative?.statusEffects.some(
       e => e.type === 'next_double' && e.remainingTurns > 0
     );
@@ -445,10 +460,9 @@ export function useCreativeGameState() {
       e => e.type === 'half_score' && e.remainingTurns > 0
     );
 
-    // 计算本次放置的格数
     const placedCount = boardChanges.length;
     if (hasDouble) {
-      newScore += placedCount; // 额外加一倍（已有基础分）
+      newScore += placedCount;
     }
     if (hasHalf) {
       newScore = Math.max(0, newScore - Math.floor(placedCount / 2));
@@ -493,15 +507,23 @@ export function useCreativeGameState() {
 
       const effectResult = resolveEffect(
         effect.id, currentPlayer, gameState.players,
-        playerCreative || { playerId: currentPlayer.id, color: currentPlayer.color, itemCards: [], statusEffects: [] },
+        playerCreative || { playerId: currentPlayer.id, color: currentPlayer.color, itemCards: [], statusEffects: [], bonusScore: 0 },
       );
 
-      // 应用即时分数变化
+      // 应用即时分数变化，同步写入 bonusScore 保证累计
       if (effectResult.scoreChange !== 0) {
         const target = updatedPlayers.find(p => p.id === currentPlayer.id);
         if (target) {
           target.score = Math.max(0, target.score + effectResult.scoreChange);
         }
+        setCreativeState(prev => ({
+          ...prev,
+          creativePlayers: prev.creativePlayers.map(cp =>
+            cp.playerId === currentPlayer.id
+              ? { ...cp, bonusScore: cp.bonusScore + effectResult.scoreChange }
+              : cp
+          ),
+        }));
       }
 
       // 全局加分
@@ -509,6 +531,14 @@ export function useCreativeGameState() {
         const usedPieces = currentPlayer.pieces.filter(p => p.isUsed).length;
         const target = updatedPlayers.find(p => p.id === currentPlayer.id);
         if (target) target.score += usedPieces;
+        setCreativeState(prev => ({
+          ...prev,
+          creativePlayers: prev.creativePlayers.map(cp =>
+            cp.playerId === currentPlayer.id
+              ? { ...cp, bonusScore: cp.bonusScore + usedPieces }
+              : cp
+          ),
+        }));
       }
 
       // 分数互换
@@ -522,6 +552,18 @@ export function useCreativeGameState() {
             const tmp = myP.score;
             myP.score = highest.score;
             highest.score = tmp;
+            // 同步 bonusScore：差值写入双方
+            const myBase = calculateScore(newBoard, colorIndex);
+            const hIdx = gameState.players.findIndex(p => p.id === highest.id) + 1;
+            const hBase = calculateScore(newBoard, hIdx);
+            setCreativeState(prev => ({
+              ...prev,
+              creativePlayers: prev.creativePlayers.map(cp => {
+                if (cp.playerId === currentPlayer.id) return { ...cp, bonusScore: myP.score - myBase };
+                if (cp.playerId === highest.id) return { ...cp, bonusScore: highest.score - hBase };
+                return cp;
+              }),
+            }));
           }
         }
       }
@@ -530,6 +572,14 @@ export function useCreativeGameState() {
       if (effectResult.setAllScoresToAverage) {
         const avg = Math.floor(updatedPlayers.reduce((s, p) => s + p.score, 0) / updatedPlayers.length);
         updatedPlayers.forEach(p => { p.score = avg; });
+        setCreativeState(prev => ({
+          ...prev,
+          creativePlayers: prev.creativePlayers.map(cp => {
+            const pIdx = gameState.players.findIndex(p => p.id === cp.playerId) + 1;
+            const pBase = calculateScore(newBoard, pIdx);
+            return { ...cp, bonusScore: avg - pBase };
+          }),
+        }));
       }
 
       // 添加状态效果
@@ -724,7 +774,8 @@ export function useCreativeGameState() {
             const newPieces = player.pieces.map(p =>
               p.id === move.piece.id ? { ...p, isUsed: true } : p
             );
-            const newScore = calculateScore(newBoard, colorIndex);
+            const aiBonus = aiCreative?.bonusScore ?? 0;
+            const newScore = calculateScore(newBoard, colorIndex) + aiBonus;
             return { ...player, pieces: newPieces, score: newScore };
           }
           return player;
@@ -750,13 +801,21 @@ export function useCreativeGameState() {
             else effect = rollRedEffect();
 
             const cp = creativeState.creativePlayers.find(c => c.playerId === currentPlayer.id) ||
-              { playerId: currentPlayer.id, color: currentPlayer.color, itemCards: [], statusEffects: [] };
+              { playerId: currentPlayer.id, color: currentPlayer.color, itemCards: [], statusEffects: [], bonusScore: 0 };
             const effectResult = resolveEffect(effect.id, currentPlayer, gameState.players, cp);
 
-            // 应用分数
+            // 应用分数 + 同步 bonusScore
             const target = newPlayers.find(p => p.id === currentPlayer.id);
             if (target && effectResult.scoreChange) {
               target.score = Math.max(0, target.score + effectResult.scoreChange);
+              setCreativeState(prev => ({
+                ...prev,
+                creativePlayers: prev.creativePlayers.map(c =>
+                  c.playerId === currentPlayer.id
+                    ? { ...c, bonusScore: c.bonusScore + effectResult.scoreChange }
+                    : c
+                ),
+              }));
             }
 
             // 状态效果

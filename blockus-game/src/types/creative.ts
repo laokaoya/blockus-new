@@ -109,6 +109,7 @@ export interface CreativePlayerState {
   color: PlayerColor;
   itemCards: ItemCard[];      // 持有的道具卡（最多3张）
   statusEffects: StatusEffect[];
+  bonusScore: number;         // 特殊方格累计加减分（独立于棋盘基础分）
 }
 
 export interface CreativeGameState {

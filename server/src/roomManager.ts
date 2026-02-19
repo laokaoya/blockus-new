@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS: GameSettings = {
 export class RoomManager {
   private rooms: Map<string, GameRoom> = new Map();
   private cleanupInterval: NodeJS.Timeout;
+  onRoomDeleted?: (roomId: string) => void;
 
   constructor() {
     // 每 5 分钟清理过期房间（超过 2 小时无活动的）
@@ -307,6 +308,15 @@ export class RoomManager {
     if (room) {
       room.status = 'finished';
       room.lastActivityAt = Date.now();
+      // 30 秒后自动删除已结束的房间
+      setTimeout(() => {
+        const r = this.rooms.get(roomId);
+        if (r && r.status === 'finished') {
+          this.rooms.delete(roomId);
+          console.log(`[RoomManager] Auto-deleted finished room ${roomId}`);
+          if (this.onRoomDeleted) this.onRoomDeleted(roomId);
+        }
+      }, 30 * 1000);
     }
   }
 

@@ -22,6 +22,13 @@ export function setupSocketHandlers(
   roomManager: RoomManager,
   gameManager: GameManager
 ) {
+  // 已结束房间自动删除时，广播通知客户端
+  roomManager.onRoomDeleted = (roomId: string) => {
+    io.emit('room:deleted', roomId);
+    io.emit('room:list', roomManager.getPublicRooms());
+    gameManager.removeGame(roomId);
+  };
+
   // Socket.io 中间件：认证
   io.use((socket: AuthenticatedSocket, next) => {
     const token = socket.handshake.auth.token;
