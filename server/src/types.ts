@@ -117,7 +117,7 @@ export interface ClientToServerEvents {
 
   // 房间操作
   'room:list': (callback: (rooms: GameRoom[]) => void) => void;
-  'room:create': (data: { name: string; password?: string; settings?: Partial<GameSettings> }, callback: (response: { success: boolean; room?: GameRoom; error?: string }) => void) => void;
+  'room:create': (data: { name: string; password?: string; settings?: Partial<GameSettings>; gameMode?: string }, callback: (response: { success: boolean; room?: GameRoom; error?: string }) => void) => void;
   'room:join': (data: { roomId: string; password?: string }, callback: (response: { success: boolean; room?: GameRoom; error?: string }) => void) => void;
   'room:leave': (data: { roomId: string }, callback: (response: { success: boolean; error?: string }) => void) => void;
   'room:update': (data: { roomId: string; updates: Partial<GameRoom> }, callback: (response: { success: boolean; error?: string }) => void) => void;
