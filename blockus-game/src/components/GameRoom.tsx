@@ -411,7 +411,7 @@ const ReadyButton = styled.button<{ $isReady: boolean }>`
 const GameRoom: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams();
-  const { currentRoom, leaveRoom, startGame, addAI, rooms, refreshRooms } = useRoom();
+  const { currentRoom, leaveRoom, startGame, addAI, rooms, refreshRooms, removePlayer } = useRoom();
   const { user } = useAuth();
   const { t } = useLanguage();
   const [selectedAIDifficulty, setSelectedAIDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
