@@ -981,7 +981,7 @@ const RoomList: React.FC = () => {
   };
 
   const canRejoinRoom = (room: GameRoom) => {
-    return isUserInRoom(room) && room.status === 'waiting';
+    return isUserInRoom(room) && (room.status === 'waiting' || room.status === 'playing');
   };
 
   const getStatusText = (status: string) => {
@@ -1004,7 +1004,7 @@ const RoomList: React.FC = () => {
           }}
           onMouseEnter={() => soundManager.buttonHover()}
         >
-          进入房间
+          {room.status === 'playing' ? (t('game.resume') || '回到游戏') : (t('room.join') || '进入房间')}
         </JoinButton>
       );
     }

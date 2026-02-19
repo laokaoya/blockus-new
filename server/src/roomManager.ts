@@ -77,9 +77,20 @@ export class RoomManager {
   joinRoom(roomId: string, userId: string, nickname: string, password?: string): { success: boolean; error?: string; room?: GameRoom } {
     const room = this.rooms.get(roomId);
     if (!room) return { success: false, error: 'ROOM_NOT_FOUND' };
+    
+    // 检查是否是重连（玩家已在房间中）
+    const existingPlayer = room.players.find(p => p.id === userId);
+    if (existingPlayer) {
+      // 如果游戏正在进行，允许重连
+      if (room.status === 'playing') {
+        return { success: true, room: this.sanitizeRoom(room) };
+      }
+      // 如果是等待状态，也允许重连（可能是刷新页面）
+      return { success: true, room: this.sanitizeRoom(room) };
+    }
+
     if (room.status !== 'waiting') return { success: false, error: 'GAME_ALREADY_STARTED' };
     if (room.players.length >= room.maxPlayers) return { success: false, error: 'ROOM_FULL' };
-    if (room.players.some(p => p.id === userId)) return { success: false, error: 'ALREADY_IN_ROOM' };
     if (room.password && room.password !== password) return { success: false, error: 'WRONG_PASSWORD' };
 
     // 分配颜色：找到第一个未使用的颜色
@@ -102,7 +113,8 @@ export class RoomManager {
   }
 
   // 离开房间（玩家或观战者）
-  leaveRoom(roomId: string, userId: string): { success: boolean; deleted: boolean; newHostId?: string } {
+  // isDisconnect: 是否是意外断线（如果是，且游戏进行中，则保留玩家在房间内以便重连）
+  leaveRoom(roomId: string, userId: string, isDisconnect: boolean = false): { success: boolean; deleted: boolean; newHostId?: string } {
     const room = this.rooms.get(roomId);
     if (!room) return { success: false, deleted: false };
 
@@ -111,6 +123,12 @@ export class RoomManager {
     if (isSpectator) {
       room.spectators = room.spectators.filter(id => id !== userId);
       room.lastActivityAt = Date.now();
+      return { success: true, deleted: false };
+    }
+
+    // 如果游戏正在进行中，且是意外断线，则不移除玩家，允许重连
+    if (isDisconnect && room.status === 'playing') {
+      // 可以在这里标记玩家为离线状态，但目前只需保留其在 players 列表中即可
       return { success: true, deleted: false };
     }
 

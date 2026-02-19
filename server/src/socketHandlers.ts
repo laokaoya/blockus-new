@@ -152,7 +152,8 @@ export function setupSocketHandlers(
         handleGameDisconnect(data.roomId, socket.data.userId);
       }
 
-      const result = roomManager.leaveRoom(data.roomId, socket.data.userId);
+      // 显式离开：isDisconnect = false，会移除玩家
+      const result = roomManager.leaveRoom(data.roomId, socket.data.userId, false);
       if (!result.success) {
         return callback({ success: false, error: 'LEAVE_FAILED' });
       }
@@ -583,7 +584,8 @@ export function setupSocketHandlers(
           handleGameDisconnect(roomId, userId);
 
           // 从房间中移除
-          const result = roomManager.leaveRoom(roomId, userId);
+          // 传入 isDisconnect = true，如果是游戏进行中，不会移除玩家
+          const result = roomManager.leaveRoom(roomId, userId, true);
           
           if (result.deleted) {
             // 房间被销毁（所有真人都退出了）
@@ -591,14 +593,19 @@ export function setupSocketHandlers(
             io.emit('room:deleted', roomId);
             console.log(`[Room] Auto-destroyed room ${roomId} (all human players left)`);
           } else {
-            const updatedRoom = roomManager.getRoomSafe(roomId);
-            if (updatedRoom) {
-              io.to(roomId).emit('room:updated', updatedRoom);
+            // 只有当玩家真正被移除时（不在 players 列表中），才广播 playerLeft
+            // 如果是游戏进行中，玩家保留在列表中，不广播 playerLeft，但可能需要广播状态更新（如离线标记，暂未实现）
+            const room = roomManager.getRoomSafe(roomId);
+            if (room) {
+              const playerStillInRoom = room.players.some(p => p.id === userId);
+              if (!playerStillInRoom) {
+                io.to(roomId).emit('room:playerLeft', {
+                  roomId,
+                  playerId: userId,
+                });
+              }
+              io.to(roomId).emit('room:updated', room);
             }
-            io.to(roomId).emit('room:playerLeft', {
-              roomId,
-              playerId: userId,
-            });
           }
         }
 

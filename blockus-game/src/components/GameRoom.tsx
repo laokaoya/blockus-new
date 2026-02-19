@@ -437,6 +437,19 @@ const GameRoom: React.FC = () => {
   useEffect(() => {
     if (targetRoom && user) {
       setIsLoading(false);
+      
+      // 如果游戏正在进行，且我是玩家，自动跳转到游戏界面
+      if (targetRoom.status === 'playing') {
+        const isPlayer = targetRoom.players.some(p => p.id === user.profile.id);
+        if (isPlayer) {
+          const mode = targetRoom.gameMode || 'classic';
+          if (mode === 'creative') {
+            navigate(`/creative?roomId=${targetRoom.id}`, { replace: true });
+          } else {
+            navigate(`/game?roomId=${targetRoom.id}`, { replace: true });
+          }
+        }
+      }
       return;
     }
 
