@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useLanguage } from '../contexts/LanguageContext';
+import { TrashIcon } from './Icons';
 
 interface GameRecord {
   id: string;
@@ -49,6 +50,8 @@ const StatisticsContainer = styled.div`
   align-items: center;
   overflow-y: auto;
   padding-bottom: 60px;
+  background: var(--bg-gradient);
+  color: var(--text-primary);
 `;
 
 const ContentWrapper = styled.div`
@@ -76,7 +79,7 @@ const Title = styled.h1`
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   font-weight: 800;
   letter-spacing: -1px;
-  background: linear-gradient(to right, #fff, #94a3b8);
+  background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   
@@ -151,7 +154,7 @@ const StatsGrid = styled.div`
 const StatItem = styled.div`
   text-align: center;
   padding: 15px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-highlight);
   border-radius: var(--radius-md);
   border: 1px solid var(--surface-border);
 `;
@@ -178,24 +181,44 @@ const HistoryList = styled.div`
     width: 6px;
   }
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-border);
     border-radius: 3px;
+  }
+`;
+
+const ClearHistoryButton = styled.button`
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: var(--surface-highlight);
+    color: var(--text-primary);
   }
 `;
 
 const HistoryItem = styled.div<{ isSelected: boolean }>`
   padding: 15px;
   margin-bottom: 10px;
-  background: ${props => props.isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.03)'};
+  background: ${props => props.isSelected ? 'rgba(99, 102, 241, 0.1)' : 'var(--surface-color)'};
   color: var(--text-primary);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 1px solid ${props => props.isSelected ? 'var(--primary-color)' : 'transparent'};
+  border: 1px solid ${props => props.isSelected ? 'var(--primary-color)' : 'var(--surface-border)'};
+  position: relative;
+  overflow: hidden;
   
   &:hover {
     transform: translateY(-2px);
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--surface-highlight);
+    border-color: var(--primary-color);
   }
 `;
 
@@ -242,7 +265,7 @@ const PlayerInfo = styled.div<{ isWinner: boolean }>`
   align-items: center;
   gap: 8px;
   padding: 5px 10px;
-  background: ${props => props.isWinner ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.05)'};
+  background: ${props => props.isWinner ? 'rgba(16, 185, 129, 0.1)' : 'var(--surface-highlight)'};
   color: ${props => props.isWinner ? '#10b981' : 'var(--text-secondary)'};
   border-radius: 15px;
   font-size: 0.9rem;
@@ -287,7 +310,7 @@ const ReplayBoard = styled.div`
   display: grid;
   grid-template-columns: repeat(20, 1fr);
   gap: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
   padding: 15px;
   border-radius: 15px;
   margin: 20px auto;
@@ -307,12 +330,12 @@ const BoardCell = styled.div<{ color: number }>`
   height: 100%;
   background: ${props => {
     if (props.color === 0) {
-      return 'rgba(255, 255, 255, 0.05)';
+      return 'var(--surface-highlight)';
     }
     const colors = ['transparent', '#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
-    return colors[props.color] || 'rgba(255, 255, 255, 0.05)';
+    return colors[props.color] || 'var(--surface-highlight)';
   }};
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--surface-border);
   border-radius: 2px;
   transition: all 0.2s ease;
   
@@ -332,25 +355,27 @@ const ReplayControls = styled.div`
 `;
 
 const ControlButton = styled.button<{ active?: boolean }>`
-  padding: 10px 20px;
+  padding: 8px 16px;
   border: 1px solid var(--surface-border);
-  border-radius: 25px;
-  background: ${props => props.active ? 'var(--primary-color)' : 'rgba(255, 255, 255, 0.05)'};
-  color: white;
+  border-radius: 20px;
+  background: ${props => props.active ? 'var(--primary-color)' : 'var(--surface-highlight)'};
+  color: ${props => props.active ? 'white' : 'var(--text-primary)'};
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.9rem;
   transition: all 0.2s ease;
   
   &:hover {
-    background: ${props => props.active ? 'var(--primary-hover)' : 'rgba(255, 255, 255, 0.1)'};
+    background: ${props => props.active ? 'var(--primary-hover)' : 'var(--surface-border)'};
     transform: translateY(-2px);
   }
   
   &:disabled {
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--surface-highlight);
     color: var(--text-muted);
     cursor: not-allowed;
     transform: none;
+    opacity: 0.5;
   }
 `;
 
@@ -367,7 +392,7 @@ const FinalBoardButton = styled(ControlButton)`
 const ProgressBar = styled.div`
   width: 100%;
   height: 6px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-border);
   border-radius: 3px;
   overflow: hidden;
   margin: 15px 0;
@@ -402,7 +427,7 @@ const SpeedButton = styled.button<{ isActive: boolean }>`
   padding: 4px 12px;
   border: 1px solid ${props => props.isActive ? 'var(--primary-color)' : 'var(--surface-border)'};
   border-radius: 15px;
-  background: ${props => props.isActive ? 'rgba(99, 102, 241, 0.2)' : 'transparent'};
+  background: ${props => props.isActive ? 'rgba(99, 102, 241, 0.2)' : 'var(--surface-highlight)'};
   color: ${props => props.isActive ? 'var(--primary-color)' : 'var(--text-secondary)'};
   cursor: pointer;
   font-size: 0.85rem;
@@ -411,7 +436,7 @@ const SpeedButton = styled.button<{ isActive: boolean }>`
   
   &:hover {
     border-color: var(--primary-color);
-    background: rgba(99, 102, 241, 0.1);
+    background: ${props => props.isActive ? 'rgba(99, 102, 241, 0.2)' : 'var(--surface-border)'};
   }
 `;
 
@@ -419,7 +444,7 @@ const BackButton = styled.button`
   position: absolute;
   left: 20px;
   top: 20px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   border-radius: 50px;
@@ -430,7 +455,7 @@ const BackButton = styled.button`
   backdrop-filter: blur(4px);
   
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--surface-border);
     transform: translateX(-2px);
   }
 `;
@@ -673,20 +698,12 @@ const Statistics: React.FC = () => {
             </StatsCard>
 
             <StatsCard>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <CardTitle style={{ margin: 0 }}>{t('statistics.gameHistory')}</CardTitle>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid var(--surface-border)' }}>
+                <CardTitle style={{ margin: 0, fontSize: '1.2rem', textAlign: 'left' }}>{t('statistics.gameHistory')}</CardTitle>
                 {gameHistory.length > 0 && (
-                  <ControlButton 
-                    onClick={clearGameHistory}
-                    style={{ 
-                      backgroundColor: '#e74c3c', 
-                      fontSize: '12px',
-                      padding: '6px 12px',
-                    }}
-                    title={t('statistics.clearHistory')}
-                  >
+                  <ClearHistoryButton onClick={clearGameHistory}>
                     {t('statistics.clearHistory')}
-                  </ControlButton>
+                  </ClearHistoryButton>
                 )}
               </div>
               <HistoryList>

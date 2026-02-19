@@ -53,7 +53,7 @@ const Container = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(-45deg, #0f172a, #1e1b4b, #312e81, #0f172a);
+  background: var(--bg-gradient);
   background-size: 400% 400%;
   animation: ${backgroundShift} 15s ease infinite;
   display: flex;
@@ -70,10 +70,10 @@ const Container = styled.div`
     width: 8px;
   }
   &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-border);
   }
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--surface-highlight);
     border-radius: 4px;
   }
 `;
@@ -118,7 +118,7 @@ const Title = styled.h1`
   margin: 0;
   letter-spacing: 6px;
   text-transform: uppercase;
-  background: linear-gradient(to bottom, #fff, #a5b4fc);
+  background: linear-gradient(to bottom, var(--text-primary), var(--primary-color));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
@@ -186,10 +186,10 @@ const PodiumStep = styled.div<{ rank: number; color: string }>`
     flex-direction: row;
     justify-content: flex-start;
     align-items: center;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-highlight);
     padding: 12px 20px;
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--surface-border);
     
     & > div:first-child {
       animation: none;
@@ -271,10 +271,10 @@ const AvatarWrapper = styled.div<{ color: string; rank: number }>`
 const PodiumBase = styled.div<{ rank: number }>`
   width: 100%;
   height: ${props => props.rank === 1 ? '160px' : props.rank === 2 ? '110px' : '70px'};
-  background: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(to bottom, var(--surface-highlight), var(--surface-color));
+  border-top: 1px solid var(--surface-border);
+  border-left: 1px solid var(--surface-border);
+  border-right: 1px solid var(--surface-border);
   border-radius: 12px 12px 0 0;
   backdrop-filter: blur(10px);
   display: flex;
@@ -406,15 +406,15 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' }>`
       }
     }
   ` : `
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-highlight);
     color: var(--text-secondary);
-    border: 1px solid rgba(255, 255, 255, 0.1); // Fallback if clip-path fails
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--surface-border); // Fallback if clip-path fails
+    box-shadow: inset 0 0 0 1px var(--surface-border);
 
     &:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+      background: var(--surface-border);
+      color: var(--text-primary);
+      box-shadow: inset 0 0 0 1px var(--surface-border);
     }
   `}
 

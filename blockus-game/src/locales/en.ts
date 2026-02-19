@@ -189,76 +189,22 @@ export const en = {
   // Help
   help: {
     title: 'Game Help',
-    objective: 'Game Objective',
-    objectiveDesc: 'Place as many pieces as possible. The player with the fewest remaining pieces wins. Each player has 21 different shaped pieces, and the goal is to place as many pieces as possible on the board.',
-    rules: 'Game Rules',
-    rulesDesc: [
-      '1. The first piece must be placed in the top-left corner (position 0,0), which is the starting point',
-      '2. Subsequent pieces must connect corner-to-corner with pieces of the same color, not edge-to-edge',
-      '3. Pieces cannot overlap, each square can only be occupied by one piece',
-      '4. Piece edges cannot be adjacent to edges of pieces of the same color, only to different colored pieces',
-      '5. When a player cannot place a piece, their turn ends and enters settlement phase',
-      '6. At game end, the player with the fewest remaining pieces wins',
-      '7. If remaining pieces are equal, compare the total squares of remaining pieces',
-    ],
-    controls: 'Controls',
-    controlsDesc: [
-      '• Click on pieces in the piece library to select',
-      '• Drag pieces to valid positions on the board',
-      '• Click the trash can icon to cancel current selection',
-      '• Use rotate button (→) to rotate pieces',
-      '• Use flip button (Shift) to flip pieces',
-      '• Click "Settle" button to end current turn',
-    ],
-    startingPosition: 'Starting Position',
-    startingPositionDesc: 'The game starts from the top-left corner (position 0,0). The first piece must be placed at this position. This position will have a special glowing indicator.',
-    placementRules: 'Placement Rules',
-    placementRulesDesc: 'Pieces must connect corner-to-corner with pieces of the same color, not edge-to-edge.',
-    connectionRules: 'Connection Rules',
-    connectionRulesDesc: 'Pieces of the same color can only connect corner-to-corner, while pieces of different colors can connect edge-to-edge.',
-
     classicTab: 'Classic Mode',
     creativeTab: 'Creative Mode',
 
-    creativeOverview: 'Creative Mode Overview',
-    creativeOverviewDesc: 'Creative Mode adds randomly generated special tiles to the board. Covering these tiles triggers effects — bonus points, random surprises, or risks that reward item cards. Use items wisely to turn the tide!',
+    slideCornerTitle: 'Starting Position',
+    slideCornerDesc: 'Each player starts from a corner of the board. The first piece must cover your corner cell',
+    slideDiagTitle: 'Diagonal Connection',
+    slideDiagDesc: 'New pieces must connect diagonally (✓) to your existing pieces, but cannot share edges (✗)',
+    slidePiecesTitle: 'Pieces',
+    slidePiecesDesc: '21 pieces per player, from 1 to 5 cells. Can be rotated and flipped. More cells placed = higher score',
+    slideControlsTitle: 'Controls',
+    slideControlsDesc: 'Click or drag to select pieces. Use buttons or keyboard to rotate/flip',
 
-    specialTiles: 'Special Tiles',
-    specialTilesDesc: '10-14 special tiles are randomly placed on the board (not near starting corners). Covering a tile with your piece instantly triggers its effect.',
-    goldTileName: '★ Good Tile (Gold)',
-    goldTileDesc: 'Purely positive: bonus points, score doubling, free item cards, extra turns, shields, and more.',
-    purpleTileName: '? Lucky Tile (Purple)',
-    purpleTileDesc: 'Random effects: may gain or lose points, earn items, skip turns, or even equalize all scores. Pure luck!',
-    redTileName: '! Risk Tile (Red)',
-    redTileDesc: 'Negative + compensation: penalties like point loss or turn skips, but always grants an item card. Risk meets reward!',
-    barrierTileName: '× Barrier Tile (Gray)',
-    barrierTileDesc: 'Impassable zone. No piece can be placed on barrier tiles — plan your layout around them.',
-
-    itemCards: 'Item Card System',
-    itemCardsDesc: 'Earn item cards by triggering special tiles (hold up to 3). Human players get 30 seconds at the start of their turn to use or skip items.',
-    itemCardsList: [
-      'Black Hole: Remove target\'s most recently placed piece',
-      'Shrink: Remove target\'s largest unused piece',
-      'Curse: Target\'s next turn score is halved',
-      'Steel: Immune to all negative effects for 2 turns',
-      'Freeze: Target skips their next turn',
-      'Pressure: Target only has 5 seconds next turn',
-      'Plunder: Steal 3 points from target',
-      'Blame: Transfer one of your debuffs to target',
-    ],
-
-    statusEffects: 'Status Effects',
-    statusEffectsDesc: 'Some tiles and items apply status effects (score doubling, shields, turn skips, time pressure, etc.) that expire after a set number of turns. The "Steel" shield grants immunity to negative effects.',
-
-    creativePlacement: 'Creative Mode Placement Rules',
-    creativePlacementDesc: [
-      'Base placement rules are the same as Classic Mode (corner-to-corner)',
-      'Pieces cannot cover gray barrier tiles',
-      'Covering a special tile instantly triggers a random effect',
-      'Covering multiple tiles in one move triggers effects in sequence',
-      'Score bonuses/penalties accumulate and persist across turns',
-      'With "Big Piece Ban" status, pieces of 4+ cells cannot be used',
-    ],
+    slideSpecialTitle: 'Special Tiles',
+    slideSpecialDesc: 'Random special tiles on the board trigger effects when covered',
+    slideItemsTitle: 'Item Cards',
+    slideItemsDesc: 'Step on red tiles to earn item cards (max 3). 30s use window at turn start',
   },
 
   // Login
@@ -373,6 +319,7 @@ export const en = {
     joinRoom: 'Join Room',
     roomName: 'Room Name',
     gameMode: 'Game Mode',
+    turnTime: 'Turn Time',
     roomPassword: 'Room Password',
     enterRoomName: 'Enter room name',
     enterRoomPassword: 'Enter room password',
@@ -408,5 +355,11 @@ export const en = {
     classicTag: 'CLASSIC',
     standardRules: 'Standard rules, pure strategy.',
     creativeRules: 'Special tiles, items, chaos.',
+  },
+
+  // Creative Mode
+  creative: {
+    eventLog: 'Event Log',
+    noEvents: 'No events yet',
   },
 };

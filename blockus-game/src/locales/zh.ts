@@ -78,6 +78,7 @@ export const zh = {
     leaveRoom: '离开房间',
     roomName: '房间名称',
     gameMode: '游戏模式',
+    turnTime: '回合时间',
     roomPassword: '房间密码',
     enterRoomName: '请输入房间名称',
     enterRoomPassword: '请输入房间密码',
@@ -272,78 +273,22 @@ export const zh = {
   // 帮助
   help: {
     title: '游戏帮助',
-    objective: '游戏目标',
-    objectiveDesc: '尽可能多地放置拼图，最后剩余拼图最少的玩家获胜。每个玩家都有21个不同形状的拼图，目标是在棋盘上放置尽可能多的拼图。',
-    rules: '游戏规则',
-    rulesDesc: [
-      '1. 第一个拼图必须放在棋盘左上角（0,0位置），这是游戏的起始点',
-      '2. 后续拼图必须与同色拼图角对角连接，不能边对边连接',
-      '3. 拼图不能重叠，每个方格只能被一个拼图占据',
-      '4. 拼图边缘不能与同色拼图边缘相邻，只能与不同颜色的拼图边缘相邻',
-      '5. 无法放置拼图时，该玩家回合结束，进入结算阶段',
-      '6. 游戏结束时，剩余拼图最少的玩家获胜',
-      '7. 如果剩余拼图数量相同，则比较剩余拼图的方格总数',
-    ],
-    controls: '操作说明',
-    controlsDesc: [
-      '• 点击拼图库中的拼图进行选择',
-      '• 拖拽拼图到棋盘上的有效位置',
-      '• 点击垃圾桶图标取消当前选择的拼图',
-      '• 使用旋转按钮（→）旋转拼图',
-      '• 使用翻转按钮（Shift）翻转拼图',
-      '• 点击"结算"按钮结束当前回合',
-    ],
-    startingPosition: '起始位置说明',
-    startingPositionDesc: '游戏从左上角（0,0位置）开始，第一个拼图必须放置在这个位置。这个位置会有特殊的发光提示。',
-    placementRules: '摆放规则',
-    placementRulesDesc: '拼图必须与同色拼图角对角连接，不能边对边连接。',
-    connectionRules: '连接规则',
-    connectionRulesDesc: '同色拼图只能角对角连接，不同颜色拼图可以边对边连接。',
-
-    // 模式切换 Tab
     classicTab: '经典模式',
     creativeTab: '创意模式',
 
-    // 创意模式规则
-    creativeOverview: '创意模式简介',
-    creativeOverviewDesc: '创意模式在经典规则基础上，棋盘上随机生成特殊方格。覆盖这些方格会触发不同效果——可能获得加分、随机惊喜，或以风险换取道具卡。善用道具，逆转局面！',
+    slideCornerTitle: '起始位置',
+    slideCornerDesc: '每位玩家从棋盘的一个角落开始，第一块拼图必须覆盖自己的角落格子',
+    slideDiagTitle: '对角连接',
+    slideDiagDesc: '新块必须与己方已有块的对角相连（✓），但不能与己方块的边相邻（✗）',
+    slidePiecesTitle: '拼图块',
+    slidePiecesDesc: '每人21块，从1格到5格不等，可旋转和翻转。放置格子越多得分越高',
+    slideControlsTitle: '操作方式',
+    slideControlsDesc: '点击或拖拽选择拼图块，使用按钮或键盘旋转/翻转',
 
-    specialTiles: '特殊方格',
-    specialTilesDesc: '棋盘上会随机出现 10-14 个特殊方格（四角起始区域不会生成）。当你的拼图覆盖到特殊方格时，立即触发效果。',
-    goldTileName: '★ 好运方格（金色）',
-    goldTileDesc: '纯正面效果：额外加分、得分翻倍、获得道具卡、额外回合、护盾等。放心踩！',
-    purpleTileName: '? 运气方格（紫色）',
-    purpleTileDesc: '随机效果：可能加分也可能扣分，可能获得道具也可能被跳过回合，甚至所有玩家分数均分。运气好坏全看脸！',
-    redTileName: '! 风险方格（红色）',
-    redTileDesc: '负面 + 补偿：会受到扣分、跳过回合、棋子限制等惩罚，但必定获得一张道具卡作为补偿。风险与收益并存！',
-    barrierTileName: '× 障碍方格（灰色）',
-    barrierTileDesc: '不可放置区域。任何拼图都不能覆盖障碍方格，需要绕开它进行布局。',
-
-    itemCards: '道具卡系统',
-    itemCardsDesc: '通过触发特殊方格可获得道具卡（最多持有3张）。人类玩家在回合开始时有30秒的道具使用阶段，可选择使用或跳过。',
-    itemCardsList: [
-      '黑洞：清除目标最近放置的棋子',
-      '缩减：移除目标最大的未使用棋子',
-      '诅咒：目标下回合得分减半',
-      '钢铁：自己2回合免疫所有负面效果',
-      '冰冻：目标下回合被跳过',
-      '压迫：目标下回合只有5秒操作时间',
-      '掠夺：从目标偷取3分',
-      '嫁祸：将自己的一个负面状态转给目标',
-    ],
-
-    statusEffects: '状态效果',
-    statusEffectsDesc: '部分方格和道具会给玩家施加状态效果（如得分翻倍、护盾、跳过回合、时间压迫等），状态会在指定回合数后自动消失。拥有"钢铁"护盾时可以免疫负面效果。',
-
-    creativePlacement: '创意模式放置规则',
-    creativePlacementDesc: [
-      '基础放置规则与经典模式相同（角对角连接）',
-      '拼图不能覆盖灰色障碍方格',
-      '覆盖特殊方格后立即触发效果并随机抽取',
-      '一次放置覆盖多个特殊方格时，效果依次触发',
-      '加减分效果会累计到总分中，不会因新的放置而重置',
-      '拥有"大棋子限制"状态时，不能使用4格及以上的拼图',
-    ],
+    slideSpecialTitle: '特殊方格',
+    slideSpecialDesc: '棋盘上随机分布特殊方格，覆盖时立即触发效果',
+    slideItemsTitle: '道具卡',
+    slideItemsDesc: '踩红色方格可获得道具卡（最多3张），回合开始有30秒使用窗口',
   },
 
   // 登录
@@ -447,5 +392,11 @@ export const zh = {
     version: '版本',
     developer: '开发者',
     copyright: '版权所有',
+  },
+
+  // 创意模式
+  creative: {
+    eventLog: '历史记录',
+    noEvents: '暂无记录',
   },
 };

@@ -51,8 +51,8 @@ const BoardGrid = styled.div`
   gap: 1px;
   
   /* 去边框化，增强通透感 */
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
+  border: 1px solid var(--surface-border);
   border-radius: 4px;
   padding: 2px;
   
@@ -62,7 +62,7 @@ const BoardGrid = styled.div`
   touch-action: none; /* 阻止移动端棋盘区域的默认滚动 */
   
   /* Enhanced glow effect */
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), 0 0 10px rgba(99, 102, 241, 0.1);
+  box-shadow: var(--shadow-lg);
   backdrop-filter: blur(4px);
   position: relative;
   
@@ -74,7 +74,7 @@ const BoardGrid = styled.div`
     right: -2px;
     bottom: -2px;
     border-radius: 6px;
-    background: linear-gradient(45deg, rgba(255,255,255,0.1), transparent 40%, transparent 60%, rgba(255,255,255,0.1));
+    background: linear-gradient(45deg, var(--surface-border), transparent 40%, transparent 60%, var(--surface-border));
     z-index: -1;
     pointer-events: none;
   }
@@ -110,7 +110,7 @@ const Cell = styled.div<{
   border-radius: 1px;
   
   /* 基础网格线 */
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 0.5px var(--surface-border);
   
   background: ${props => {
     if (props.isOccupied) {
@@ -154,11 +154,11 @@ const Cell = styled.div<{
 `;
 
 // --- 创意模式特殊方格覆盖层 ---
-const SPECIAL_TILE_STYLES: Record<SpecialTileType, { bg: string; icon: string; color: string; solid?: boolean }> = {
-  gold:    { bg: 'rgba(251, 191, 36, 0.3)', icon: '★', color: '#fbbf24' },
-  purple:  { bg: 'rgba(167, 139, 250, 0.3)', icon: '?', color: '#a78bfa' },
-  red:     { bg: 'rgba(248, 113, 113, 0.3)', icon: '!', color: '#f87171' },
-  barrier: { bg: 'rgba(55, 55, 60, 0.95)', icon: '×', color: '#6b7280', solid: true },
+const SPECIAL_TILE_STYLES: Record<SpecialTileType, { bg: string; icon: string; color: string; border: string; solid?: boolean }> = {
+  gold:    { bg: 'var(--tile-gold-bg)', icon: '★', color: 'var(--tile-gold-text)', border: 'var(--tile-gold-border)' },
+  purple:  { bg: 'var(--tile-purple-bg)', icon: '?', color: 'var(--tile-purple-text)', border: 'var(--tile-purple-border)' },
+  red:     { bg: 'var(--tile-red-bg)', icon: '!', color: 'var(--tile-red-text)', border: 'var(--tile-red-border)' },
+  barrier: { bg: 'var(--tile-barrier-bg)', icon: '×', color: 'var(--tile-barrier-text)', border: 'var(--tile-barrier-border)', solid: true },
 };
 
 const specialPulse = keyframes`
@@ -174,9 +174,7 @@ const SpecialTileOverlay = styled.div<{ tileType: SpecialTileType }>`
   align-items: center;
   justify-content: center;
   background: ${props => SPECIAL_TILE_STYLES[props.tileType].bg};
-  border: ${props => props.tileType === 'barrier'
-    ? '1.5px solid #4b5563'
-    : `1px solid ${SPECIAL_TILE_STYLES[props.tileType].color}`};
+  border: 1px solid ${props => SPECIAL_TILE_STYLES[props.tileType].border};
   border-radius: 2px;
   pointer-events: none;
   z-index: 2;
@@ -186,7 +184,7 @@ const SpecialTileOverlay = styled.div<{ tileType: SpecialTileType }>`
   
   &::after {
     content: '${props => SPECIAL_TILE_STYLES[props.tileType].icon}';
-    color: ${props => props.tileType === 'barrier' ? '#9ca3af' : SPECIAL_TILE_STYLES[props.tileType].color};
+    color: ${props => SPECIAL_TILE_STYLES[props.tileType].color};
     font-size: ${props => props.tileType === 'barrier' ? '0.8em' : '0.6em'};
     font-weight: 900;
     text-shadow: ${props => props.tileType === 'barrier'

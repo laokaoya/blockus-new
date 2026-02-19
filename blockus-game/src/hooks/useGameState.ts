@@ -475,6 +475,7 @@ export function useGameState() {
     if (currentPlayer.isSettled) return;
     
     const timer = setInterval(() => {
+      if (isPausedRef.current) return;
       setGameState(prev => {
         const currPlayer = prev.players[prev.currentPlayerIndex];
         if (!currPlayer || currPlayer.color !== 'red' || currPlayer.isSettled) return prev;
@@ -701,6 +702,9 @@ export function useGameState() {
     };
   }, []);
 
+  const isPausedRef = useRef(false);
+  const setPaused = useCallback((paused: boolean) => { isPausedRef.current = paused; }, []);
+
   return {
     gameState,
     selectPiece,
@@ -714,6 +718,7 @@ export function useGameState() {
     canPlayerContinue,
     gameSettings,
     currentTurnTime: gameState.timeLeft,
-    updatePlayerNamesLanguage
+    updatePlayerNamesLanguage,
+    setPaused,
   };
 }

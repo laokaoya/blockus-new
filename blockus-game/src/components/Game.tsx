@@ -25,7 +25,7 @@ const GameContainer = styled.div`
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background: transparent;
+  background: var(--bg-gradient);
   overflow: hidden;
   position: relative;
 `;
@@ -36,9 +36,9 @@ const Header = styled.div`
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--surface-color);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--surface-border);
   z-index: 50;
   flex-shrink: 0;
 `;
@@ -72,8 +72,8 @@ const LeftPanel = styled.div`
   display: flex;
   flex-direction: column;
   padding: 20px;
-  background: rgba(15, 23, 42, 0.2);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--surface-highlight);
+  border-right: 1px solid var(--surface-border);
   overflow-y: auto;
   z-index: 10;
   transition: all 0.3s ease;
@@ -88,11 +88,11 @@ const LeftPanel = styled.div`
     max-height: 90px;
     flex-direction: row;
     border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--surface-border);
     padding: 6px 10px;
     overflow-x: auto;
     overflow-y: hidden;
-    background: rgba(15, 23, 42, 0.4);
+    background: var(--surface-color);
     flex-shrink: 0;
   }
 `;
@@ -134,23 +134,23 @@ const RightPanel = styled.div`
     padding: 0 10px;
     height: auto;
     order: -1;
-    background: rgba(15, 23, 42, 0.5);
+    background: var(--surface-color);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--surface-border);
   }
 `;
 
 const BottomDock = styled.div`
   height: 100px; /* Reduced from 140px */
   width: 100%;
-  background: rgba(5, 10, 20, 0.95); /* Darker background */
+  background: var(--surface-color); /* Darker background */
   backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
   padding: 0 20px;
   z-index: 100;
-  box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.8);
+  box-shadow: var(--shadow-lg);
   flex-shrink: 0;
 
   @media (max-width: 768px) {
@@ -173,7 +173,7 @@ const PieceActions = styled.div<{ $visible: boolean }>`
   flex-direction: column;
   gap: 6px;
   padding: 0 12px 0 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid var(--surface-border);
   margin-right: 12px;
   height: 70%;
   justify-content: center;
@@ -193,8 +193,8 @@ const ActionBtn = styled.button`
   width: 42px;
   height: 42px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   display: flex;
   align-items: center;
@@ -210,13 +210,13 @@ const ActionBtn = styled.button`
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
+    background: var(--surface-border);
+    border-color: var(--text-muted);
   }
 
   &:active {
     transform: scale(0.9);
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--surface-border);
   }
 
   @media (max-width: 768px) {
@@ -233,7 +233,7 @@ const ActionBtn = styled.button`
 // --- UI Components ---
 
 const BackButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   border-radius: 50px;
@@ -248,13 +248,13 @@ const BackButton = styled.button`
   gap: 8px;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--surface-border);
     transform: translateX(-2px);
   }
 `;
 
 const SettingsButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   border-radius: 50%;
@@ -272,13 +272,13 @@ const SettingsButton = styled.button`
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--surface-border);
     transform: rotate(90deg);
   }
 `;
 
 const RulesButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   border-radius: 50%;
@@ -296,7 +296,7 @@ const RulesButton = styled.button`
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--surface-border);
     transform: translateY(-1px);
   }
 `;
@@ -338,7 +338,7 @@ const SinglePlayerGame: React.FC = () => {
   const { 
     gameState, selectPiece, placePieceOnBoard, settlePlayer, resetGame,
     rotateSelectedPiece, flipSelectedPiece, thinkingAI, lastAIMove,
-    canPlayerContinue, gameSettings
+    canPlayerContinue, gameSettings, setPaused,
   } = useGameState();
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
   const [showRulesModal, setShowRulesModal] = useState(false);
@@ -358,11 +358,13 @@ const SinglePlayerGame: React.FC = () => {
 
   const handleSettings = () => {
     soundManager.buttonClick();
+    setPaused(true);
     navigate('/settings');
   };
 
   const handleShowRules = () => {
     soundManager.buttonClick();
+    setPaused(true);
     setShowRulesModal(true);
   };
   
@@ -520,7 +522,7 @@ const SinglePlayerGame: React.FC = () => {
           </BottomDock>
         </GameContainer>
       )}
-      <GameRulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
+      <GameRulesModal isOpen={showRulesModal} onClose={() => { setShowRulesModal(false); setPaused(false); }} />
     </>
   );
 };

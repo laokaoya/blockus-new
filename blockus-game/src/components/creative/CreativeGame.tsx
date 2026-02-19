@@ -11,6 +11,7 @@ import GameOver from '../GameOver';
 import GameRulesModal from '../GameRulesModal';
 import EffectPopup from './EffectPopup';
 import ItemCardBar from './ItemCardBar';
+import EventLog from './EventLog';
 import { Position, Piece } from '../../types/game';
 import { canPlacePiece } from '../../utils/gameEngine';
 import { useNavigate } from 'react-router-dom';
@@ -25,7 +26,7 @@ const GameContainer = styled.div`
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background: transparent;
+  background: var(--bg-gradient);
   overflow: hidden;
   position: relative;
 `;
@@ -36,9 +37,9 @@ const Header = styled.div`
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--surface-color);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--surface-border);
   z-index: 50;
   flex-shrink: 0;
 `;
@@ -71,8 +72,8 @@ const LeftPanel = styled.div`
   display: flex;
   flex-direction: column;
   padding: 20px;
-  background: rgba(15, 23, 42, 0.2);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--surface-highlight);
+  border-right: 1px solid var(--surface-border);
   overflow-y: auto;
   z-index: 10;
   transition: all 0.3s ease;
@@ -84,11 +85,11 @@ const LeftPanel = styled.div`
     max-height: 90px;
     flex-direction: row;
     border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--surface-border);
     padding: 6px 10px;
     overflow-x: auto;
     overflow-y: hidden;
-    background: rgba(15, 23, 42, 0.4);
+    background: var(--surface-color);
     flex-shrink: 0;
   }
 `;
@@ -119,23 +120,23 @@ const RightPanel = styled.div`
     padding: 0 10px;
     height: auto;
     order: -1;
-    background: rgba(15, 23, 42, 0.5);
+    background: var(--surface-color);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--surface-border);
   }
 `;
 
 const BottomDock = styled.div`
   height: 100px;
   width: 100%;
-  background: rgba(5, 10, 20, 0.95);
+  background: var(--surface-color);
   backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
   padding: 0 20px;
   z-index: 100;
-  box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.8);
+  box-shadow: var(--shadow-lg);
   flex-shrink: 0;
   @media (max-width: 768px) { height: 90px; padding: 0 10px; }
 `;
@@ -154,7 +155,7 @@ const PieceActions = styled.div<{ $visible: boolean }>`
   flex-direction: column;
   gap: 6px;
   padding: 0 12px 0 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid var(--surface-border);
   margin-right: 12px;
   height: 70%;
   justify-content: center;
@@ -168,8 +169,8 @@ const ActionBtn = styled.button`
   width: 42px;
   height: 42px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   display: flex;
   align-items: center;
@@ -179,12 +180,12 @@ const ActionBtn = styled.button`
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   svg { width: 20px; height: 20px; }
-  &:hover { background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.3); }
-  &:active { transform: scale(0.9); background: rgba(255, 255, 255, 0.2); }
+  &:hover { background: var(--surface-border); border-color: var(--text-muted); }
+  &:active { transform: scale(0.9); background: var(--surface-border); }
 `;
 
 const BackButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   border-radius: 50px;
@@ -197,7 +198,7 @@ const BackButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
-  &:hover { background: rgba(255, 255, 255, 0.2); transform: translateX(-2px); }
+  &:hover { background: var(--surface-border); transform: translateX(-2px); }
 `;
 
 const ModeBadge = styled.div`
@@ -214,7 +215,7 @@ const ModeBadge = styled.div`
 `;
 
 const IconButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   border-radius: 50%;
@@ -226,7 +227,7 @@ const IconButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   svg { width: 20px; height: 20px; }
-  &:hover { background: rgba(255, 255, 255, 0.2); }
+  &:hover { background: var(--surface-border); }
 `;
 
 // 道具阶段遮罩
@@ -255,6 +256,7 @@ const CreativeGame: React.FC = () => {
     canPlayerContinue, gameSettings,
     creativeState, showingEffect,
     itemTargetSelection, startUseItemCard, confirmItemTarget, skipItemPhase,
+    eventLog, setPaused,
   } = useCreativeGameState();
 
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
@@ -276,11 +278,13 @@ const CreativeGame: React.FC = () => {
 
   const handleSettings = () => {
     soundManager.buttonClick();
+    setPaused(true);
     navigate('/settings');
   };
 
   const handleShowRules = () => {
     soundManager.buttonClick();
+    setPaused(true);
     setShowRulesModal(true);
   };
 
@@ -359,6 +363,7 @@ const CreativeGame: React.FC = () => {
               <ModeBadge>CREATIVE</ModeBadge>
             </HeaderLeft>
             <HeaderRight>
+              <EventLog events={eventLog} />
               <IconButton onClick={handleShowRules} onMouseEnter={() => soundManager.buttonHover()} title={t('help.title')}>
                 <BookIcon />
               </IconButton>
@@ -439,7 +444,7 @@ const CreativeGame: React.FC = () => {
           )}
         </GameContainer>
       )}
-      <GameRulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} mode="creative" />
+      <GameRulesModal isOpen={showRulesModal} onClose={() => { setShowRulesModal(false); setPaused(false); }} mode="creative" />
     </>
   );
 };

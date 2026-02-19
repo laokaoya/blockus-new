@@ -18,6 +18,7 @@ const SettingsContainer = styled.div`
   align-items: center;
   overflow-y: auto;
   padding-bottom: 60px;
+  background: var(--bg-gradient);
 `;
 
 const Header = styled.div`
@@ -32,7 +33,7 @@ const Title = styled.h1`
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   font-weight: 800;
   letter-spacing: -1px;
-  background: linear-gradient(to right, #fff, #94a3b8);
+  background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   
@@ -135,12 +136,17 @@ const DifficultyOptions = styled.div`
   }
 `;
 
-const DifficultyButton = styled.button<{ isSelected: boolean }>`
+const SoundOptions = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+
+const OptionButton = styled.button<{ isSelected: boolean }>`
   flex: 1;
   padding: 12px 20px;
   border: 1px solid ${props => props.isSelected ? 'var(--primary-color)' : 'var(--surface-border)'};
   border-radius: var(--radius-md);
-  background: ${props => props.isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
+  background: ${props => props.isSelected ? 'rgba(99, 102, 241, 0.2)' : 'var(--surface-highlight)'};
   color: ${props => props.isSelected ? 'var(--primary-color)' : 'var(--text-secondary)'};
   cursor: pointer;
   transition: all 0.2s ease;
@@ -148,7 +154,7 @@ const DifficultyButton = styled.button<{ isSelected: boolean }>`
   
   &:hover {
     border-color: var(--primary-color);
-    background: ${props => props.isSelected ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
+    background: ${props => props.isSelected ? 'rgba(99, 102, 241, 0.3)' : 'var(--surface-border)'};
     transform: translateY(-2px);
   }
   
@@ -167,7 +173,7 @@ const Slider = styled.input`
   flex: 1;
   height: 6px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-border);
   outline: none;
   -webkit-appearance: none;
   
@@ -227,7 +233,7 @@ const ToggleSlider = styled.span`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--surface-border);
   border: 1px solid var(--surface-border);
   transition: 0.4s;
   border-radius: 34px;
@@ -302,15 +308,15 @@ const Button = styled.button<{ variant: 'primary' | 'secondary' }>`
   
   background: ${props => props.variant === 'primary' 
     ? 'var(--primary-gradient)' 
-    : 'rgba(255, 255, 255, 0.1)'
+    : 'var(--surface-highlight)'
   };
-  color: white;
+  color: ${props => props.variant === 'primary' ? 'white' : 'var(--text-primary)'};
   border: ${props => props.variant === 'secondary' ? '1px solid var(--surface-border)' : 'none'};
   
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-    background: ${props => props.variant === 'secondary' ? 'rgba(255, 255, 255, 0.15)' : 'var(--primary-gradient)'};
+    background: ${props => props.variant === 'secondary' ? 'var(--surface-border)' : 'var(--primary-gradient)'};
   }
   
   @media (max-width: 768px) {
@@ -367,24 +373,24 @@ const GameSettings: React.FC = () => {
             <SettingItem>
               <SettingLabel>{t('settings.aiDifficulty')}</SettingLabel>
               <DifficultyOptions>
-                <DifficultyButton
+                <OptionButton
                   isSelected={settings.aiDifficulty === 'easy'}
                   onClick={() => handleDifficultyChange('easy')}
                 >
                   {t('settings.easy')}
-                </DifficultyButton>
-                <DifficultyButton
+                </OptionButton>
+                <OptionButton
                   isSelected={settings.aiDifficulty === 'medium'}
                   onClick={() => handleDifficultyChange('medium')}
                 >
                   {t('settings.medium')}
-                </DifficultyButton>
-                <DifficultyButton
+                </OptionButton>
+                <OptionButton
                   isSelected={settings.aiDifficulty === 'hard'}
                   onClick={() => handleDifficultyChange('hard')}
                 >
                   {t('settings.hard')}
-                </DifficultyButton>
+                </OptionButton>
               </DifficultyOptions>
             </SettingItem>
 
@@ -416,14 +422,20 @@ const GameSettings: React.FC = () => {
 
             <SettingItem>
               <SettingLabel>{t('settings.sound')}</SettingLabel>
-              <ToggleSwitch>
-                <ToggleInput
-                  type="checkbox"
-                  checked={settings.soundEnabled}
-                  onChange={() => handleToggleChange('soundEnabled')}
-                />
-                <ToggleSlider />
-              </ToggleSwitch>
+              <SoundOptions>
+                <OptionButton
+                  isSelected={settings.soundEnabled}
+                  onClick={() => setSettings(prev => ({ ...prev, soundEnabled: true }))}
+                >
+                  {t('settings.on') || '开启'}
+                </OptionButton>
+                <OptionButton
+                  isSelected={!settings.soundEnabled}
+                  onClick={() => setSettings(prev => ({ ...prev, soundEnabled: false }))}
+                >
+                  {t('settings.off') || '关闭'}
+                </OptionButton>
+              </SoundOptions>
             </SettingItem>
           </SettingsCard>
         </LeftPanel>

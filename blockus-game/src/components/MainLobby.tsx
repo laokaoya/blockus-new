@@ -21,7 +21,7 @@ const LobbyContainer = styled.div`
   height: 100vh;
   display: flex;
   flex-direction: row;
-  background: #0f172a;
+  background: var(--bg-color);
   overflow: hidden;
   position: relative;
   
@@ -33,10 +33,11 @@ const LobbyContainer = styled.div`
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%);
+    background: var(--bg-gradient);
     animation: rotate 60s linear infinite;
     z-index: 0;
     pointer-events: none;
+    opacity: 0.5;
   }
   
   @keyframes rotate {
@@ -48,9 +49,9 @@ const LobbyContainer = styled.div`
 const Sidebar = styled.div`
   width: 80px;
   height: 100%;
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--surface-color);
   backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid var(--surface-border);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -154,7 +155,8 @@ const HeroSection = styled.div`
     font-family: 'Orbitron', sans-serif;
     font-size: 12rem;
     font-weight: 900;
-    color: rgba(255, 255, 255, 0.03);
+    color: var(--text-muted);
+    opacity: 0.05;
     pointer-events: none;
     z-index: -1;
     letter-spacing: 10px;
@@ -186,8 +188,8 @@ const PageTitle = styled.h1`
   font-size: 3rem;
   font-weight: 700;
   margin: 0;
-  color: white;
-  text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+  text-shadow: var(--shadow-glow);
   letter-spacing: 2px;
   
   @media (max-width: 768px) {
@@ -196,7 +198,7 @@ const PageTitle = styled.h1`
 `;
 
 const SubTitle = styled.div`
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 1rem;
   display: flex;
   align-items: center;
@@ -225,8 +227,8 @@ const QuickActions = styled.div`
 `;
 
 const ActionCard = styled.button<{ $gradient: string }>`
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-color);
+  border: 1px solid var(--surface-border);
   border-radius: 16px;
   padding: 16px 24px;
   display: flex;
@@ -250,15 +252,15 @@ const ActionCard = styled.button<{ $gradient: string }>`
   
   &:hover {
     transform: translateY(-4px);
-    background: rgba(30, 41, 59, 0.8);
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--surface-highlight);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-color);
   }
   
   svg {
     width: 24px;
     height: 24px;
-    color: white;
+    color: var(--text-primary);
     opacity: 0.8;
   }
   
@@ -276,7 +278,7 @@ const ActionText = styled.div`
 `;
 
 const ActionLabel = styled.span`
-  color: white;
+  color: var(--text-primary);
   font-weight: 700;
   font-size: 1rem;
   font-family: 'Rajdhani', sans-serif;
@@ -297,8 +299,8 @@ const RoomListWrapper = styled.div`
   height: 100%;
   overflow: hidden;
   border-radius: 16px;
-  background: rgba(15, 23, 42, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--surface-color);
+  border: 1px solid var(--surface-border);
   
   & > div {
     height: 100%;

@@ -12,7 +12,7 @@ const LoginContainer = styled.div`
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: transparent; /* 使用全局背景 */
+  background: var(--bg-gradient);
 `;
 
 const LoginCard = styled.div`
@@ -69,7 +69,7 @@ const Label = styled.label`
 const Input = styled.input`
   width: 100%;
   padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-highlight);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   font-size: 16px;
@@ -79,7 +79,7 @@ const Input = styled.input`
   &:focus {
     outline: none;
     border-color: var(--primary-color);
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--surface-highlight);
     box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
   }
 
@@ -91,7 +91,7 @@ const Input = styled.input`
 const TextArea = styled.textarea`
   width: 100%;
   padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-highlight);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   font-size: 16px;
@@ -103,14 +103,14 @@ const TextArea = styled.textarea`
   &:focus {
     outline: none;
     border-color: var(--primary-color);
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--surface-highlight);
   }
 `;
 
 const Select = styled.select`
   width: 100%;
   padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-highlight);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   font-size: 16px;
@@ -123,7 +123,7 @@ const Select = styled.select`
   }
 
   option {
-    background: #1e293b;
+    background: var(--surface-color);
     color: var(--text-primary);
   }
 `;
@@ -134,7 +134,7 @@ const AvatarSection = styled.div`
   gap: 20px;
   margin: 10px 0;
   padding: 15px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface-highlight);
   border-radius: var(--radius-md);
 `;
 

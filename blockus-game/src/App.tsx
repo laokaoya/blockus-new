@@ -4,6 +4,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { RoomProvider } from './contexts/RoomContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import MainLobby from './components/MainLobby';
 import Login from './components/Login';
 import UserProfile from './components/UserProfile';
@@ -21,31 +22,33 @@ import './App.css';
 function App() {
   return (
     <LanguageProvider>
-      <SocketProvider>
-        <AuthProvider>
-          <RoomProvider>
-          <Router>
-            <div className="App">
-              <ParticlesBackground />
-              <TransitionOverlay />
-              <Routes>
-                <Route path="/welcome" element={<LandingPage />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/" element={<MainLobby />} />
-                <Route path="/profile" element={<UserProfile />} />
-                <Route path="/room/:roomId" element={<GameRoom />} />
-                <Route path="/game" element={<Game />} />
-                <Route path="/creative" element={<CreativeGame />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/game-settings" element={<GameSettings />} />
-                <Route path="/statistics" element={<Statistics />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </div>
-          </Router>
-          </RoomProvider>
-        </AuthProvider>
-      </SocketProvider>
+      <ThemeProvider>
+        <SocketProvider>
+          <AuthProvider>
+            <RoomProvider>
+            <Router>
+              <div className="App">
+                <ParticlesBackground />
+                <TransitionOverlay />
+                <Routes>
+                  <Route path="/welcome" element={<LandingPage />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/" element={<MainLobby />} />
+                  <Route path="/profile" element={<UserProfile />} />
+                  <Route path="/room/:roomId" element={<GameRoom />} />
+                  <Route path="/game" element={<Game />} />
+                  <Route path="/creative" element={<CreativeGame />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/game-settings" element={<GameSettings />} />
+                  <Route path="/statistics" element={<Statistics />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </div>
+            </Router>
+            </RoomProvider>
+          </AuthProvider>
+        </SocketProvider>
+      </ThemeProvider>
     </LanguageProvider>
   );
 }

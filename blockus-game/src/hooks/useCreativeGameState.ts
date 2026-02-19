@@ -6,6 +6,7 @@ import { GameState, Player, Piece, Position, PlayerColor } from '../types/game';
 import {
   SpecialTile, CreativePlayerState, CreativeGameState,
   TileEffect, ItemCard, StatusEffect, PendingEffect,
+  GameEvent,
 } from '../types/creative';
 import { PIECE_SHAPES } from '../constants/pieces';
 import { canPlacePiece, placePiece, calculateScore, isGameFinished } from '../utils/gameEngine';
@@ -16,7 +17,8 @@ import {
   generateSpecialTiles, rollGoldEffect, rollPurpleEffect, rollRedEffect,
   rollItemCard, resolveEffect, resolveItemCard,
   tickStatusEffects, addItemCard, findTriggeredTiles,
-  initCreativePlayerStates, aiDecideItemCard, EffectResult, ItemResult,
+  initCreativePlayerStates, aiDecideItemCard, findTerritoryExpansionCell,
+  EffectResult, ItemResult,
 } from '../utils/creativeModeEngine';
 
 const BOARD_SIZE = 20;
@@ -89,6 +91,28 @@ export function useCreativeGameState() {
     cardIndex: number;
     card: ItemCard;
   } | null>(null);
+
+  // 游戏事件日志
+  const [eventLog, setEventLog] = useState<GameEvent[]>([]);
+  const eventIdRef = useRef(0);
+
+  // 暂停控制
+  const isPausedRef = useRef(false);
+  const setPaused = useCallback((paused: boolean) => { isPausedRef.current = paused; }, []);
+
+  const addEvent = useCallback((
+    type: GameEvent['type'],
+    playerColor: PlayerColor,
+    playerName: string,
+    message: string,
+    extra?: Partial<Pick<GameEvent, 'detail' | 'scoreChange' | 'icon'>>
+  ) => {
+    const id = ++eventIdRef.current;
+    setEventLog(prev => [{
+      id, timestamp: Date.now(), type, playerColor, playerName, message,
+      ...extra,
+    }, ...prev].slice(0, 100)); // 保留最近 100 条
+  }, []);
 
   // ==================== 初始化 ====================
 
@@ -224,7 +248,13 @@ export function useCreativeGameState() {
     );
 
     applyItemResult(itemResult, player.id, decision.targetPlayerId, decision.cardIndex);
-  }, [gameState.players, creativeState.creativePlayers]);
+    const targetName = targetPlayer?.name || '';
+    addEvent('item_use', player.color, player.name,
+      targetName
+        ? `对 ${targetName} 使用了道具「${card.name}」`
+        : `使用了道具「${card.name}」`,
+      { icon: '🃏' });
+  }, [gameState.players, creativeState.creativePlayers, addEvent]);
 
   // ==================== 应用道具卡效果 ====================
 
@@ -423,6 +453,8 @@ export function useCreativeGameState() {
     }
 
     soundManager.placePiece();
+    addEvent('place', currentPlayer.color, currentPlayer.name,
+      `放置了 ${gameState.selectedPiece.type} 格拼图`, { icon: '🧩' });
 
     const newBoard = placePiece(gameState.board, gameState.selectedPiece, position, colorIndex);
     const boardChanges: Array<{ x: number; y: number; color: number }> = [];
@@ -461,11 +493,30 @@ export function useCreativeGameState() {
     );
 
     const placedCount = boardChanges.length;
+    let statusBonusDelta = 0;
     if (hasDouble) {
-      newScore += placedCount;
+      statusBonusDelta += placedCount;
     }
     if (hasHalf) {
-      newScore = Math.max(0, newScore - Math.floor(placedCount / 2));
+      statusBonusDelta -= Math.floor(placedCount / 2);
+    }
+    if (statusBonusDelta !== 0) {
+      newScore = Math.max(0, newScore + statusBonusDelta);
+      setCreativeState(prev => ({
+        ...prev,
+        creativePlayers: prev.creativePlayers.map(cp =>
+          cp.playerId === currentPlayer.id
+            ? { ...cp, bonusScore: cp.bonusScore + statusBonusDelta }
+            : cp
+        ),
+      }));
+      if (statusBonusDelta > 0) {
+        addEvent('system', currentPlayer.color, currentPlayer.name,
+          `翻倍效果：额外 +${statusBonusDelta} 分`, { scoreChange: statusBonusDelta, icon: '✨' });
+      } else {
+        addEvent('system', currentPlayer.color, currentPlayer.name,
+          `减半效果：${statusBonusDelta} 分`, { scoreChange: statusBonusDelta, icon: '📉' });
+      }
     }
 
     const updatedPlayers = newPlayers.map(player =>
@@ -508,6 +559,16 @@ export function useCreativeGameState() {
       const effectResult = resolveEffect(
         effect.id, currentPlayer, gameState.players,
         playerCreative || { playerId: currentPlayer.id, color: currentPlayer.color, itemCards: [], statusEffects: [], bonusScore: 0 },
+      );
+
+      const tileIcon = tile.type === 'gold' ? '★' : tile.type === 'purple' ? '?' : '!';
+      addEvent('tile_effect', currentPlayer.color, currentPlayer.name,
+        `触发了${tile.type === 'gold' ? '金色' : tile.type === 'purple' ? '紫色' : '红色'}方格`,
+        {
+          detail: effect.name,
+          scoreChange: effectResult.scoreChange || undefined,
+          icon: tileIcon,
+        }
       );
 
       // 应用即时分数变化，同步写入 bonusScore 保证累计
@@ -614,9 +675,37 @@ export function useCreativeGameState() {
         removeRandomPiece(currentPlayer.id);
       }
 
-      // 回收最近放置
+      // 回收上一步放置的棋子
       if (effectResult.undoLastMove) {
-        // 注意：这里回收的是上一步，不是当前步
+        const prevMoves = gameState.moves.filter(m => m.playerColor === currentPlayer.color);
+        if (prevMoves.length > 0) {
+          const lastMove = prevMoves[prevMoves.length - 1];
+          lastMove.boardChanges.forEach(c => {
+            if (c.x >= 0 && c.x < BOARD_SIZE && c.y >= 0 && c.y < BOARD_SIZE) {
+              newBoard[c.y][c.x] = 0;
+            }
+          });
+          const me = updatedPlayers.find(p => p.id === currentPlayer.id);
+          if (me) me.score = Math.max(0, me.score - lastMove.boardChanges.length);
+          setCreativeState(prev => ({
+            ...prev,
+            creativePlayers: prev.creativePlayers.map(cp =>
+              cp.playerId === currentPlayer.id
+                ? { ...cp, bonusScore: cp.bonusScore - lastMove.boardChanges.length }
+                : cp
+            ),
+          }));
+        }
+      }
+
+      // 领地扩张：在己方棋子旁放一个 1×1 方块
+      if (effectResult.territoryExpand) {
+        const cell = findTerritoryExpansionCell(newBoard, colorIndex);
+        if (cell) {
+          newBoard[cell.y][cell.x] = colorIndex;
+          const me = updatedPlayers.find(p => p.id === currentPlayer.id);
+          if (me) me.score += 1;
+        }
       }
 
       // 额外回合
@@ -683,7 +772,7 @@ export function useCreativeGameState() {
     );
 
     if (shouldSkip) {
-      // 递减状态并跳过
+      addEvent('skip', currentPlayer.color, currentPlayer.name, '被跳过回合（状态效果）', { icon: '⏭️' });
       setCreativeState(prev => ({
         ...prev,
         creativePlayers: prev.creativePlayers.map(cp =>
@@ -753,6 +842,8 @@ export function useCreativeGameState() {
       const move = aiPlayer.makeMove(boardWithBarriers, availablePieces);
 
       if (move) {
+        addEvent('place', currentPlayer.color, currentPlayer.name,
+          `放置了 ${move.piece.type} 格拼图`, { icon: '🧩' });
         const colorIndex = gameState.currentPlayerIndex + 1;
         const newBoard = placePiece(gameState.board, move.piece, move.position, colorIndex);
 
@@ -769,13 +860,38 @@ export function useCreativeGameState() {
           }
         }
 
+        const aiHasDouble = aiCreative?.statusEffects.some(
+          e => e.type === 'next_double' && e.remainingTurns > 0
+        );
+        const aiHasHalf = aiCreative?.statusEffects.some(
+          e => e.type === 'half_score' && e.remainingTurns > 0
+        );
+        const aiPlacedCount = boardChanges.length;
+        let aiStatusDelta = 0;
+        if (aiHasDouble) aiStatusDelta += aiPlacedCount;
+        if (aiHasHalf) aiStatusDelta -= Math.floor(aiPlacedCount / 2);
+
+        if (aiStatusDelta !== 0) {
+          setCreativeState(prev => ({
+            ...prev,
+            creativePlayers: prev.creativePlayers.map(cp =>
+              cp.playerId === currentPlayer.id
+                ? { ...cp, bonusScore: cp.bonusScore + aiStatusDelta }
+                : cp
+            ),
+          }));
+          addEvent('system', currentPlayer.color, currentPlayer.name,
+            aiStatusDelta > 0 ? `翻倍效果：额外 +${aiStatusDelta} 分` : `减半效果：${aiStatusDelta} 分`,
+            { scoreChange: aiStatusDelta, icon: aiStatusDelta > 0 ? '✨' : '📉' });
+        }
+
         const newPlayers = gameState.players.map(player => {
           if (player.id === currentPlayer.id) {
             const newPieces = player.pieces.map(p =>
               p.id === move.piece.id ? { ...p, isUsed: true } : p
             );
-            const aiBonus = aiCreative?.bonusScore ?? 0;
-            const newScore = calculateScore(newBoard, colorIndex) + aiBonus;
+            const aiBonus = (aiCreative?.bonusScore ?? 0) + aiStatusDelta;
+            const newScore = Math.max(0, calculateScore(newBoard, colorIndex) + aiBonus);
             return { ...player, pieces: newPieces, score: newScore };
           }
           return player;
@@ -783,8 +899,9 @@ export function useCreativeGameState() {
 
         // 检查特殊方格
         const triggered = findTriggeredTiles(move.piece.shape, move.position, creativeState.specialTiles);
+        let aiExtraTurn = false;
+
         if (triggered.length > 0) {
-          // 标记已使用
           setCreativeState(prev => ({
             ...prev,
             specialTiles: prev.specialTiles.map(t =>
@@ -792,22 +909,29 @@ export function useCreativeGameState() {
             ),
           }));
 
-          // 简化处理 AI 的特殊方格效果
           for (const tile of triggered) {
             if (tile.type === 'barrier') continue;
             let effect: TileEffect;
+            const aiCp = creativeState.creativePlayers.find(c => c.playerId === currentPlayer.id);
+            const hasPU = aiCp?.statusEffects.some(e => e.type === 'purple_upgrade' && e.remainingTurns > 0) || false;
             if (tile.type === 'gold') effect = rollGoldEffect();
-            else if (tile.type === 'purple') effect = rollPurpleEffect(false);
+            else if (tile.type === 'purple') effect = rollPurpleEffect(hasPU);
             else effect = rollRedEffect();
 
-            const cp = creativeState.creativePlayers.find(c => c.playerId === currentPlayer.id) ||
+            const cp = aiCp ||
               { playerId: currentPlayer.id, color: currentPlayer.color, itemCards: [], statusEffects: [], bonusScore: 0 };
             const effectResult = resolveEffect(effect.id, currentPlayer, gameState.players, cp);
 
-            // 应用分数 + 同步 bonusScore
-            const target = newPlayers.find(p => p.id === currentPlayer.id);
-            if (target && effectResult.scoreChange) {
-              target.score = Math.max(0, target.score + effectResult.scoreChange);
+            const aiTileIcon = tile.type === 'gold' ? '★' : tile.type === 'purple' ? '?' : '!';
+            addEvent('tile_effect', currentPlayer.color, currentPlayer.name,
+              `触发了${tile.type === 'gold' ? '金色' : tile.type === 'purple' ? '紫色' : '红色'}方格`,
+              { detail: effect.name, scoreChange: effectResult.scoreChange || undefined, icon: aiTileIcon }
+            );
+
+            // 分数 + bonusScore
+            const me = newPlayers.find(p => p.id === currentPlayer.id);
+            if (me && effectResult.scoreChange) {
+              me.score = Math.max(0, me.score + effectResult.scoreChange);
               setCreativeState(prev => ({
                 ...prev,
                 creativePlayers: prev.creativePlayers.map(c =>
@@ -816,6 +940,36 @@ export function useCreativeGameState() {
                     : c
                 ),
               }));
+            }
+
+            // 全局加分
+            if (effectResult.globalBonus && me) {
+              const used = currentPlayer.pieces.filter(p => p.isUsed).length;
+              me.score += used;
+              setCreativeState(prev => ({
+                ...prev,
+                creativePlayers: prev.creativePlayers.map(c =>
+                  c.playerId === currentPlayer.id ? { ...c, bonusScore: c.bonusScore + used } : c
+                ),
+              }));
+            }
+
+            // 分数互换
+            if (effectResult.swapScoreWithHighest && me) {
+              const highest = newPlayers.reduce((a, b) =>
+                a.id !== currentPlayer.id && a.score > b.score ? a : b
+              );
+              if (highest.id !== currentPlayer.id) {
+                const tmp = me.score;
+                me.score = highest.score;
+                highest.score = tmp;
+              }
+            }
+
+            // 均分
+            if (effectResult.setAllScoresToAverage) {
+              const avg = Math.floor(newPlayers.reduce((s, p) => s + p.score, 0) / newPlayers.length);
+              newPlayers.forEach(p => { p.score = avg; });
             }
 
             // 状态效果
@@ -843,6 +997,36 @@ export function useCreativeGameState() {
               }));
             }
 
+            // 移除棋子
+            if (effectResult.removePiece === 'largest') removeLargestPiece(currentPlayer.id);
+            else if (effectResult.removePiece === 'random') removeRandomPiece(currentPlayer.id);
+
+            // 回收上一步
+            if (effectResult.undoLastMove) {
+              const prevMoves = gameState.moves.filter(m => m.playerColor === currentPlayer.color);
+              if (prevMoves.length > 0) {
+                const last = prevMoves[prevMoves.length - 1];
+                last.boardChanges.forEach(c => {
+                  if (c.x >= 0 && c.x < BOARD_SIZE && c.y >= 0 && c.y < BOARD_SIZE) {
+                    newBoard[c.y][c.x] = 0;
+                  }
+                });
+                if (me) me.score = Math.max(0, me.score - last.boardChanges.length);
+              }
+            }
+
+            // 领地扩张
+            if (effectResult.territoryExpand) {
+              const cell = findTerritoryExpansionCell(newBoard, colorIndex);
+              if (cell) {
+                newBoard[cell.y][cell.x] = colorIndex;
+                if (me) me.score += 1;
+              }
+            }
+
+            // 额外回合
+            if (effectResult.extraTurn) aiExtraTurn = true;
+
             setEffectQueue(prev => [...prev, { effect, result: effectResult }]);
           }
         }
@@ -862,7 +1046,9 @@ export function useCreativeGameState() {
         if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
         highlightTimeoutRef.current = setTimeout(() => setLastAIMove([]), 1200);
 
-        const nextIdx = findNextActivePlayer(gameState.currentPlayerIndex, newPlayers);
+        const nextIdx = aiExtraTurn
+          ? gameState.currentPlayerIndex
+          : findNextActivePlayer(gameState.currentPlayerIndex, newPlayers);
         const nextPlayers = newPlayers.map((p, i) => ({ ...p, isCurrentTurn: i === nextIdx }));
 
         setGameState(prev => ({
@@ -875,7 +1061,7 @@ export function useCreativeGameState() {
           moves: [...prev.moves, { playerColor: currentPlayer.color, boardChanges, timestamp: Date.now() }],
         }));
       } else {
-        // AI 无法放置
+        addEvent('settle', currentPlayer.color, currentPlayer.name, '无法放置，自动结算', { icon: '🏁' });
         const settledPlayers = gameState.players.map(p =>
           p.id === currentPlayer.id ? { ...p, isSettled: true } : p
         );
@@ -907,7 +1093,7 @@ export function useCreativeGameState() {
       e => e.type === 'skip_turn' && e.remainingTurns > 0
     );
     if (shouldSkip) {
-      // 递减状态并跳过
+      addEvent('skip', currentPlayer.color, currentPlayer.name, '被跳过回合（状态效果）', { icon: '⏭️' });
       setCreativeState(prev => ({
         ...prev,
         creativePlayers: prev.creativePlayers.map(cp =>
@@ -944,6 +1130,7 @@ export function useCreativeGameState() {
     if (!creativeState.itemPhase) return;
 
     const timer = setInterval(() => {
+      if (isPausedRef.current) return;
       setCreativeState(prev => {
         if (prev.itemPhaseTimeLeft <= 1) {
           return { ...prev, itemPhase: false, itemPhaseTimeLeft: 0 };
@@ -968,12 +1155,13 @@ export function useCreativeGameState() {
     if (card.needsTarget) {
       setItemTargetSelection({ cardIndex, card });
     } else {
-      // 不需要目标的道具（如钢铁）直接使用
       const result = resolveItemCard(card.cardType, currentPlayer, null, playerCreative, null);
       applyItemResult(result, currentPlayer.id, null, cardIndex);
+      addEvent('item_use', currentPlayer.color, currentPlayer.name,
+        `使用了道具「${card.name}」`, { icon: '🃏' });
       setCreativeState(prev => ({ ...prev, itemPhase: false, itemPhaseTimeLeft: 0 }));
     }
-  }, [gameState, creativeState, applyItemResult]);
+  }, [gameState, creativeState, applyItemResult, addEvent]);
 
   const confirmItemTarget = useCallback((targetPlayerId: string) => {
     if (!itemTargetSelection) return;
@@ -988,9 +1176,12 @@ export function useCreativeGameState() {
       itemTargetSelection.card.cardType, currentPlayer, targetPlayer, playerCreative, targetCreative,
     );
     applyItemResult(result, currentPlayer.id, targetPlayerId, itemTargetSelection.cardIndex);
+    addEvent('item_use', currentPlayer.color, currentPlayer.name,
+      `对 ${targetPlayer?.name || '?'} 使用了道具「${itemTargetSelection.card.name}」`,
+      { icon: '🃏' });
     setItemTargetSelection(null);
     setCreativeState(prev => ({ ...prev, itemPhase: false, itemPhaseTimeLeft: 0 }));
-  }, [itemTargetSelection, gameState, creativeState, applyItemResult]);
+  }, [itemTargetSelection, gameState, creativeState, applyItemResult, addEvent]);
 
   const skipItemPhase = useCallback(() => {
     setCreativeState(prev => ({ ...prev, itemPhase: false, itemPhaseTimeLeft: 0 }));
@@ -1003,6 +1194,7 @@ export function useCreativeGameState() {
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     if (currentPlayer.color !== 'red') return;
     soundManager.settle();
+    addEvent('settle', currentPlayer.color, currentPlayer.name, '选择结算', { icon: '🏁' });
 
     const newPlayers = gameState.players.map(p =>
       p.id === currentPlayer.id ? { ...p, isSettled: true } : p
@@ -1015,7 +1207,7 @@ export function useCreativeGameState() {
       timeLeft: gameSettings.timeLimit,
       turnCount: prev.turnCount + 1,
     }));
-  }, [gameState, findNextActivePlayer, gameSettings.timeLimit]);
+  }, [gameState, findNextActivePlayer, gameSettings.timeLimit, addEvent]);
 
   // ==================== 重置 ====================
 
@@ -1037,26 +1229,42 @@ export function useCreativeGameState() {
 
   // ==================== 倒计时 ====================
 
+  // 人类回合开始时立即设置正确的倒计时（含压迫效果）
+  const pressureAppliedRef = useRef<number>(-1);
   useEffect(() => {
     if (gameState.gamePhase !== 'playing') return;
-    if (creativeState.itemPhase) return; // 道具阶段暂停放置倒计时
-
+    if (creativeState.itemPhase) return;
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     if (currentPlayer.color !== 'red' || currentPlayer.isSettled) return;
+    if (pressureAppliedRef.current === gameState.currentPlayerIndex) return;
 
-    // 压迫效果：时间限制为 5 秒
     const playerCreative = creativeState.creativePlayers.find(c => c.playerId === currentPlayer.id);
     const hasPressure = playerCreative?.statusEffects.some(
       e => e.type === 'time_pressure' && e.remainingTurns > 0
     );
+    if (hasPressure) {
+      pressureAppliedRef.current = gameState.currentPlayerIndex;
+      setGameState(prev => ({ ...prev, timeLeft: 5 }));
+    }
+  }, [gameState.gamePhase, gameState.currentPlayerIndex, creativeState.itemPhase, creativeState.creativePlayers, gameState.players]);
+
+  useEffect(() => {
+    if (gameState.gamePhase !== 'playing') return;
+    if (creativeState.itemPhase) return;
+
+    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    if (currentPlayer.color !== 'red' || currentPlayer.isSettled) return;
 
     const timer = setInterval(() => {
+      if (isPausedRef.current) return;
       setGameState(prev => {
         const currPlayer = prev.players[prev.currentPlayerIndex];
         if (!currPlayer || currPlayer.color !== 'red' || currPlayer.isSettled) return prev;
 
         if (prev.timeLeft <= 1) {
           const nextIdx = findNextActivePlayer(prev.currentPlayerIndex, prev.players);
+          pressureAppliedRef.current = -1;
+          addEvent('skip', currPlayer.color, currPlayer.name, '超时跳过回合', { icon: '⏰' });
           return {
             ...prev,
             players: prev.players.map((p, i) => ({ ...p, isCurrentTurn: i === nextIdx })),
@@ -1073,13 +1281,8 @@ export function useCreativeGameState() {
       });
     }, 1000);
 
-    // 如果有压迫效果，强制设置时间为5秒
-    if (hasPressure) {
-      setGameState(prev => ({ ...prev, timeLeft: Math.min(prev.timeLeft, 5) }));
-    }
-
     return () => clearInterval(timer);
-  }, [gameState.gamePhase, gameState.currentPlayerIndex, gameState.players, creativeState.itemPhase, creativeState.creativePlayers, findNextActivePlayer, gameSettings.timeLimit]);
+  }, [gameState.gamePhase, gameState.currentPlayerIndex, gameState.players, creativeState.itemPhase, findNextActivePlayer, gameSettings.timeLimit]);
 
   // ==================== 自动处理 ====================
 
@@ -1128,11 +1331,27 @@ export function useCreativeGameState() {
     };
   }, []);
 
-  // 检查是否可以继续
+  // 检查是否可以继续（考虑障碍块和大棋子限制）
   const canPlayerContinue = useCallback((player: Player) => {
     if (player.isSettled) return false;
-    const availablePieces = player.pieces.filter(p => !p.isUsed);
+    let availablePieces = player.pieces.filter(p => !p.isUsed);
     if (availablePieces.length === 0) return false;
+
+    const playerCreative = creativeState.creativePlayers.find(c => c.playerId === player.id);
+    const hasBan = playerCreative?.statusEffects.some(
+      e => e.type === 'big_piece_ban' && e.remainingTurns > 0
+    );
+    if (hasBan) {
+      availablePieces = availablePieces.filter(p => p.type < 4);
+      if (availablePieces.length === 0) return false;
+    }
+
+    const boardWithBarriers = gameState.board.map(row => [...row]);
+    creativeState.specialTiles.forEach(t => {
+      if (t.type === 'barrier' && !t.used) {
+        boardWithBarriers[t.y][t.x] = -1;
+      }
+    });
 
     const colorIndex = gameState.players.findIndex(p => p.id === player.id) + 1;
     for (const piece of availablePieces) {
@@ -1140,7 +1359,7 @@ export function useCreativeGameState() {
       for (const variant of variants) {
         for (let y = 0; y < BOARD_SIZE; y++) {
           for (let x = 0; x < BOARD_SIZE; x++) {
-            if (canPlacePiece(gameState.board, variant, { x, y }, colorIndex)) {
+            if (canPlacePiece(boardWithBarriers, variant, { x, y }, colorIndex)) {
               return true;
             }
           }
@@ -1148,7 +1367,7 @@ export function useCreativeGameState() {
       }
     }
     return false;
-  }, [gameState.board, gameState.players]);
+  }, [gameState.board, gameState.players, creativeState.specialTiles, creativeState.creativePlayers]);
 
   return {
     // 基础游戏
@@ -1175,5 +1394,11 @@ export function useCreativeGameState() {
     startUseItemCard,
     confirmItemTarget,
     skipItemPhase,
+
+    // 事件日志
+    eventLog,
+
+    // 暂停
+    setPaused,
   };
 }

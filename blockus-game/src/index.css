@@ -11,8 +11,25 @@
   
   /* 文本颜色 */
   --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  
+  /* 特殊方格颜色 (深色模式) */
+  --tile-gold-bg: rgba(251, 191, 36, 0.15);
+  --tile-gold-border: rgba(251, 191, 36, 0.3);
+  --tile-gold-text: #fbbf24;
+  
+  --tile-purple-bg: rgba(167, 139, 250, 0.15);
+  --tile-purple-border: rgba(167, 139, 250, 0.3);
+  --tile-purple-text: #a78bfa;
+  
+  --tile-red-bg: rgba(248, 113, 113, 0.15);
+  --tile-red-border: rgba(248, 113, 113, 0.3);
+  --tile-red-text: #f87171;
+  
+  --tile-barrier-bg: rgba(75, 85, 99, 0.3);
+  --tile-barrier-border: rgba(75, 85, 99, 0.5);
+  --tile-barrier-text: #9ca3af;
   
   /* 品牌色 */
   --primary-color: #6366f1;
@@ -47,6 +64,43 @@
   --radius-sm: 8px;
   --shadow-lg: 0 20px 40px -5px rgba(0, 0, 0, 0.4);
   --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.3);
+}
+
+[data-theme='light'] {
+  /* 核心背景色 - 清新晨光 */
+  --bg-color: #f8fafc;
+  --bg-gradient: radial-gradient(circle at 50% 0%, #e2e8f0 0%, #f8fafc 100%);
+  
+  /* 表面颜色 (卡片/面板) */
+  --surface-color: rgba(255, 255, 255, 0.75);
+  --surface-border: rgba(0, 0, 0, 0.15);
+  --surface-highlight: rgba(0, 0, 0, 0.08);
+  
+  /* 文本颜色 - 加深以提高对比度 */
+  --text-primary: #020617;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  
+  /* 阴影调整 */
+  --shadow-lg: 0 20px 40px -5px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+
+  /* 特殊方格颜色 (浅色模式) */
+  --tile-gold-bg: rgba(251, 191, 36, 0.2);
+  --tile-gold-border: rgba(217, 119, 6, 0.3);
+  --tile-gold-text: #b45309;
+  
+  --tile-purple-bg: rgba(139, 92, 246, 0.15);
+  --tile-purple-border: rgba(124, 58, 237, 0.3);
+  --tile-purple-text: #7c3aed;
+  
+  --tile-red-bg: rgba(239, 68, 68, 0.15);
+  --tile-red-border: rgba(220, 38, 38, 0.3);
+  --tile-red-text: #dc2626;
+  
+  --tile-barrier-bg: rgba(203, 213, 225, 0.6);
+  --tile-barrier-border: rgba(148, 163, 184, 0.5);
+  --tile-barrier-text: #475569;
 }
 
 body {

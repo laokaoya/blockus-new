@@ -155,7 +155,7 @@ export function resolveEffect(
     case 'gold_plus6':  result.scoreChange = 6; break;
     case 'gold_plus10': result.scoreChange = 10; break;
     case 'gold_next_double':
-      result.newStatusEffects = [{ type: 'next_double', remainingTurns: 1 }];
+      result.newStatusEffects = [{ type: 'next_double', remainingTurns: 1, isNew: true }];
       break;
     case 'gold_free_card':
       result.grantItemCard = true;
@@ -164,13 +164,13 @@ export function resolveEffect(
       result.extraTurn = true;
       break;
     case 'gold_score_shield':
-      result.newStatusEffects = [{ type: 'score_shield', remainingTurns: 2 }];
+      result.newStatusEffects = [{ type: 'score_shield', remainingTurns: 2, isNew: true }];
       break;
     case 'gold_global_bonus':
       result.globalBonus = true;
       break;
     case 'gold_purple_upgrade':
-      result.newStatusEffects = [{ type: 'purple_upgrade', remainingTurns: 2 }];
+      result.newStatusEffects = [{ type: 'purple_upgrade', remainingTurns: 2, isNew: true }];
       break;
     case 'gold_territory':
       result.territoryExpand = true;
@@ -189,11 +189,11 @@ export function resolveEffect(
       result.scoreChange = hasShield || hasSteel ? 0 : -10;
       break;
     case 'purple_next_double':
-      result.newStatusEffects = [{ type: 'next_double', remainingTurns: 1 }];
+      result.newStatusEffects = [{ type: 'next_double', remainingTurns: 1, isNew: true }];
       break;
     case 'purple_skip':
       if (!hasSteel) {
-        result.newStatusEffects = [{ type: 'skip_turn', remainingTurns: 1 }];
+        result.newStatusEffects = [{ type: 'skip_turn', remainingTurns: 1, isNew: true }];
       }
       break;
     case 'purple_free_card':
@@ -201,7 +201,7 @@ export function resolveEffect(
       break;
     case 'purple_time5s':
       if (!hasSteel) {
-        result.newStatusEffects = [{ type: 'time_pressure', remainingTurns: 1 }];
+        result.newStatusEffects = [{ type: 'time_pressure', remainingTurns: 1, isNew: true }];
       }
       break;
     case 'purple_nothing':
@@ -233,13 +233,13 @@ export function resolveEffect(
       break;
     case 'red_skip':
       if (!hasSteel) {
-        result.newStatusEffects = [{ type: 'skip_turn', remainingTurns: 1 }];
+        result.newStatusEffects = [{ type: 'skip_turn', remainingTurns: 1, isNew: true }];
       }
       result.grantItemCard = true;
       break;
     case 'red_time5s':
       if (!hasSteel) {
-        result.newStatusEffects = [{ type: 'time_pressure', remainingTurns: 1 }];
+        result.newStatusEffects = [{ type: 'time_pressure', remainingTurns: 1, isNew: true }];
       }
       result.grantItemCard = true;
       break;
@@ -251,7 +251,7 @@ export function resolveEffect(
       break;
     case 'red_half_score':
       if (!hasSteel) {
-        result.newStatusEffects = [{ type: 'half_score', remainingTurns: 1 }];
+        result.newStatusEffects = [{ type: 'half_score', remainingTurns: 1, isNew: true }];
       }
       result.grantItemCard = true;
       break;
@@ -263,7 +263,7 @@ export function resolveEffect(
       break;
     case 'red_big_piece_ban':
       if (!hasSteel) {
-        result.newStatusEffects = [{ type: 'big_piece_ban', remainingTurns: 2 }];
+        result.newStatusEffects = [{ type: 'big_piece_ban', remainingTurns: 2, isNew: true }];
       }
       result.grantItemCard = true;
       break;
@@ -353,11 +353,15 @@ export function resolveItemCard(
 // ==================== 状态管理工具 ====================
 
 /**
- * 回合开始时递减状态效果计数器，移除到期的效果
+ * 回合结束时递减状态效果计数器，移除到期的效果。
+ * isNew 标记的效果是本回合刚添加的，只清除标记不递减。
  */
 export function tickStatusEffects(effects: StatusEffect[]): StatusEffect[] {
   return effects
-    .map(e => ({ ...e, remainingTurns: e.remainingTurns - 1 }))
+    .map(e => {
+      if (e.isNew) return { ...e, isNew: false };
+      return { ...e, remainingTurns: e.remainingTurns - 1 };
+    })
     .filter(e => e.remainingTurns > 0);
 }
 
@@ -391,6 +395,38 @@ export function findTriggeredTiles(
     }
   }
   return triggered;
+}
+
+/**
+ * 领地扩张：在己方棋子对角方向找一个空位放置 1×1 方块
+ * 返回放置的坐标，失败返回 null
+ */
+export function findTerritoryExpansionCell(board: number[][], colorIndex: number): { x: number; y: number } | null {
+  const diagonals = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+  const adjacents = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  const candidates: { x: number; y: number }[] = [];
+
+  for (let y = 0; y < BOARD_SIZE; y++) {
+    for (let x = 0; x < BOARD_SIZE; x++) {
+      if (board[y][x] !== 0) continue;
+      // 必须与同色棋子对角相邻
+      const hasDiag = diagonals.some(([dx, dy]) => {
+        const nx = x + dx, ny = y + dy;
+        return nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE && board[ny][nx] === colorIndex;
+      });
+      if (!hasDiag) continue;
+      // 不能与同色棋子边相邻
+      const hasEdge = adjacents.some(([dx, dy]) => {
+        const nx = x + dx, ny = y + dy;
+        return nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE && board[ny][nx] === colorIndex;
+      });
+      if (hasEdge) continue;
+      candidates.push({ x, y });
+    }
+  }
+
+  if (candidates.length === 0) return null;
+  return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
 /**

@@ -99,7 +99,8 @@ export type StatusEffectType =
 export interface StatusEffect {
   type: StatusEffectType;
   remainingTurns: number;
-  value?: number; // 额外数据（如连锁的棋子格数）
+  value?: number;
+  isNew?: boolean; // 本回合刚添加，跳过首次 tick 避免立即清除
 }
 
 // ==================== 创意模式游戏状态扩展 ====================
@@ -125,6 +126,22 @@ export interface PendingEffect {
   effectId: TileEffectId;
   tileType: SpecialTileType;
   resolved: boolean;
+}
+
+// ==================== 游戏事件日志 ====================
+
+export type GameEventType = 'place' | 'tile_effect' | 'item_use' | 'skip' | 'settle' | 'system';
+
+export interface GameEvent {
+  id: number;
+  timestamp: number;
+  type: GameEventType;
+  playerColor: PlayerColor;
+  playerName: string;
+  message: string;        // 简短描述
+  detail?: string;        // 额外信息（如效果名）
+  scoreChange?: number;   // 分数变化
+  icon?: string;          // 显示图标
 }
 
 // ==================== 效果池定义 ====================

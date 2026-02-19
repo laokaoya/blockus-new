@@ -30,7 +30,7 @@ const LibraryContainer = styled.div`
     height: 4px;
   }
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-border);
     border-radius: 2px;
   }
 `;
@@ -54,8 +54,8 @@ const PieceItem = styled.div<{
   justify-content: center;
   min-width: 64px;
   height: 64px;
-  background: ${props => props.isUsed ? 'transparent' : 'rgba(255, 255, 255, 0.05)'};
-  border: 1px solid ${props => props.isSelected ? 'var(--primary-color)' : 'rgba(255, 255, 255, 0.1)'};
+  background: ${props => props.isUsed ? 'transparent' : 'var(--surface-highlight)'};
+  border: 1px solid ${props => props.isSelected ? 'var(--primary-color)' : 'var(--surface-border)'};
   border-radius: 8px; /* Slightly sharper corners */
   cursor: ${props => props.isUsed ? 'default' : 'grab'};
   opacity: ${props => props.isUsed ? 0.2 : 1};
@@ -69,8 +69,8 @@ const PieceItem = styled.div<{
   
   &:hover {
     transform: ${props => !props.isUsed ? 'translateY(-5px)' : 'none'};
-    background: ${props => !props.isUsed ? 'rgba(255, 255, 255, 0.1)' : 'transparent'};
-    border-color: ${props => !props.isUsed ? 'rgba(255, 255, 255, 0.3)' : 'transparent'};
+    background: ${props => !props.isUsed ? 'var(--surface-border)' : 'transparent'};
+    border-color: ${props => !props.isUsed ? 'var(--text-muted)' : 'transparent'};
   }
   
   &:active {

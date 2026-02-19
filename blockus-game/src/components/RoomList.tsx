@@ -38,8 +38,9 @@ const CreateRoomOverlay = styled.div<{ isOpen: boolean }>`
 const ConsoleContainer = styled.div`
   width: 800px;
   max-width: 90%;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-color);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--surface-border);
   border-radius: 24px;
   padding: 40px;
   position: relative;
@@ -52,7 +53,7 @@ const ConsoleContainer = styled.div`
     left: 20%;
     right: 20%;
     height: 1px;
-    background: linear-gradient(90deg, transparent, #6366f1, transparent);
+    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
   }
 `;
 
@@ -66,19 +67,19 @@ const ConsoleHeader = styled.div`
 const ConsoleTitle = styled.h2`
   font-family: 'Orbitron', sans-serif;
   font-size: 2rem;
-  color: white;
+  color: var(--text-primary);
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 4px;
-  background: linear-gradient(to right, #fff, #a5b4fc);
+  background: linear-gradient(to right, var(--text-primary), #a5b4fc);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 `;
 
 const CloseButton = styled.button`
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--surface-border);
+  color: var(--text-secondary);
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -89,9 +90,9 @@ const CloseButton = styled.button`
   transition: all 0.2s;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border-color: white;
+    background: var(--surface-highlight);
+    color: var(--text-primary);
+    border-color: var(--text-primary);
   }
 `;
 
@@ -113,33 +114,33 @@ const ConsoleSection = styled.div`
 
 const ConsoleLabel = styled.label`
   font-family: 'Rajdhani', sans-serif;
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 1px;
 `;
 
 const ConsoleInput = styled.input`
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
+  border: 1px solid var(--surface-border);
   border-radius: 12px;
   padding: 16px;
-  color: white;
+  color: var(--text-primary);
   font-family: 'Rajdhani', sans-serif;
   font-size: 1.2rem;
   transition: all 0.2s;
   
   &:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: var(--primary-color);
     background: rgba(99, 102, 241, 0.05);
     box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
   }
 `;
 
 const ModeCard = styled.div<{ $active: boolean; $color: string }>`
-  background: ${props => props.$active ? `rgba(${props.$color}, 0.1)` : 'rgba(255, 255, 255, 0.03)'};
-  border: 1px solid ${props => props.$active ? `rgba(${props.$color}, 0.5)` : 'rgba(255, 255, 255, 0.1)'};
+  background: ${props => props.$active ? `rgba(${props.$color}, 0.1)` : 'var(--surface-highlight)'};
+  border: 1px solid ${props => props.$active ? `rgba(${props.$color}, 0.5)` : 'var(--surface-border)'};
   border-radius: 16px;
   padding: 20px;
   cursor: pointer;
@@ -172,14 +173,14 @@ const ModeInfo = styled.div`
 `;
 
 const ModeTitle = styled.span`
-  color: white;
+  color: var(--text-primary);
   font-weight: 700;
   font-family: 'Rajdhani', sans-serif;
   font-size: 1.1rem;
 `;
 
 const ModeDesc = styled.span`
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-secondary);
   font-size: 0.8rem;
 `;
 
@@ -228,6 +229,32 @@ const DeployButton = styled.button`
   }
 `;
 
+const TimeOptionRow = styled.div`
+  display: flex;
+  gap: 12px;
+`;
+
+const TimeOption = styled.div<{ $active: boolean }>`
+  flex: 1;
+  text-align: center;
+  padding: 14px 0;
+  border-radius: 12px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: ${props => props.$active ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.03)'};
+  border: 1px solid ${props => props.$active ? 'rgba(99, 102, 241, 0.5)' : 'rgba(255, 255, 255, 0.1)'};
+  color: ${props => props.$active ? '#a5b4fc' : 'rgba(255, 255, 255, 0.5)'};
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+  }
+`;
+
 const ToggleContainer = styled.div`
   display: flex;
   align-items: center;
@@ -240,7 +267,7 @@ const ToggleContainer = styled.div`
 const ToggleSwitch = styled.div<{ checked: boolean }>`
   width: 40px;
   height: 20px;
-  background: ${props => props.checked ? '#6366f1' : 'rgba(255, 255, 255, 0.1)'};
+  background: ${props => props.checked ? 'var(--primary-color)' : 'var(--surface-border)'};
   border-radius: 20px;
   position: relative;
   transition: all 0.3s ease;
@@ -277,7 +304,7 @@ const CreateRoomButton = styled.button`
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: var(--primary-gradient);
   color: white;
   border: none;
   font-size: 2rem;
@@ -296,9 +323,9 @@ const CreateRoomButton = styled.button`
 `;
 
 const RefreshButton = styled.button`
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-highlight);
   color: var(--text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--surface-border);
   width: auto;
   min-width: 80px;
   padding: 0 16px;
@@ -314,9 +341,9 @@ const RefreshButton = styled.button`
   font-size: 0.9rem;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--surface-border);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
   }
   
   svg {
@@ -344,11 +371,11 @@ const RoomGrid = styled.div`
   }
   
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-border);
     border-radius: 3px;
     
     &:hover {
-      background: rgba(255, 255, 255, 0.2);
+      background: var(--surface-highlight);
     }
   }
 
@@ -360,11 +387,11 @@ const RoomGrid = styled.div`
 `;
 
 const RoomCard = styled.div`
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface-color);
   backdrop-filter: blur(10px);
   border-radius: 20px;
   padding: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--surface-border);
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
   position: relative;
@@ -382,15 +409,15 @@ const RoomCard = styled.div`
     left: 0;
     right: 0;
     height: 50%;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+    background: linear-gradient(180deg, var(--surface-highlight) 0%, transparent 100%);
     pointer-events: none;
   }
   
   &:hover {
     transform: translateY(-8px) scale(1.02);
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--surface-highlight);
     border-color: rgba(99, 102, 241, 0.3);
-    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
     
     &::after {
       opacity: 1;
@@ -404,7 +431,7 @@ const RoomCard = styled.div`
     inset: 0;
     border-radius: 20px;
     padding: 1px;
-    background: linear-gradient(135deg, #6366f1, #a855f7);
+    background: var(--primary-gradient);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
@@ -423,7 +450,7 @@ const RoomHeader = styled.div`
 
 const RoomName = styled.h3`
   margin: 0;
-  color: white;
+  color: var(--text-primary);
   font-size: 1.4rem;
   font-weight: 700;
   font-family: 'Rajdhani', sans-serif;
@@ -435,7 +462,7 @@ const RoomName = styled.h3`
 
 const RoomId = styled.span`
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-muted);
   font-family: monospace;
   font-weight: 400;
 `;
@@ -487,7 +514,7 @@ const Avatar = styled.div<{ image?: string }>`
   height: 36px;
   border-radius: 50%;
   background: ${props => props.image ? `url(${props.image}) center/cover` : 'linear-gradient(135deg, #6366f1, #8b5cf6)'};
-  border: 2px solid #1e293b;
+  border: 2px solid var(--surface-color);
   margin-left: -12px;
   display: flex;
   align-items: center;
@@ -503,7 +530,7 @@ const Avatar = styled.div<{ image?: string }>`
 
 const PlayerCount = styled.div`
   margin-left: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-secondary);
   font-size: 0.9rem;
   font-family: 'Rajdhani', sans-serif;
   font-weight: 600;
@@ -600,8 +627,8 @@ const ModalOverlay = styled.div<{ isOpen: boolean }>`
 `;
 
 const ModalContainer = styled.div`
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-color);
+  border: 1px solid var(--surface-border);
   border-radius: 24px;
   padding: 32px;
   width: 90%;
@@ -635,12 +662,12 @@ const ModalHeader = styled.div`
 
 const ModalTitle = styled.h3`
   margin: 0;
-  color: white;
+  color: var(--text-primary);
   font-family: 'Orbitron', sans-serif;
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: 1px;
-  background: linear-gradient(to right, #fff, #a5b4fc);
+  background: linear-gradient(to right, var(--text-primary), #a5b4fc);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
@@ -662,10 +689,10 @@ const Label = styled.label`
 const Input = styled.input`
   width: 100%;
   padding: 14px 16px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
+  border: 1px solid var(--surface-border);
   border-radius: 12px;
-  color: white;
+  color: var(--text-primary);
   font-size: 1rem;
   transition: all 0.2s ease;
   font-family: 'Rajdhani', sans-serif;
@@ -674,12 +701,12 @@ const Input = styled.input`
   &:focus {
     outline: none;
     border-color: var(--primary-color);
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(99, 102, 241, 0.05);
     box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2), 0 0 15px rgba(99, 102, 241, 0.1);
   }
 
   &::placeholder {
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--text-muted);
   }
 `;
 
@@ -767,15 +794,15 @@ const ModalButton = styled.button<{ variant?: 'primary' | 'secondary' }>`
       transform: translateY(0);
     }
   ` : `
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-highlight);
     color: var(--text-secondary);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--surface-border);
 
     &:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-      border-color: rgba(255, 255, 255, 0.3);
-      box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+      background: var(--surface-border);
+      color: var(--text-primary);
+      border-color: var(--text-muted);
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.1);
     }
   `}
 `;
@@ -865,6 +892,7 @@ const RoomList: React.FC = () => {
   const [newRoomPassword, setNewRoomPassword] = useState('');
   const [isNewRoomPrivate, setIsNewRoomPrivate] = useState(false);
   const [newRoomGameMode, setNewRoomGameMode] = useState<GameMode>('classic');
+  const [turnTimeLimit, setTurnTimeLimit] = useState(60);
 
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<GameRoom | null>(null);
@@ -899,7 +927,7 @@ const RoomList: React.FC = () => {
       const newRoom = await createRoom(
         newRoomName.trim(),
         isNewRoomPrivate ? newRoomPassword : undefined,
-        undefined,
+        { turnTimeLimit },
         newRoomGameMode,
       );
       if (newRoom) {
@@ -1155,6 +1183,21 @@ const RoomList: React.FC = () => {
                   </ModeInfo>
                 </ModeCard>
               </div>
+            </ConsoleSection>
+
+            <ConsoleSection style={{ gridColumn: '1 / -1' }}>
+              <ConsoleLabel>{t('room.turnTime') || '回合时间'}</ConsoleLabel>
+              <TimeOptionRow>
+                {[30, 60, 90, 120].map(sec => (
+                  <TimeOption
+                    key={sec}
+                    $active={turnTimeLimit === sec}
+                    onClick={() => { soundManager.buttonClick(); setTurnTimeLimit(sec); }}
+                  >
+                    {sec}s
+                  </TimeOption>
+                ))}
+              </TimeOptionRow>
             </ConsoleSection>
 
             <DeployButton 

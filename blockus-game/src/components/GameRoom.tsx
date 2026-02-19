@@ -11,7 +11,7 @@ const RoomContainer = styled.div`
   height: 100vh;
   padding: 20px;
   overflow-y: auto;
-  background: radial-gradient(circle at 50% 0%, rgba(30, 41, 59, 0.3) 0%, transparent 70%);
+  background: var(--bg-gradient);
   
   @media (min-width: 768px) {
     padding: 40px;
@@ -19,7 +19,7 @@ const RoomContainer = styled.div`
 `;
 
 const RoomCard = styled.div`
-  background: rgba(30, 41, 59, 0.4);
+  background: var(--surface-color);
   backdrop-filter: blur(12px);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-lg);
@@ -127,7 +127,7 @@ const Content = styled.div`
 `;
 
 const PlayersSection = styled.div`
-  background: rgba(15, 23, 42, 0.3);
+  background: var(--surface-highlight);
   border-radius: var(--radius-md);
   padding: 20px;
   border: 1px solid var(--surface-border);
@@ -151,10 +151,10 @@ const PlayersGrid = styled.div`
 `;
 
 const PlayerCard = styled.div<{ $isCurrentUser: boolean; $isHost: boolean }>`
-  background: ${props => props.$isCurrentUser ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255, 255, 255, 0.03)'};
+  background: ${props => props.$isCurrentUser ? 'var(--surface-highlight)' : 'var(--surface-color)'};
   border-radius: 12px;
   padding: 16px;
-  border: 1px solid ${props => props.$isCurrentUser ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255, 255, 255, 0.05)'};
+  border: 1px solid ${props => props.$isCurrentUser ? 'var(--primary-color)' : 'var(--surface-border)'};
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
@@ -163,7 +163,7 @@ const PlayerCard = styled.div<{ $isCurrentUser: boolean; $isHost: boolean }>`
 
   &:hover {
     transform: translateY(-2px);
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--surface-highlight);
   }
 `;
 
@@ -253,7 +253,7 @@ const Sidebar = styled.div`
 `;
 
 const ControlPanel = styled.div`
-  background: rgba(15, 23, 42, 0.3);
+  background: var(--surface-highlight);
   border-radius: var(--radius-md);
   padding: 20px;
   border: 1px solid var(--surface-border);
@@ -270,7 +270,7 @@ const AIControls = styled.div`
 
 const AISelect = styled.select`
   padding: 10px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   border-radius: 6px;
@@ -283,7 +283,7 @@ const AISelect = styled.select`
   }
 
   option {
-    background: #1e293b;
+    background: var(--surface-color);
   }
 `;
 

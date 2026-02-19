@@ -60,7 +60,7 @@ const Container = styled.div`
 `;
 
 const PlayerCard = styled.div<{ color: string; $isCurrentTurn: boolean; $isThinking: boolean }>`
-  background: ${props => props.$isCurrentTurn ? 'rgba(255, 255, 255, 0.05)' : 'transparent'};
+  background: ${props => props.$isCurrentTurn ? 'var(--surface-highlight)' : 'var(--surface-color)'};
   border-radius: 8px;
   padding: 10px 14px;
   border-left: 4px solid ${props => {
@@ -77,7 +77,7 @@ const PlayerCard = styled.div<{ color: string; $isCurrentTurn: boolean; $isThink
   gap: 12px;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-highlight);
   }
 
   @media (max-width: 768px) {
@@ -89,7 +89,7 @@ const PlayerCard = styled.div<{ color: string; $isCurrentTurn: boolean; $isThink
       return 'transparent';
     }};
     padding: 8px 12px;
-    background: ${props => props.$isCurrentTurn ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.2)'};
+    background: ${props => props.$isCurrentTurn ? 'var(--surface-highlight)' : 'var(--surface-color)'};
   }
 `;
 
@@ -188,7 +188,7 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalContent = styled.div`
-  background: rgba(15, 23, 42, 0.95);
+  background: var(--surface-color);
   border: 1px solid var(--surface-border);
   border-radius: 16px;
   padding: 24px;
@@ -206,7 +206,7 @@ const ModalHeader = styled.div`
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--surface-border);
 `;
 
 const ModalTitle = styled.h2`
@@ -241,8 +241,8 @@ const PieceItem = styled.div<{ color: string; isUsed: boolean }>`
   align-items: center;
   justify-content: center;
   height: 80px;
-  background: ${props => props.isUsed ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)'};
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: ${props => props.isUsed ? 'var(--surface-highlight)' : 'var(--surface-color)'};
+  border: 1px solid var(--surface-border);
   border-radius: 8px;
   opacity: ${props => props.isUsed ? 0.3 : 1};
 `;

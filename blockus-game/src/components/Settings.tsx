@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTheme } from '../contexts/ThemeContext';
 import soundManager from '../utils/soundManager';
 
 interface AppSettings {
@@ -10,8 +11,6 @@ interface AppSettings {
   soundVolume: number;
   musicVolume: number;
   language: 'zh' | 'en';
-  theme: 'light' | 'dark' | 'auto';
-  quality: 'low' | 'medium' | 'high';
   notifications: boolean;
 }
 
@@ -23,6 +22,7 @@ const SettingsContainer = styled.div`
   align-items: center;
   overflow-y: auto;
   padding-bottom: 60px;
+  background: var(--bg-gradient);
 `;
 
 const Header = styled.div`
@@ -37,7 +37,7 @@ const Title = styled.h1`
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   font-weight: 800;
   letter-spacing: -1px;
-  background: linear-gradient(to right, #fff, #94a3b8);
+  background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   
@@ -255,7 +255,7 @@ const OptionButton = styled.button<{ isSelected: boolean }>`
   padding: 12px 20px;
   border: 1px solid ${props => props.isSelected ? 'var(--primary-color)' : 'var(--surface-border)'};
   border-radius: var(--radius-md);
-  background: ${props => props.isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
+  background: ${props => props.isSelected ? 'rgba(99, 102, 241, 0.2)' : 'var(--surface-highlight)'};
   color: ${props => props.isSelected ? 'var(--primary-color)' : 'var(--text-secondary)'};
   cursor: pointer;
   transition: all 0.3s ease;
@@ -263,7 +263,7 @@ const OptionButton = styled.button<{ isSelected: boolean }>`
   
   &:hover {
     border-color: var(--primary-color);
-    background: ${props => props.isSelected ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
+    background: ${props => props.isSelected ? 'rgba(99, 102, 241, 0.3)' : 'var(--surface-border)'};
     transform: translateY(-2px);
   }
   
@@ -296,15 +296,15 @@ const Button = styled.button<{ variant: 'primary' | 'secondary' }>`
   
   background: ${props => props.variant === 'primary' 
     ? 'var(--primary-gradient)' 
-    : 'rgba(255, 255, 255, 0.1)'
+    : 'var(--surface-highlight)'
   };
-  color: white;
+  color: ${props => props.variant === 'primary' ? 'white' : 'var(--text-primary)'};
   border: ${props => props.variant === 'secondary' ? '1px solid var(--surface-border)' : 'none'};
   
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-    background: ${props => props.variant === 'secondary' ? 'rgba(255, 255, 255, 0.15)' : 'var(--primary-gradient)'};
+    background: ${props => props.variant === 'secondary' ? 'var(--surface-border)' : 'var(--primary-gradient)'};
   }
   
   @media (max-width: 768px) {
@@ -316,6 +316,7 @@ const Button = styled.button<{ variant: 'primary' | 'secondary' }>`
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { currentLanguage, setLanguage, t } = useLanguage();
+  const { theme, setTheme } = useTheme();
   
   const [settings, setSettings] = useState<AppSettings>({
     soundEnabled: soundManager.isEnabled(),
@@ -323,8 +324,6 @@ const Settings: React.FC = () => {
     soundVolume: Math.round(soundManager.getVolume() * 100),
     musicVolume: 60,
     language: currentLanguage,
-    theme: 'light',
-    quality: 'medium',
     notifications: true,
   });
 
@@ -378,15 +377,8 @@ const Settings: React.FC = () => {
   };
 
   // 处理主题变化
-  const handleThemeChange = (theme: 'light' | 'dark' | 'auto') => {
-    const newSettings = { ...settings, theme };
-    saveSettings(newSettings);
-  };
-
-  // 处理画质变化
-  const handleQualityChange = (quality: 'low' | 'medium' | 'high') => {
-    const newSettings = { ...settings, quality };
-    saveSettings(newSettings);
+  const handleThemeChange = (newTheme: 'light' | 'dark' | 'auto') => {
+    setTheme(newTheme);
   };
 
   // 重置设置
@@ -397,11 +389,10 @@ const Settings: React.FC = () => {
       soundVolume: 80,
       musicVolume: 60,
       language: currentLanguage,
-      theme: 'light',
-      quality: 'medium',
       notifications: true,
     };
     saveSettings(defaultSettings);
+    setTheme('dark');
     soundManager.setEnabled(true);
     soundManager.setVolume(0.8);
   };
@@ -495,19 +486,19 @@ const Settings: React.FC = () => {
               <SettingLabel>{t('settings.theme')}</SettingLabel>
               <OptionGroup>
                 <OptionButton
-                  isSelected={settings.theme === 'light'}
+                  isSelected={theme === 'light'}
                   onClick={() => handleThemeChange('light')}
                 >
                   {t('settings.light')}
                 </OptionButton>
                 <OptionButton
-                  isSelected={settings.theme === 'dark'}
+                  isSelected={theme === 'dark'}
                   onClick={() => handleThemeChange('dark')}
                 >
                   {t('settings.dark')}
                 </OptionButton>
                 <OptionButton
-                  isSelected={settings.theme === 'auto'}
+                  isSelected={theme === 'auto'}
                   onClick={() => handleThemeChange('auto')}
                 >
                   {t('settings.auto')}
@@ -515,29 +506,6 @@ const Settings: React.FC = () => {
               </OptionGroup>
             </SettingItem>
 
-            <SettingItem>
-              <SettingLabel>{t('settings.quality')}</SettingLabel>
-              <OptionGroup>
-                <OptionButton
-                  isSelected={settings.quality === 'low'}
-                  onClick={() => handleQualityChange('low')}
-                >
-                  {t('settings.low')}
-                </OptionButton>
-                <OptionButton
-                  isSelected={settings.quality === 'medium'}
-                  onClick={() => handleQualityChange('medium')}
-                >
-                  {t('settings.medium')}
-                </OptionButton>
-                <OptionButton
-                  isSelected={settings.quality === 'high'}
-                  onClick={() => handleQualityChange('high')}
-                >
-                  {t('settings.high')}
-                </OptionButton>
-              </OptionGroup>
-            </SettingItem>
           </SettingsCard>
 
           <SettingsCard>

@@ -120,11 +120,10 @@ const TimeDisplay = styled.div<{ timeLeft: number }>`
   color: ${props => {
     if (props.timeLeft <= 5) return '#ef4444';
     if (props.timeLeft <= 10) return '#f59e0b';
-    return 'rgba(255, 255, 255, 0.1)';
+    return 'var(--text-muted)';
   }};
   text-align: right;
   line-height: 1;
-  -webkit-text-stroke: ${props => props.timeLeft > 10 ? '1px rgba(255, 255, 255, 0.3)' : 'none'};
   text-shadow: 0 0 10px ${props => {
     if (props.timeLeft <= 5) return 'rgba(239, 68, 68, 0.4)';
     if (props.timeLeft <= 10) return 'rgba(245, 158, 11, 0.4)';
@@ -198,7 +197,7 @@ const Button = styled.button<{ variant: 'primary' | 'secondary' | 'danger'; isUr
   }
   
   &:disabled {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-highlight);
     color: var(--text-muted);
     border-color: var(--surface-border);
     cursor: not-allowed;
@@ -218,7 +217,7 @@ const GamePhaseDisplay = styled.div<{ phase: string }>`
       case 'playing': return 'rgba(16, 185, 129, 0.2)';
       case 'settling': return 'rgba(245, 158, 11, 0.2)';
       case 'finished': return 'rgba(239, 68, 68, 0.2)';
-      default: return 'rgba(255, 255, 255, 0.1)';
+      default: return 'var(--surface-highlight)';
     }
   }};
   color: ${props => {

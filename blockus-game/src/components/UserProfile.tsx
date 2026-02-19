@@ -56,7 +56,7 @@ const Avatar = styled.div<{ image?: string }>`
   font-size: 3rem;
   color: white;
   font-weight: bold;
-  border: 4px solid rgba(255, 255, 255, 0.1);
+  border: 4px solid var(--surface-border);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 `;
 
@@ -86,9 +86,9 @@ const UserBio = styled.p`
 `;
 
 const EditButton = styled.button`
-  background: rgba(99, 102, 241, 0.1);
+  background: var(--surface-highlight);
   color: var(--primary-color);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border: 1px solid var(--surface-border);
   padding: 8px 20px;
   border-radius: 20px;
   font-size: 14px;
@@ -97,7 +97,7 @@ const EditButton = styled.button`
   font-weight: 500;
   
   &:hover {
-    background: rgba(99, 102, 241, 0.2);
+    background: var(--surface-border);
     transform: translateY(-1px);
   }
 `;
@@ -122,7 +122,7 @@ const StatsGrid = styled.div`
 `;
 
 const StatCard = styled.div`
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-highlight);
   border-radius: var(--radius-md);
   padding: 20px;
   text-align: center;
@@ -132,7 +132,7 @@ const StatCard = styled.div`
   &:hover {
     border-color: var(--primary-color);
     transform: translateY(-3px);
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--surface-border);
   }
 `;
 
@@ -162,7 +162,7 @@ const ActionsSection = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   padding: 12px 24px;
@@ -172,7 +172,7 @@ const ActionButton = styled.button`
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-border);
     border-color: var(--primary-color);
     transform: translateY(-2px);
   }
@@ -195,7 +195,7 @@ const LogoutButton = styled.button`
 `;
 
 const BackButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   padding: 10px 24px;
@@ -207,7 +207,7 @@ const BackButton = styled.button`
   backdrop-filter: blur(4px);
   
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--surface-border);
     transform: translateX(-2px);
   }
 `;
@@ -268,7 +268,7 @@ const Label = styled.label`
 const Input = styled.input`
   width: 100%;
   padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-highlight);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   font-size: 16px;
@@ -278,14 +278,14 @@ const Input = styled.input`
   &:focus {
     outline: none;
     border-color: var(--primary-color);
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--surface-highlight);
   }
 `;
 
 const TextArea = styled.textarea`
   width: 100%;
   padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-highlight);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   font-size: 16px;
@@ -297,14 +297,14 @@ const TextArea = styled.textarea`
   &:focus {
     outline: none;
     border-color: var(--primary-color);
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--surface-highlight);
   }
 `;
 
 const Select = styled.select`
   width: 100%;
   padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-highlight);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   font-size: 16px;
@@ -317,7 +317,7 @@ const Select = styled.select`
   }
 
   option {
-    background: #1e293b;
+    background: var(--surface-color);
   }
 `;
 
@@ -327,7 +327,7 @@ const AvatarSection = styled.div`
   gap: 20px;
   margin: 20px 0;
   padding: 15px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface-highlight);
   border-radius: var(--radius-md);
 `;
 
@@ -356,7 +356,7 @@ const AvatarInput = styled.input`
 `;
 
 const UploadButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   padding: 8px 16px;
@@ -366,7 +366,7 @@ const UploadButton = styled.button`
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--surface-border);
   }
 `;
 
@@ -401,7 +401,7 @@ const SaveButton = styled.button`
 `;
 
 const CancelButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   padding: 12px 30px;
@@ -411,7 +411,7 @@ const CancelButton = styled.button`
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--surface-border);
     transform: translateY(-2px);
   }
 `;

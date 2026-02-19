@@ -21,13 +21,13 @@ const ChatContainer = styled.div<{ isOpen: boolean }>`
   bottom: 120px; /* Above BottomDock */
   width: 320px;
   height: 400px;
-  background: rgba(15, 23, 42, 0.85);
+  background: var(--surface-color);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--surface-border);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
   transform: ${props => props.isOpen ? 'translateX(0)' : 'translateX(120%)'};
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
   opacity: ${props => props.isOpen ? 1 : 0};
@@ -45,8 +45,8 @@ const ChatContainer = styled.div<{ isOpen: boolean }>`
 
 const ChatHeader = styled.div`
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--surface-highlight);
+  border-bottom: 1px solid var(--surface-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -99,7 +99,7 @@ const MessageItem = styled.div<{ isMe: boolean; isSystem: boolean }>`
   animation: ${messagePop} 0.2s ease-out;
   
   ${props => props.isSystem ? `
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-highlight);
     color: var(--text-secondary);
     font-size: 0.75rem;
     padding: 4px 12px;
@@ -122,8 +122,8 @@ const SenderName = styled.span`
 `;
 
 const MessageBubble = styled.div<{ isMe: boolean }>`
-  background: ${props => props.isMe ? 'var(--primary-gradient)' : 'rgba(255, 255, 255, 0.1)'};
-  color: white;
+  background: ${props => props.isMe ? 'var(--primary-gradient)' : 'var(--surface-highlight)'};
+  color: ${props => props.isMe ? 'white' : 'var(--text-primary)'};
   padding: 8px 12px;
   border-radius: 12px;
   border-top-right-radius: ${props => props.isMe ? '2px' : '12px'};
@@ -136,18 +136,18 @@ const MessageBubble = styled.div<{ isMe: boolean }>`
 
 const InputArea = styled.form`
   padding: 12px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-highlight);
   display: flex;
   gap: 8px;
 `;
 
 const ChatInput = styled.input`
   flex: 1;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-color);
+  border: 1px solid var(--surface-border);
   border-radius: 20px;
   padding: 8px 16px;
-  color: white;
+  color: var(--text-primary);
   font-size: 0.9rem;
   font-family: 'Rajdhani', sans-serif;
   transition: all 0.2s;
@@ -155,11 +155,11 @@ const ChatInput = styled.input`
   &:focus {
     outline: none;
     border-color: var(--primary-color);
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-color);
   }
 
   &::placeholder {
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--text-muted);
   }
 `;
 

@@ -48,7 +48,7 @@ const Container = styled.div<{ $isPhase: boolean }>`
 `;
 
 const PhaseHeader = styled.div`
-  background: rgba(15, 23, 42, 0.95);
+  background: var(--surface-color);
   border: 1px solid rgba(251, 191, 36, 0.5);
   border-radius: 12px;
   padding: 8px 20px;
@@ -71,14 +71,14 @@ const PhaseTimer = styled.span`
   font-family: 'Orbitron', sans-serif;
   font-size: 1.1rem;
   font-weight: 800;
-  color: white;
+  color: var(--text-primary);
   min-width: 30px;
   text-align: center;
 `;
 
 const SkipButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--surface-highlight);
+  border: 1px solid var(--surface-border);
   border-radius: 8px;
   padding: 4px 14px;
   color: var(--text-secondary);
@@ -89,8 +89,8 @@ const SkipButton = styled.button`
   transition: all 0.2s;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
+    background: var(--surface-border);
+    color: var(--text-primary);
   }
 `;
 
@@ -104,7 +104,7 @@ const CardSlot = styled.button<{ $cardType: ItemCardId }>`
   height: 100px;
   border-radius: 10px;
   border: 2px solid ${props => getCardColor(props.$cardType)};
-  background: rgba(15, 23, 42, 0.9);
+  background: var(--surface-color);
   backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
@@ -138,14 +138,14 @@ const CardIcon = styled.div`
 const CardName = styled.div`
   font-size: 0.7rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   text-align: center;
   font-family: 'Rajdhani', 'Microsoft YaHei', sans-serif;
 `;
 
 // 目标选择面板
 const TargetPanel = styled.div`
-  background: rgba(15, 23, 42, 0.95);
+  background: var(--surface-color);
   border: 1px solid rgba(99, 102, 241, 0.5);
   border-radius: 12px;
   padding: 15px 20px;
@@ -176,7 +176,7 @@ const TargetButton = styled.button<{ $color: string }>`
   padding: 10px 16px;
   border-radius: 10px;
   border: 2px solid ${props => PLAYER_COLORS[props.$color]};
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-highlight);
   cursor: pointer;
   transition: all 0.2s;
   
@@ -201,7 +201,7 @@ const TargetAvatar = styled.div<{ $color: string }>`
 
 const TargetName = styled.div`
   font-size: 0.75rem;
-  color: white;
+  color: var(--text-primary);
   font-weight: 600;
 `;
 
