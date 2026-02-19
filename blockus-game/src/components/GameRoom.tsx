@@ -221,6 +221,31 @@ const PlayerStatusBadge = styled.div<{ $isReady: boolean }>`
   border: 1px solid ${props => props.$isReady ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'};
 `;
 
+const RemoveButton = styled.button`
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  
+  &:hover {
+    background: rgba(239, 68, 68, 0.2);
+    transform: scale(1.1);
+  }
+`;
+
 const Sidebar = styled.div`
   display: flex;
   flex-direction: column;
@@ -487,6 +512,16 @@ const GameRoom: React.FC = () => {
     }
   };
 
+  const handleRemovePlayer = async (playerId: string) => {
+    soundManager.buttonClick();
+    if (!isHost) return;
+    try {
+      await removePlayer(targetRoom.id, playerId);
+    } catch (error) {
+      console.error('移除玩家失败:', error);
+    }
+  };
+
   return (
     <RoomContainer>
       <BackButton 
@@ -537,6 +572,14 @@ const GameRoom: React.FC = () => {
                   $isHost={player.isHost}
                 >
                   {player.isHost && <HostBadge>{t('gameRoom.host')}</HostBadge>}
+                  {isHost && player.isAI && (
+                    <RemoveButton 
+                      onClick={() => handleRemovePlayer(player.id)}
+                      title={t('gameRoom.removeAI') || '移除AI'}
+                    >
+                      ×
+                    </RemoveButton>
+                  )}
                   <PlayerHeader>
                     <PlayerAvatar image={player.avatar}>
                       {!player.avatar && player.nickname.charAt(0).toUpperCase()}

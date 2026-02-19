@@ -276,6 +276,7 @@ export const en = {
     hard: 'Hard',
     ready: 'Ready',
     notReady: 'Not Ready',
+    removeAI: 'Remove AI',
     statusWaiting: 'Waiting',
     statusPlaying: 'In Game',
     statusFinished: 'Finished',

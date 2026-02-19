@@ -130,7 +130,9 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
             if (user && data.playerId === user.profile.id) {
               return null;
             }
-            return { ...prev, players: prev.players.filter(p => p.id !== data.playerId) };
+            // 确保更新后的 players 数组是新的引用
+            const newPlayers = prev.players.filter(p => p.id !== data.playerId);
+            return { ...prev, players: newPlayers };
           }
           return prev;
         });

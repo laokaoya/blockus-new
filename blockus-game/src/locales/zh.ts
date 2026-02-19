@@ -358,6 +358,7 @@ export const zh = {
     hard: '困难',
     ready: '准备',
     notReady: '未准备',
+    removeAI: '移除AI',
     statusWaiting: '等待中',
     statusPlaying: '游戏中',
     statusFinished: '已结束',
