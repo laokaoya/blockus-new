@@ -306,6 +306,9 @@ export const en = {
     customGameDesc: 'Customize settings, choose AI difficulty, adjust rules',
     quickPlay: 'Quick Play',
     profile: 'Profile',
+    subtitle: 'STRATEGY • CREATIVITY • BATTLE',
+    quickMatch: 'Quick Match',
+    newGameplay: 'New Gameplay',
   },
 
   // About
@@ -353,5 +356,12 @@ export const en = {
       playing: 'In Game',
       finished: 'Finished',
     },
+    enterRoomNamePlaceholder: 'ENTER ROOM NAME',
+    noPasswordPlaceholder: 'NO PASSWORD',
+    system: 'SYSTEM',
+    creativeTag: 'CREATIVE',
+    classicTag: 'CLASSIC',
+    standardRules: 'Standard rules, pure strategy.',
+    creativeRules: 'Special tiles, items, chaos.',
   },
 };

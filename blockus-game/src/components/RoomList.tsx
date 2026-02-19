@@ -299,7 +299,9 @@ const RefreshButton = styled.button`
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  width: 40px;
+  width: auto;
+  min-width: 80px;
+  padding: 0 16px;
   height: 40px;
   border-radius: 12px;
   display: flex;
@@ -307,6 +309,9 @@ const RefreshButton = styled.button`
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s ease;
+  font-family: 'Rajdhani', 'Microsoft YaHei', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
   
   &:hover {
     background: rgba(255, 255, 255, 0.1);
@@ -317,6 +322,7 @@ const RefreshButton = styled.button`
   svg {
     width: 18px;
     height: 18px;
+    margin-right: 8px;
   }
 `;
 
@@ -344,6 +350,12 @@ const RoomGrid = styled.div`
     &:hover {
       background: rgba(255, 255, 255, 0.2);
     }
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding-bottom: 80px;
   }
 `;
 
@@ -1082,7 +1094,7 @@ const RoomList: React.FC = () => {
               <ConsoleLabel>{t('room.roomName')}</ConsoleLabel>
               <ConsoleInput 
                 type="text" 
-                placeholder="ENTER ROOM NAME"
+                placeholder={t('room.enterRoomNamePlaceholder')}
                 value={newRoomName}
                 onChange={(e) => setNewRoomName(e.target.value)}
                 autoFocus={isCreatePanelOpen}
@@ -1094,7 +1106,7 @@ const RoomList: React.FC = () => {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <ConsoleInput 
                   type="password" 
-                  placeholder={isNewRoomPrivate ? "******" : "NO PASSWORD"}
+                  placeholder={isNewRoomPrivate ? "******" : t('room.noPasswordPlaceholder')}
                   value={newRoomPassword}
                   onChange={(e) => setNewRoomPassword(e.target.value)}
                   disabled={!isNewRoomPrivate}
@@ -1117,7 +1129,7 @@ const RoomList: React.FC = () => {
                   <ModeIcon $color="99, 102, 241">⚡</ModeIcon>
                   <ModeInfo>
                     <ModeTitle>{t('lobby.classicMode')}</ModeTitle>
-                    <ModeDesc>Standard rules, pure strategy.</ModeDesc>
+                    <ModeDesc>{t('room.standardRules')}</ModeDesc>
                   </ModeInfo>
                 </ModeCard>
 
@@ -1129,7 +1141,7 @@ const RoomList: React.FC = () => {
                   <ModeIcon $color="251, 191, 36">✨</ModeIcon>
                   <ModeInfo>
                     <ModeTitle>{t('lobby.creativeMode')}</ModeTitle>
-                    <ModeDesc>Special tiles, items, chaos.</ModeDesc>
+                    <ModeDesc>{t('room.creativeRules')}</ModeDesc>
                   </ModeInfo>
                 </ModeCard>
               </div>
@@ -1140,7 +1152,7 @@ const RoomList: React.FC = () => {
               disabled={!newRoomName.trim()}
               onMouseEnter={() => soundManager.buttonHover()}
             >
-              {t('room.deploy')} SYSTEM
+              {t('room.deploy')} {t('room.system')}
             </DeployButton>
           </ConsoleGrid>
         </ConsoleContainer>
@@ -1178,7 +1190,7 @@ const RoomList: React.FC = () => {
             </RoomHeader>
             
             <ModeBadge mode={room.gameMode || 'classic'}>
-              {(room.gameMode || 'classic') === 'creative' ? 'CREATIVE' : 'CLASSIC'}
+              {(room.gameMode || 'classic') === 'creative' ? t('room.creativeTag') : t('room.classicTag')}
             </ModeBadge>
             
             <RoomFooter>

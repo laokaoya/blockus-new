@@ -62,6 +62,7 @@ const Sidebar = styled.div`
   @media (max-width: 768px) {
     width: 60px;
     padding: 20px 0;
+    gap: 20px;
   }
 `;
 
@@ -158,6 +159,20 @@ const HeroSection = styled.div`
     z-index: -1;
     letter-spacing: 10px;
   }
+
+  @media (max-width: 1024px) {
+    height: auto;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+    padding: 30px 24px;
+
+    &::before {
+      font-size: 6rem;
+      top: 0;
+      left: 10px;
+    }
+  }
 `;
 
 const TitleGroup = styled.div`
@@ -174,6 +189,10 @@ const PageTitle = styled.h1`
   color: white;
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
   letter-spacing: 2px;
+  
+  @media (max-width: 768px) {
+    font-size: 2rem;
+  }
 `;
 
 const SubTitle = styled.div`
@@ -189,11 +208,20 @@ const SubTitle = styled.div`
     height: 2px;
     background: #6366f1;
   }
+  
+  @media (max-width: 768px) {
+    font-size: 0.8rem;
+  }
 `;
 
 const QuickActions = styled.div`
   display: flex;
   gap: 16px;
+  
+  @media (max-width: 768px) {
+    width: 100%;
+    flex-direction: column;
+  }
 `;
 
 const ActionCard = styled.button<{ $gradient: string }>`
@@ -233,12 +261,18 @@ const ActionCard = styled.button<{ $gradient: string }>`
     color: white;
     opacity: 0.8;
   }
+  
+  @media (max-width: 768px) {
+    width: 100%;
+    min-width: 0;
+  }
 `;
 
 const ActionText = styled.div`
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  text-align: left;
 `;
 
 const ActionLabel = styled.span`
@@ -360,7 +394,7 @@ const MainLobby: React.FC = () => {
         <HeroSection>
           <TitleGroup>
             <PageTitle>{t('game.gameName')}</PageTitle>
-            <SubTitle>STRATEGY • CREATIVITY • BATTLE</SubTitle>
+            <SubTitle>{t('lobby.subtitle')}</SubTitle>
           </TitleGroup>
           
           <QuickActions>
@@ -372,7 +406,7 @@ const MainLobby: React.FC = () => {
               <RocketIcon />
               <ActionText>
                 <ActionLabel>{t('lobby.classicMode')}</ActionLabel>
-                <ActionSub>Quick Match</ActionSub>
+                <ActionSub>{t('lobby.quickMatch')}</ActionSub>
               </ActionText>
             </ActionCard>
             
@@ -384,7 +418,7 @@ const MainLobby: React.FC = () => {
               <RocketIcon />
               <ActionText>
                 <ActionLabel>{t('lobby.creativeMode')}</ActionLabel>
-                <ActionSub>New Gameplay</ActionSub>
+                <ActionSub>{t('lobby.newGameplay')}</ActionSub>
               </ActionText>
             </ActionCard>
           </QuickActions>

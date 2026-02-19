@@ -122,6 +122,13 @@ export const zh = {
       playing: '游戏中',
       finished: '已结束',
     },
+    enterRoomNamePlaceholder: '输入房间名称',
+    noPasswordPlaceholder: '无密码',
+    system: '系统',
+    creativeTag: '创意',
+    classicTag: '经典',
+    standardRules: '标准规则，纯粹策略',
+    creativeRules: '特殊方块，道具卡，无限可能',
   },
 
   // 玩家相关
@@ -381,6 +388,9 @@ export const zh = {
     customGameDesc: '自定义游戏设置，选择AI难度，调整游戏规则',
     quickPlay: '快速单机',
     profile: '个人资料',
+    subtitle: '策略 • 创意 • 对决',
+    quickMatch: '快速匹配',
+    newGameplay: '全新玩法',
   },
 
   // 关于
