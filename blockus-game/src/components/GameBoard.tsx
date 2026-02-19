@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { GameState, Position, Piece } from '../types/game';
+import { SpecialTile, SpecialTileType } from '../types/creative';
 import { canPlacePiece } from '../utils/gameEngine';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -16,6 +17,7 @@ interface GameBoardProps {
   onFlip?: () => void;
   lastAIMove?: Array<{ x: number; y: number }>;
   showHints?: boolean;
+  specialTiles?: SpecialTile[]; // 创意模式特殊方格（可选）
 }
 
 const BoardContainer = styled.div`
@@ -56,6 +58,8 @@ const BoardGrid = styled.div`
   
   width: 100%;
   height: 100%;
+  
+  touch-action: none; /* 阻止移动端棋盘区域的默认滚动 */
   
   /* Enhanced glow effect */
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), 0 0 10px rgba(99, 102, 241, 0.1);
@@ -149,6 +153,49 @@ const Cell = styled.div<{
   }
 `;
 
+// --- 创意模式特殊方格覆盖层 ---
+const SPECIAL_TILE_STYLES: Record<SpecialTileType, { bg: string; icon: string; color: string }> = {
+  gold:    { bg: 'rgba(251, 191, 36, 0.25)', icon: '★', color: '#fbbf24' },
+  purple:  { bg: 'rgba(139, 92, 246, 0.25)', icon: '?', color: '#a78bfa' },
+  red:     { bg: 'rgba(248, 113, 113, 0.25)', icon: '!', color: '#f87171' },
+  barrier: { bg: 'rgba(107, 114, 128, 0.5)',  icon: '×', color: '#9ca3af' },
+};
+
+const specialPulse = keyframes`
+  0% { opacity: 0.7; }
+  50% { opacity: 1; }
+  100% { opacity: 0.7; }
+`;
+
+const SpecialTileOverlay = styled.div<{ tileType: SpecialTileType }>`
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${props => SPECIAL_TILE_STYLES[props.tileType].bg};
+  border: 1px solid ${props => SPECIAL_TILE_STYLES[props.tileType].color};
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 2;
+  animation: ${specialPulse} 2s ease-in-out infinite;
+  
+  &::after {
+    content: '${props => SPECIAL_TILE_STYLES[props.tileType].icon}';
+    color: ${props => SPECIAL_TILE_STYLES[props.tileType].color};
+    font-size: 0.6em;
+    font-weight: 900;
+    text-shadow: 0 0 4px ${props => SPECIAL_TILE_STYLES[props.tileType].color};
+    line-height: 1;
+  }
+`;
+
+const CellWrapper = styled.div`
+  position: relative;
+  width: 100%;
+  height: 100%;
+`;
+
 
 
 const GameBoard: React.FC<GameBoardProps> = ({ 
@@ -159,7 +206,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
   onPieceCancel,
   onRotate,
   onFlip,
-  lastAIMove = []
+  lastAIMove = [],
+  specialTiles,
 }) => {
   const { t } = useLanguage();
   const { board, players, currentPlayerIndex, selectedPiece } = gameState;
@@ -324,6 +372,39 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const handleBoardLeave = () => {
     setHoverPosition(null);
   };
+
+  // ===== 触摸事件处理（移动端） =====
+  const touchToBoardPos = (touch: React.Touch, grid: Element): Position | null => {
+    const rect = grid.getBoundingClientRect();
+    const x = Math.floor((touch.clientX - rect.left) / (rect.width / 20));
+    const y = Math.floor((touch.clientY - rect.top) / (rect.height / 20));
+    if (x >= 0 && x < 20 && y >= 0 && y < 20) return { x, y };
+    return null;
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!selectedPiece || e.touches.length !== 1) return;
+    const pos = touchToBoardPos(e.touches[0], e.currentTarget);
+    if (pos) {
+      setHoverPosition(pos);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!selectedPiece || e.touches.length !== 1) return;
+    const pos = touchToBoardPos(e.touches[0], e.currentTarget);
+    if (pos) {
+      setHoverPosition(pos);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!selectedPiece || !hoverPosition) return;
+    if (canPlaceAt(hoverPosition.x, hoverPosition.y)) {
+      onPiecePlace(hoverPosition);
+    }
+    setHoverPosition(null);
+  };
   
   // 右键旋转拼图
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -423,25 +504,35 @@ const GameBoard: React.FC<GameBoardProps> = ({
         onMouseMove={handleDrag}
         onMouseLeave={handleBoardLeave}
         onContextMenu={handleContextMenu}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         {board.map((row, y) =>
-          row.map((cell, x) => (
-            <Cell
-              key={`${x}-${y}`}
-              isOccupied={cell !== 0}
-              playerColor={cell}
-              isHighlighted={shouldHighlight(x, y)}
-              isInvalid={shouldShowInvalid(x, y)}
-              isPreview={isInHoverPreview(x, y)}
-              isPreviewValid={isHoverPositionValid()}
-              isCurrentTurn={currentPlayer.isCurrentTurn}
-              startingPlayerColor={getStartingPlayerColor(x, y)}
-              isRecentAIMove={lastAIMove.some(m => m.x === x && m.y === y)}
-              onClick={() => handleBoardClick(x, y)}
-              onMouseEnter={() => handleCellHover(x, y)}
-              onMouseDown={(e) => startDrag(x, y, e)}
-            />
-          ))
+          row.map((cell, x) => {
+            const specialTile = specialTiles?.find(t => t.x === x && t.y === y && !t.used);
+            return (
+              <CellWrapper key={`${x}-${y}`}>
+                <Cell
+                  isOccupied={cell !== 0}
+                  playerColor={cell}
+                  isHighlighted={shouldHighlight(x, y)}
+                  isInvalid={shouldShowInvalid(x, y)}
+                  isPreview={isInHoverPreview(x, y)}
+                  isPreviewValid={isHoverPositionValid()}
+                  isCurrentTurn={currentPlayer.isCurrentTurn}
+                  startingPlayerColor={getStartingPlayerColor(x, y)}
+                  isRecentAIMove={lastAIMove.some(m => m.x === x && m.y === y)}
+                  onClick={() => handleBoardClick(x, y)}
+                  onMouseEnter={() => handleCellHover(x, y)}
+                  onMouseDown={(e) => startDrag(x, y, e)}
+                />
+                {specialTile && cell === 0 && (
+                  <SpecialTileOverlay tileType={specialTile.type} />
+                )}
+              </CellWrapper>
+            );
+          })
         )}
       </BoardGrid>
     </BoardContainer>

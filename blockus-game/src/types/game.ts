@@ -93,6 +93,8 @@ export interface RoomPlayer {
   color?: PlayerColor;
 }
 
+export type GameMode = 'classic' | 'creative';
+
 export interface GameRoom {
   id: string;
   name: string;
@@ -102,6 +104,7 @@ export interface GameRoom {
   spectators?: string[];
   maxPlayers: number;
   status: 'waiting' | 'playing' | 'finished';
+  gameMode: GameMode;
   gameSettings: GameSettings;
   createdAt: number;
   lastActivityAt: number;

@@ -187,6 +187,7 @@ export class SimpleCrossDeviceService {
       ],
       maxPlayers: 4,
       status: 'waiting',
+      gameMode: 'classic',
       gameSettings: { ...defaultSettings, ...settings },
       createdAt: Date.now(),
       lastActivityAt: Date.now()

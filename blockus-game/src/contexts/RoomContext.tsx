@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { GameRoom, RoomPlayer, GameSettings } from '../types/game';
+import { GameRoom, RoomPlayer, GameSettings, GameMode } from '../types/game';
 import { useAuth } from './AuthContext';
 import socketService from '../services/socketService';
 
@@ -9,7 +9,7 @@ interface RoomContextType {
   isLoading: boolean;
   isOnline: boolean;
   isSpectating: boolean;
-  createRoom: (name: string, password?: string, settings?: Partial<GameSettings>) => Promise<GameRoom>;
+  createRoom: (name: string, password?: string, settings?: Partial<GameSettings>, gameMode?: GameMode) => Promise<GameRoom>;
   joinRoom: (roomId: string, password?: string) => Promise<boolean>;
   leaveRoom: () => Promise<void>;
   updateRoom: (roomId: string, updates: Partial<GameRoom>) => Promise<boolean>;
@@ -156,15 +156,14 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     }
   }, [isOnline, user]);
 
-  const createRoom = useCallback(async (name: string, password?: string, settings?: Partial<GameSettings>): Promise<GameRoom> => {
+  const createRoom = useCallback(async (name: string, password?: string, settings?: Partial<GameSettings>, gameMode?: GameMode): Promise<GameRoom> => {
     if (!user) throw new Error('用户未登录');
 
+    const mode = gameMode || 'classic';
+
     if (socketService.isConnected) {
-      const result = await socketService.createRoom(name, password, settings);
+      const result = await socketService.createRoom(name, password, settings, mode);
       if (result.success && result.room) {
-        // 立即设置 currentRoom，确保导航到 GameRoom 时数据可用
-        // 服务端创建房间时不会给创建者发 room:playerJoined（socket.to 排除自己）
-        // 后续 room:updated 事件会更新，不会冲突
         setCurrentRoom(result.room);
         return result.room;
       }
@@ -186,6 +185,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       }],
       maxPlayers: 4,
       status: 'waiting',
+      gameMode: mode,
       gameSettings: {
         boardSize: 20,
         turnTimeLimit: 60,

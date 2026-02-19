@@ -39,15 +39,18 @@ export interface RoomPlayer {
   color?: PlayerColor;
 }
 
+export type GameMode = 'classic' | 'creative';
+
 export interface GameRoom {
   id: string;
   name: string;
   password?: string;
   hostId: string;
   players: RoomPlayer[];
-  spectators: string[]; // 观战者 userId 列表
+  spectators: string[];
   maxPlayers: number;
   status: 'waiting' | 'playing' | 'finished';
+  gameMode: GameMode;
   gameSettings: GameSettings;
   createdAt: number;
   lastActivityAt: number;

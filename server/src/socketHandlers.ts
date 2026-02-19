@@ -86,7 +86,8 @@ export function setupSocketHandlers(
           socket.data.nickname,
           roomName,
           roomPassword,
-          data.settings
+          data.settings,
+          data.gameMode,
         );
 
         // 加入 Socket.io 房间

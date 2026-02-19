@@ -11,6 +11,7 @@ import GameRoom from './components/GameRoom';
 import Game from './components/Game';
 import GameSettings from './components/GameSettings';
 import Settings from './components/Settings';
+import CreativeGame from './components/creative/CreativeGame';
 import Statistics from './components/Statistics';
 import LandingPage from './components/LandingPage';
 import ParticlesBackground from './components/ParticlesBackground';
@@ -34,6 +35,7 @@ function App() {
                 <Route path="/profile" element={<UserProfile />} />
                 <Route path="/room/:roomId" element={<GameRoom />} />
                 <Route path="/game" element={<Game />} />
+                <Route path="/creative" element={<CreativeGame />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/game-settings" element={<GameSettings />} />
                 <Route path="/statistics" element={<Statistics />} />

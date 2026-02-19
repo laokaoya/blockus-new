@@ -128,8 +128,8 @@ class SocketService {
     return this.emitWithCallback('room:list');
   }
 
-  createRoom(name: string, password?: string, settings?: Partial<GameSettings>): Promise<{ success: boolean; room?: GameRoom; error?: string }> {
-    return this.emitWithCallback('room:create', { name, password, settings });
+  createRoom(name: string, password?: string, settings?: Partial<GameSettings>, gameMode?: string): Promise<{ success: boolean; room?: GameRoom; error?: string }> {
+    return this.emitWithCallback('room:create', { name, password, settings, gameMode: gameMode || 'classic' });
   }
 
   joinRoom(roomId: string, password?: string): Promise<{ success: boolean; room?: GameRoom; error?: string }> {

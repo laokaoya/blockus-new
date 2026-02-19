@@ -77,6 +77,7 @@ export const zh = {
     joinRoom: '加入房间',
     leaveRoom: '离开房间',
     roomName: '房间名称',
+    gameMode: '游戏模式',
     roomPassword: '房间密码',
     enterRoomName: '请输入房间名称',
     enterRoomPassword: '请输入房间密码',
@@ -372,8 +373,13 @@ export const zh = {
   lobby: {
     singlePlayer: '单人游戏',
     singlePlayerDesc: '与AI对战，练习游戏技巧',
+    classicMode: '经典模式',
+    classicModeDesc: '标准规则，与AI对战',
+    creativeMode: '创意玩法',
+    creativeModeDesc: '特殊方格、道具卡，体验全新策略',
     customGame: '自定义游戏',
     customGameDesc: '自定义游戏设置，选择AI难度，调整游戏规则',
+    quickPlay: '快速单机',
     profile: '个人资料',
   },
 

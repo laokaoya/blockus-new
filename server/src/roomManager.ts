@@ -42,7 +42,7 @@ export class RoomManager {
   }
 
   // 创建房间
-  createRoom(hostId: string, hostNickname: string, name: string, password?: string, settings?: Partial<GameSettings>): GameRoom {
+  createRoom(hostId: string, hostNickname: string, name: string, password?: string, settings?: Partial<GameSettings>, gameMode?: string): GameRoom {
     const roomId = `room_${uuidv4().substring(0, 8)}`;
     
     const hostPlayer: RoomPlayer = {
@@ -63,6 +63,7 @@ export class RoomManager {
       spectators: [],
       maxPlayers: 4,
       status: 'waiting',
+      gameMode: (gameMode === 'creative' ? 'creative' : 'classic') as any,
       gameSettings: { ...DEFAULT_SETTINGS, ...settings, privateRoom: settings?.privateRoom || false },
       createdAt: Date.now(),
       lastActivityAt: Date.now(),

@@ -298,8 +298,13 @@ export const en = {
   lobby: {
     singlePlayer: 'Single Player',
     singlePlayerDesc: 'Battle against AI, practice your skills',
+    classicMode: 'Classic Mode',
+    classicModeDesc: 'Standard rules, battle against AI',
+    creativeMode: 'Creative Mode',
+    creativeModeDesc: 'Special tiles, item cards, new strategies',
     customGame: 'Custom Game',
     customGameDesc: 'Customize settings, choose AI difficulty, adjust rules',
+    quickPlay: 'Quick Play',
     profile: 'Profile',
   },
 
@@ -320,6 +325,7 @@ export const en = {
     createNewRoom: 'Create New Room',
     joinRoom: 'Join Room',
     roomName: 'Room Name',
+    gameMode: 'Game Mode',
     roomPassword: 'Room Password',
     enterRoomName: 'Enter room name',
     enterRoomPassword: 'Enter room password',

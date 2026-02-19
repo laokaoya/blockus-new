@@ -4,125 +4,228 @@ import { useNavigate } from 'react-router-dom';
 import { useRoom } from '../contexts/RoomContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { GameRoom } from '../types/game';
+import { GameRoom, GameMode } from '../types/game';
 import soundManager from '../utils/soundManager';
 
 const RoomListContainer = styled.div`
-  background: rgba(30, 41, 59, 0.4);
-  border-radius: var(--radius-lg);
-  padding: 30px;
-  box-shadow: var(--shadow-lg);
-  margin-bottom: 30px;
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--surface-border);
+  background: transparent;
+  padding: 0;
+  margin-bottom: 0;
   position: relative;
   overflow: visible;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+`;
+
+const CreateRoomOverlay = styled.div<{ isOpen: boolean }>`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(24px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: ${props => props.isOpen ? 1 : 0};
+  pointer-events: ${props => props.isOpen ? 'all' : 'none'};
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+`;
+
+const ConsoleContainer = styled.div`
+  width: 800px;
+  max-width: 90%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 40px;
+  position: relative;
+  box-shadow: 0 0 100px rgba(99, 102, 241, 0.1);
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 20%;
+    right: 20%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #6366f1, transparent);
+  }
+`;
+
+const ConsoleHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+`;
+
+const ConsoleTitle = styled.h2`
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2rem;
+  color: white;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  background: linear-gradient(to right, #fff, #a5b4fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+`;
+
+const CloseButton = styled.button`
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border-color: white;
+  }
+`;
+
+const ConsoleGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ConsoleSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const ConsoleLabel = styled.label`
+  font-family: 'Rajdhani', sans-serif;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+`;
+
+const ConsoleInput = styled.input`
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  color: white;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+  
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.05);
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
+  }
+`;
+
+const ModeCard = styled.div<{ $active: boolean; $color: string }>`
+  background: ${props => props.$active ? `rgba(${props.$color}, 0.1)` : 'rgba(255, 255, 255, 0.03)'};
+  border: 1px solid ${props => props.$active ? `rgba(${props.$color}, 0.5)` : 'rgba(255, 255, 255, 0.1)'};
+  border-radius: 16px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(${props => props.$color}, 0.3);
+  }
+`;
+
+const ModeIcon = styled.div<{ $color: string }>`
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(${props => props.$color}, 0.2);
+  color: rgb(${props => props.$color});
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+`;
+
+const ModeInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const ModeTitle = styled.span`
+  color: white;
+  font-weight: 700;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.1rem;
+`;
+
+const ModeDesc = styled.span`
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8rem;
+`;
+
+const DeployButton = styled.button`
+  grid-column: 1 / -1;
+  margin-top: 20px;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  border: none;
+  border-radius: 12px;
+  padding: 20px;
+  color: white;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
   
   &::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
   }
-`;
-
-const CreateRoomPanel = styled.div<{ isOpen: boolean }>`
-  background: rgba(15, 23, 42, 0.8);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  overflow: hidden;
-  max-height: ${props => props.isOpen ? '300px' : '0'};
-  transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-  opacity: ${props => props.isOpen ? 1 : 0};
-  margin-bottom: ${props => props.isOpen ? '20px' : '0'};
-  border-radius: 16px;
-  border: ${props => props.isOpen ? '1px solid rgba(99, 102, 241, 0.3)' : 'none'};
-  box-shadow: ${props => props.isOpen ? '0 0 30px rgba(99, 102, 241, 0.15)' : 'none'};
-`;
-
-const PanelContent = styled.div`
-  padding: 24px;
-  display: grid;
-  grid-template-columns: 2fr 1fr auto;
-  gap: 20px;
-  align-items: end;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-`;
-
-const PanelInputGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const PanelLabel = styled.label`
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  font-family: 'Rajdhani', 'Microsoft YaHei', 'PingFang SC', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  font-weight: 600;
-`;
-
-const PanelInput = styled.input`
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 12px 16px;
-  color: white;
-  font-family: 'Rajdhani', 'Microsoft YaHei', 'PingFang SC', sans-serif;
-  font-size: 1.1rem;
-  transition: all 0.2s ease;
-
-  &:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
-    background: rgba(0, 0, 0, 0.5);
-  }
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.2);
-  }
-`;
-
-const PanelButton = styled.button<{ variant?: 'primary' | 'secondary' }>`
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-family: 'Orbitron', 'Microsoft YaHei', 'PingFang SC', sans-serif;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  height: 48px;
-
-  ${props => props.variant === 'primary' ? `
-    background: var(--primary-gradient);
-    color: white;
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
-
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 0 30px rgba(99, 102, 241, 0.6);
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 40px rgba(99, 102, 241, 0.4);
+    
+    &::before {
+      left: 100%;
     }
-  ` : `
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-secondary);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-    }
-  `}
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
 `;
 
 const ToggleContainer = styled.div`
@@ -137,7 +240,7 @@ const ToggleContainer = styled.div`
 const ToggleSwitch = styled.div<{ checked: boolean }>`
   width: 40px;
   height: 20px;
-  background: ${props => props.checked ? 'var(--primary-color)' : 'rgba(255, 255, 255, 0.1)'};
+  background: ${props => props.checked ? '#6366f1' : 'rgba(255, 255, 255, 0.1)'};
   border-radius: 20px;
   position: relative;
   transition: all 0.3s ease;
@@ -160,90 +263,78 @@ const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
-  
-  @media (max-width: 768px) {
-    flex-direction: column;
-    gap: 20px;
-    align-items: stretch;
-  }
+  margin-bottom: 20px;
 `;
 
 const Title = styled.h2`
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 1.8rem;
-  font-weight: 700;
-  text-shadow: 0 0 10px rgba(255,255,255,0.3);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  
-  &::before {
-    content: '';
-    display: block;
-    width: 4px;
-    height: 24px;
-    background: var(--primary-color);
-    border-radius: 2px;
-    box-shadow: 0 0 10px var(--primary-color);
-  }
+  display: none;
 `;
 
 const CreateRoomButton = styled.button`
-  background: var(--primary-gradient);
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   color: white;
   border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 2rem;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0 30px rgba(99, 102, 241, 0.6);
+    transform: scale(1.1) rotate(90deg);
+    box-shadow: 0 15px 40px rgba(99, 102, 241, 0.6);
   }
 `;
 
 const RefreshButton = styled.button`
   background: rgba(255, 255, 255, 0.05);
-  color: var(--primary-color);
-  border: 1px solid var(--surface-border);
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: all 0.3s ease;
   
   &:hover {
     background: rgba(255, 255, 255, 0.1);
-    border-color: var(--primary-color);
-    box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  svg {
+    width: 18px;
+    height: 18px;
   }
 `;
 
 const RoomGrid = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  max-height: 400px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
   overflow-y: auto;
   padding-right: 8px;
+  flex: 1;
+  padding-bottom: 100px; /* Space for FAB */
   
-  /* 自定义滚动条样式 */
   &::-webkit-scrollbar {
     width: 6px;
   }
   
   &::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 3px;
+    background: transparent;
   }
   
   &::-webkit-scrollbar-thumb {
@@ -254,89 +345,107 @@ const RoomGrid = styled.div`
       background: rgba(255, 255, 255, 0.2);
     }
   }
-  
-  @media (min-width: 768px) {
-    gap: 24px;
-    max-height: 450px;
-  }
 `;
 
 const RoomCard = styled.div`
-  background: rgba(15, 23, 42, 0.6);
-  border-radius: 12px;
-  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 24px;
   border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
-  min-height: 100px;
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  height: 200px;
   
-  &:hover {
-    border-color: var(--primary-color);
-    background: rgba(30, 41, 59, 0.8);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
-    transform: translateX(4px);
-  }
-  
-  /* 左侧状态条 */
+  /* Glass Reflection */
   &::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
-    bottom: 0;
-    width: 4px;
-    background: var(--surface-border);
-    transition: background 0.3s ease;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+    pointer-events: none;
   }
   
-  &:hover::before {
-    background: var(--primary-color);
-    box-shadow: 0 0 10px var(--primary-color);
+  &:hover {
+    transform: translateY(-8px) scale(1.02);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+    
+    &::after {
+      opacity: 1;
+    }
   }
   
-  @media (min-width: 768px) {
-    padding: 24px;
+  /* Neon Glow Border */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    padding: 1px;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
   }
 `;
 
 const RoomHeader = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 16px;
+  z-index: 1;
 `;
 
 const RoomName = styled.h3`
   margin: 0;
-  color: var(--text-primary);
-  font-size: 1.2rem;
+  color: white;
+  font-size: 1.4rem;
   font-weight: 700;
-  flex: 1;
+  font-family: 'Rajdhani', sans-serif;
   letter-spacing: 0.5px;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
 `;
 
-const RoomStatus = styled.span<{ status: string }>`
+const RoomId = styled.span`
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: monospace;
+  font-weight: 400;
+`;
+
+const RoomStatus = styled.div<{ status: string }>`
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
   background: ${props => {
     switch (props.status) {
-      case 'waiting': return 'rgba(16, 185, 129, 0.1)';
-      case 'playing': return 'rgba(245, 158, 11, 0.1)';
-      case 'finished': return 'rgba(100, 116, 139, 0.1)';
-      default: return 'rgba(100, 116, 139, 0.1)';
+      case 'waiting': return 'rgba(16, 185, 129, 0.2)';
+      case 'playing': return 'rgba(245, 158, 11, 0.2)';
+      default: return 'rgba(100, 116, 139, 0.2)';
     }
   }};
   color: ${props => {
     switch (props.status) {
-      case 'waiting': return '#10b981';
-      case 'playing': return '#f59e0b';
-      case 'finished': return '#94a3b8';
+      case 'waiting': return '#34d399';
+      case 'playing': return '#fbbf24';
       default: return '#94a3b8';
     }
   }};
@@ -344,67 +453,61 @@ const RoomStatus = styled.span<{ status: string }>`
     switch (props.status) {
       case 'waiting': return 'rgba(16, 185, 129, 0.3)';
       case 'playing': return 'rgba(245, 158, 11, 0.3)';
-      case 'finished': return 'rgba(100, 116, 139, 0.3)';
       default: return 'rgba(100, 116, 139, 0.3)';
     }
   }};
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  box-shadow: 0 0 10px ${props => {
-    switch (props.status) {
-      case 'waiting': return 'rgba(16, 185, 129, 0.1)';
-      case 'playing': return 'rgba(245, 158, 11, 0.1)';
-      default: return 'transparent';
-    }
-  }};
 `;
 
-const RoomInfo = styled.div`
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  margin-bottom: 16px;
+const RoomFooter = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  z-index: 1;
+`;
+
+const PlayerAvatars = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
-  font-family: monospace;
-  
-  @media (max-width: 480px) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
 `;
 
-const RoomPlayers = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 0;
-`;
-
-const PlayerAvatar = styled.div<{ image?: string }>`
-  width: 28px;
-  height: 28px;
+const Avatar = styled.div<{ image?: string }>`
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: ${props => props.image ? `url(${props.image}) center/cover` : 'linear-gradient(135deg, #6366f1, #8b5cf6)'};
+  border: 2px solid #1e293b;
+  margin-left: -12px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.8rem;
   color: white;
   font-weight: 600;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
-  transition: transform 0.2s ease;
   
-  &:hover {
-    transform: scale(1.1);
-    z-index: 10;
+  &:first-child {
+    margin-left: 0;
   }
+`;
+
+const PlayerCount = styled.div`
+  margin-left: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+`;
+
+const ModeBadge = styled.div<{ mode: string }>`
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  font-size: 4rem;
+  opacity: 0.05;
+  pointer-events: none;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  color: ${props => props.mode === 'creative' ? '#fbbf24' : '#6366f1'};
+  transform: rotate(-15deg);
 `;
 
 const JoinButton = styled.button`
@@ -749,6 +852,7 @@ const RoomList: React.FC = () => {
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomPassword, setNewRoomPassword] = useState('');
   const [isNewRoomPrivate, setIsNewRoomPrivate] = useState(false);
+  const [newRoomGameMode, setNewRoomGameMode] = useState<GameMode>('classic');
 
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<GameRoom | null>(null);
@@ -780,7 +884,12 @@ const RoomList: React.FC = () => {
     
     soundManager.buttonClick();
     try {
-      const newRoom = await createRoom(newRoomName.trim(), isNewRoomPrivate ? newRoomPassword : undefined);
+      const newRoom = await createRoom(
+        newRoomName.trim(),
+        isNewRoomPrivate ? newRoomPassword : undefined,
+        undefined,
+        newRoomGameMode,
+      );
       if (newRoom) {
         navigate(`/room/${newRoom.id}`);
       }
@@ -943,73 +1052,104 @@ const RoomList: React.FC = () => {
     <RoomListContainer>
       <Header>
         <Title>{t('room.gameRooms')}</Title>
-        <div style={{ display: 'flex', gap: '15px' }}>
-          <RefreshButton 
-            onClick={() => {
-              soundManager.buttonClick();
-              refreshRooms();
-            }}
-            onMouseEnter={() => soundManager.buttonHover()}
-          >
-            {t('common.refresh')}
-          </RefreshButton>
-          <CreateRoomButton 
-            onClick={handleToggleCreatePanel}
-            onMouseEnter={() => soundManager.buttonHover()}
-          >
-            {isCreatePanelOpen ? t('common.cancel') : t('room.createRoom')}
-          </CreateRoomButton>
-        </div>
+        <RefreshButton 
+          onClick={() => {
+            soundManager.buttonClick();
+            refreshRooms();
+          }}
+          onMouseEnter={() => soundManager.buttonHover()}
+        >
+          {t('common.refresh')}
+        </RefreshButton>
       </Header>
 
-      <CreateRoomPanel isOpen={isCreatePanelOpen}>
-        <PanelContent>
-          <PanelInputGroup>
-            <PanelLabel>{t('room.roomName')}</PanelLabel>
-            <PanelInput 
-              type="text" 
-              placeholder={t('room.enterRoomName')}
-              value={newRoomName}
-              onChange={(e) => setNewRoomName(e.target.value)}
-              autoFocus={isCreatePanelOpen}
-            />
-          </PanelInputGroup>
+      <CreateRoomButton 
+        onClick={handleToggleCreatePanel}
+        onMouseEnter={() => soundManager.buttonHover()}
+      >
+        +
+      </CreateRoomButton>
 
-          <PanelInputGroup>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <PanelLabel>{t('room.roomPassword')}</PanelLabel>
-              <ToggleContainer onClick={() => setIsNewRoomPrivate(!isNewRoomPrivate)}>
-                <span style={{ fontSize: '0.8rem', color: isNewRoomPrivate ? 'var(--primary-color)' : 'var(--text-secondary)' }}>
-                  {isNewRoomPrivate ? t('room.private') : t('room.public')}
-                </span>
-                <ToggleSwitch checked={isNewRoomPrivate} />
-              </ToggleContainer>
-            </div>
-            <PanelInput 
-              type="password" 
-              placeholder={isNewRoomPrivate ? t('room.enterRoomPassword') : t('room.noPassword')}
-              value={newRoomPassword}
-              onChange={(e) => setNewRoomPassword(e.target.value)}
-              disabled={!isNewRoomPrivate}
-              style={{ opacity: isNewRoomPrivate ? 1 : 0.5 }}
-            />
-          </PanelInputGroup>
+      <CreateRoomOverlay isOpen={isCreatePanelOpen}>
+        <ConsoleContainer>
+          <ConsoleHeader>
+            <ConsoleTitle>{t('room.createRoom')}</ConsoleTitle>
+            <CloseButton onClick={handleToggleCreatePanel}>✕</CloseButton>
+          </ConsoleHeader>
 
-          <PanelButton 
-            variant="primary" 
-            onClick={handleCreateRoomSubmit}
-            disabled={!newRoomName.trim()}
-            style={{ opacity: !newRoomName.trim() ? 0.5 : 1 }}
-          >
-            {t('room.deploy')}
-          </PanelButton>
-        </PanelContent>
-      </CreateRoomPanel>
+          <ConsoleGrid>
+            <ConsoleSection>
+              <ConsoleLabel>{t('room.roomName')}</ConsoleLabel>
+              <ConsoleInput 
+                type="text" 
+                placeholder="ENTER ROOM NAME"
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                autoFocus={isCreatePanelOpen}
+              />
+            </ConsoleSection>
+
+            <ConsoleSection>
+              <ConsoleLabel>{t('room.roomPassword')}</ConsoleLabel>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <ConsoleInput 
+                  type="password" 
+                  placeholder={isNewRoomPrivate ? "******" : "NO PASSWORD"}
+                  value={newRoomPassword}
+                  onChange={(e) => setNewRoomPassword(e.target.value)}
+                  disabled={!isNewRoomPrivate}
+                  style={{ flex: 1, opacity: isNewRoomPrivate ? 1 : 0.5 }}
+                />
+                <ToggleContainer onClick={() => setIsNewRoomPrivate(!isNewRoomPrivate)}>
+                  <ToggleSwitch checked={isNewRoomPrivate} />
+                </ToggleContainer>
+              </div>
+            </ConsoleSection>
+
+            <ConsoleSection style={{ gridColumn: '1 / -1' }}>
+              <ConsoleLabel>{t('room.gameMode')}</ConsoleLabel>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <ModeCard 
+                  $active={newRoomGameMode === 'classic'} 
+                  $color="99, 102, 241"
+                  onClick={() => { soundManager.buttonClick(); setNewRoomGameMode('classic'); }}
+                >
+                  <ModeIcon $color="99, 102, 241">⚡</ModeIcon>
+                  <ModeInfo>
+                    <ModeTitle>{t('lobby.classicMode')}</ModeTitle>
+                    <ModeDesc>Standard rules, pure strategy.</ModeDesc>
+                  </ModeInfo>
+                </ModeCard>
+
+                <ModeCard 
+                  $active={newRoomGameMode === 'creative'} 
+                  $color="251, 191, 36"
+                  onClick={() => { soundManager.buttonClick(); setNewRoomGameMode('creative'); }}
+                >
+                  <ModeIcon $color="251, 191, 36">✨</ModeIcon>
+                  <ModeInfo>
+                    <ModeTitle>{t('lobby.creativeMode')}</ModeTitle>
+                    <ModeDesc>Special tiles, items, chaos.</ModeDesc>
+                  </ModeInfo>
+                </ModeCard>
+              </div>
+            </ConsoleSection>
+
+            <DeployButton 
+              onClick={handleCreateRoomSubmit}
+              disabled={!newRoomName.trim()}
+              onMouseEnter={() => soundManager.buttonHover()}
+            >
+              {t('room.deploy')} SYSTEM
+            </DeployButton>
+          </ConsoleGrid>
+        </ConsoleContainer>
+      </CreateRoomOverlay>
 
       {isLoading ? (
-        <LoadingState>{t('common.loading') || '加载中...'}</LoadingState>
+        <LoadingState>{t('common.loading')}</LoadingState>
       ) : rooms.length === 0 ? (
-        <EmptyState>{t('room.noRooms') || '暂无房间，快来创建一个吧！'}</EmptyState>
+        <EmptyState>{t('room.noRooms')}</EmptyState>
       ) : null}
       
       <RoomGrid>
@@ -1030,42 +1170,36 @@ const RoomList: React.FC = () => {
             <RoomHeader>
               <RoomName>
                 {room.name}
-                {room.password && <LockIcon>🔒</LockIcon>}
+                <RoomId>ID: {room.id.slice(0, 8)}</RoomId>
               </RoomName>
               <RoomStatus status={room.status}>
                 {getStatusText(room.status)}
               </RoomStatus>
             </RoomHeader>
             
-            <RoomInfo>
-              <span>ID: {room.id}</span>
-              <span>{t('room.host')}: {room.hostId === user?.profile.id ? (t('common.me') || '我') : (room.players.find(p => p.id === room.hostId)?.nickname || t('common.unknown'))}</span>
-              <span>
-                {t('gameRoom.players')}: {room.players.length}/{room.maxPlayers}
-                {room.spectators && room.spectators.length > 0 && (
-                  <SpectatorCount>
-                    (+{room.spectators.length} 👁)
-                  </SpectatorCount>
-                )}
-              </span>
-            </RoomInfo>
+            <ModeBadge mode={room.gameMode || 'classic'}>
+              {(room.gameMode || 'classic') === 'creative' ? 'CREATIVE' : 'CLASSIC'}
+            </ModeBadge>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-              <RoomPlayers>
+            <RoomFooter>
+              <PlayerAvatars>
                 {room.players.map((player, index) => (
-                  <PlayerAvatar 
+                  <Avatar 
                     key={player.id} 
                     image={player.avatar}
                     title={player.nickname}
-                    style={{ marginLeft: index > 0 ? '-10px' : '0' }}
+                    style={{ zIndex: 10 - index }}
                   >
                     {player.nickname.charAt(0).toUpperCase()}
-                  </PlayerAvatar>
+                  </Avatar>
                 ))}
-              </RoomPlayers>
+                <PlayerCount>
+                  {room.players.length}/{room.maxPlayers}
+                </PlayerCount>
+              </PlayerAvatars>
               
               {getActionButton(room)}
-            </div>
+            </RoomFooter>
           </RoomCard>
         ))}
       </RoomGrid>

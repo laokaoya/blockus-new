@@ -1,0 +1,300 @@
+// 道具卡栏 + 道具使用阶段 UI
+
+import React from 'react';
+import styled, { keyframes } from 'styled-components';
+import { ItemCard, ItemCardId, CreativePlayerState } from '../../types/creative';
+import { Player } from '../../types/game';
+import { PLAYER_COLORS } from '../../constants/pieces';
+
+interface ItemCardBarProps {
+  creativePlayer: CreativePlayerState | undefined;
+  isItemPhase: boolean;
+  itemPhaseTimeLeft: number;
+  players: Player[];
+  currentPlayerId: string;
+  onUseCard: (cardIndex: number) => void;
+  onSkipPhase: () => void;
+  // 目标选择
+  targetSelection: { cardIndex: number; card: ItemCard } | null;
+  onConfirmTarget: (targetId: string) => void;
+}
+
+const slideUp = keyframes`
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+`;
+
+const pulse = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(251, 191, 36, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+`;
+
+const Container = styled.div<{ $isPhase: boolean }>`
+  position: fixed;
+  bottom: ${props => props.$isPhase ? '120px' : '110px'};
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: ${slideUp} 0.4s ease-out;
+  
+  @media (max-width: 768px) {
+    bottom: ${props => props.$isPhase ? '100px' : '95px'};
+  }
+`;
+
+const PhaseHeader = styled.div`
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  border-radius: 12px;
+  padding: 8px 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  backdrop-filter: blur(10px);
+`;
+
+const PhaseTitle = styled.span`
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+`;
+
+const PhaseTimer = styled.span`
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: white;
+  min-width: 30px;
+  text-align: center;
+`;
+
+const SkipButton = styled.button`
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 4px 14px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
+`;
+
+const CardsRow = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+
+const CardSlot = styled.button<{ $cardType: ItemCardId }>`
+  width: 80px;
+  height: 100px;
+  border-radius: 10px;
+  border: 2px solid ${props => getCardColor(props.$cardType)};
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  animation: ${pulse} 2s infinite;
+  
+  &:hover {
+    transform: translateY(-5px) scale(1.05);
+    border-color: white;
+    box-shadow: 0 0 20px ${props => getCardColor(props.$cardType)}40;
+  }
+  
+  &:active {
+    transform: translateY(0) scale(0.98);
+  }
+  
+  @media (max-width: 768px) {
+    width: 65px;
+    height: 85px;
+  }
+`;
+
+const CardIcon = styled.div`
+  font-size: 1.5rem;
+`;
+
+const CardName = styled.div`
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: white;
+  text-align: center;
+  font-family: 'Rajdhani', 'Microsoft YaHei', sans-serif;
+`;
+
+// 目标选择面板
+const TargetPanel = styled.div`
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(99, 102, 241, 0.5);
+  border-radius: 12px;
+  padding: 15px 20px;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+`;
+
+const TargetTitle = styled.div`
+  font-family: 'Rajdhani', 'Microsoft YaHei', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #a78bfa;
+`;
+
+const TargetList = styled.div`
+  display: flex;
+  gap: 12px;
+`;
+
+const TargetButton = styled.button<{ $color: string }>`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 2px solid ${props => PLAYER_COLORS[props.$color]};
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: ${props => PLAYER_COLORS[props.$color]}30;
+    transform: translateY(-3px);
+  }
+`;
+
+const TargetAvatar = styled.div<{ $color: string }>`
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: ${props => PLAYER_COLORS[props.$color]};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
+  font-size: 0.9rem;
+`;
+
+const TargetName = styled.div`
+  font-size: 0.75rem;
+  color: white;
+  font-weight: 600;
+`;
+
+function getCardColor(cardType: ItemCardId): string {
+  switch (cardType) {
+    case 'item_blackhole': return '#1f2937';
+    case 'item_shrink':    return '#dc2626';
+    case 'item_curse':     return '#7c3aed';
+    case 'item_steel':     return '#3b82f6';
+    case 'item_freeze':    return '#06b6d4';
+    case 'item_pressure':  return '#f97316';
+    case 'item_plunder':   return '#eab308';
+    case 'item_blame':     return '#ec4899';
+    default: return '#6b7280';
+  }
+}
+
+function getCardIcon(cardType: ItemCardId): string {
+  switch (cardType) {
+    case 'item_blackhole': return '●';
+    case 'item_shrink':    return '▼';
+    case 'item_curse':     return '☠';
+    case 'item_steel':     return '🛡';
+    case 'item_freeze':    return '❄';
+    case 'item_pressure':  return '⏱';
+    case 'item_plunder':   return '💰';
+    case 'item_blame':     return '↻';
+    default: return '?';
+  }
+}
+
+const ItemCardBar: React.FC<ItemCardBarProps> = ({
+  creativePlayer,
+  isItemPhase,
+  itemPhaseTimeLeft,
+  players,
+  currentPlayerId,
+  onUseCard,
+  onSkipPhase,
+  targetSelection,
+  onConfirmTarget,
+}) => {
+  if (!creativePlayer) return null;
+  const { itemCards } = creativePlayer;
+  if (itemCards.length === 0 && !isItemPhase) return null;
+
+  const opponents = players.filter(p => p.id !== currentPlayerId && !p.isSettled);
+
+  return (
+    <Container $isPhase={isItemPhase}>
+      {/* 目标选择面板 */}
+      {targetSelection && (
+        <TargetPanel>
+          <TargetTitle>选择目标 — {targetSelection.card.name}</TargetTitle>
+          <TargetList>
+            {opponents.map(p => (
+              <TargetButton key={p.id} $color={p.color} onClick={() => onConfirmTarget(p.id)}>
+                <TargetAvatar $color={p.color}>{p.name.charAt(0)}</TargetAvatar>
+                <TargetName>{p.name}</TargetName>
+              </TargetButton>
+            ))}
+          </TargetList>
+        </TargetPanel>
+      )}
+
+      {/* 道具阶段标题 */}
+      {isItemPhase && !targetSelection && (
+        <PhaseHeader>
+          <PhaseTitle>道具阶段</PhaseTitle>
+          <PhaseTimer>{itemPhaseTimeLeft}s</PhaseTimer>
+          <SkipButton onClick={onSkipPhase}>跳过</SkipButton>
+        </PhaseHeader>
+      )}
+
+      {/* 道具卡列表 */}
+      {itemCards.length > 0 && (
+        <CardsRow>
+          {itemCards.map((card, index) => (
+            <CardSlot
+              key={card.id}
+              $cardType={card.cardType}
+              onClick={() => isItemPhase ? onUseCard(index) : undefined}
+              style={{ opacity: isItemPhase ? 1 : 0.5, cursor: isItemPhase ? 'pointer' : 'default' }}
+              title={card.description}
+            >
+              <CardIcon>{getCardIcon(card.cardType)}</CardIcon>
+              <CardName>{card.name}</CardName>
+            </CardSlot>
+          ))}
+        </CardsRow>
+      )}
+    </Container>
+  );
+};
+
+export default ItemCardBar;

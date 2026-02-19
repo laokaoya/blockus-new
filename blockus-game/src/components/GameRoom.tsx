@@ -398,11 +398,16 @@ const GameRoom: React.FC = () => {
   useEffect(() => {
     const unsubscribe = socketService.on('game:started', (data: { roomId: string }) => {
       if (data.roomId === params.roomId || data.roomId === currentRoom?.id) {
-        navigate(`/game?roomId=${data.roomId}`, { state: { showTransition: true } });
+        const mode = targetRoom?.gameMode || 'classic';
+        if (mode === 'creative') {
+          navigate(`/creative?roomId=${data.roomId}`, { state: { showTransition: true } });
+        } else {
+          navigate(`/game?roomId=${data.roomId}`, { state: { showTransition: true } });
+        }
       }
     });
     return () => unsubscribe();
-  }, [params.roomId, currentRoom?.id, navigate]);
+  }, [params.roomId, currentRoom?.id, navigate, targetRoom?.gameMode]);
 
   useEffect(() => {
     if (targetRoom && user) {
@@ -466,7 +471,12 @@ const GameRoom: React.FC = () => {
       try {
         const success = await startGame(targetRoom.id);
         if (success) {
-          navigate(`/game?roomId=${targetRoom.id}`, { state: { showTransition: true } });
+          const mode = targetRoom.gameMode || 'classic';
+          if (mode === 'creative') {
+            navigate(`/creative?roomId=${targetRoom.id}`, { state: { showTransition: true } });
+          } else {
+            navigate(`/game?roomId=${targetRoom.id}`, { state: { showTransition: true } });
+          }
         } else {
           alert(t('gameRoom.startFailed') || '开始游戏失败，请确认房间满4人且所有玩家已准备');
         }
@@ -492,6 +502,19 @@ const GameRoom: React.FC = () => {
             <RoomName>{targetRoom.name}</RoomName>
             <RoomMeta>
               <span>ID: {targetRoom.id}</span>
+              <span style={{
+                padding: '2px 10px',
+                borderRadius: '4px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                background: (targetRoom.gameMode || 'classic') === 'creative'
+                  ? 'rgba(251, 191, 36, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                color: (targetRoom.gameMode || 'classic') === 'creative' ? '#fbbf24' : '#a5b4fc',
+                border: `1px solid ${(targetRoom.gameMode || 'classic') === 'creative'
+                  ? 'rgba(251, 191, 36, 0.3)' : 'rgba(99, 102, 241, 0.3)'}`,
+              }}>
+                {(targetRoom.gameMode || 'classic') === 'creative' ? '✨ 创意玩法' : '⚡ 经典模式'}
+              </span>
               <RoomStatus status={targetRoom.status}>
                 {targetRoom.status === 'waiting' ? t('room.status.waiting') : 
                  targetRoom.status === 'playing' ? t('room.status.playing') : 
