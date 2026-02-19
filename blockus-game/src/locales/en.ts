@@ -352,6 +352,7 @@ export const en = {
     ready: 'Ready',
     waiting: 'Waiting',
     aiPlayer: 'AI Player',
+    alreadyInRoom: 'You are already in room {roomId}, please leave it first',
     status: {
       waiting: 'Waiting',
       playing: 'In Game',

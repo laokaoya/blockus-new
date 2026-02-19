@@ -95,6 +95,7 @@ export const zh = {
     player: '玩家',
     players: '人',
     aiPlayer: 'AI玩家',
+    alreadyInRoom: '您已在房间 {roomId} 中，请先退出该房间',
     addAI: '添加AI',
     join: '加入',
     full: '已满',

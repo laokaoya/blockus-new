@@ -90,6 +90,11 @@ export function setupSocketHandlers(
           data.gameMode,
         );
 
+        if (!room) {
+           // 理论上 createRoom 会抛出异常，这里作为防御性编程
+           return callback({ success: false, error: 'CREATE_FAILED' });
+        }
+
         // 加入 Socket.io 房间
         socket.join(room.id);
         socket.data.currentRoomId = room.id;
@@ -99,7 +104,10 @@ export function setupSocketHandlers(
         // 广播更新给所有人
         io.emit('room:list', roomManager.getPublicRooms());
         console.log(`[Room] Created: ${room.id} by ${socket.data.nickname}`);
-      } catch (error) {
+      } catch (error: any) {
+        if (error.message && error.message.startsWith('ALREADY_IN_ROOM')) {
+           return callback({ success: false, error: error.message });
+        }
         callback({ success: false, error: 'CREATE_FAILED' });
       }
     });

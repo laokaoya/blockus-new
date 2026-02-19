@@ -905,9 +905,14 @@ const RoomList: React.FC = () => {
       if (newRoom) {
         navigate(`/room/${newRoom.id}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('创建房间失败:', error);
-      alert('创建房间失败，请重试');
+      if (error && typeof error === 'string' && error.startsWith('ALREADY_IN_ROOM')) {
+        const roomId = error.split(':')[1];
+        alert(t('room.alreadyInRoom') || `您已在房间 ${roomId} 中，请先退出该房间`);
+      } else {
+        alert(t('gameRoom.startFailed') || '创建房间失败，请重试');
+      }
     }
   };
 
@@ -931,9 +936,14 @@ const RoomList: React.FC = () => {
       } else {
         alert(password ? '密码错误或加入失败，请重试' : '加入房间失败，请重试');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('加入房间失败:', error);
-      alert('加入房间失败，请重试');
+      if (error && typeof error === 'string' && error.startsWith('ALREADY_IN_ROOM')) {
+        const roomId = error.split(':')[1];
+        alert(t('room.alreadyInRoom') || `您已在房间 ${roomId} 中，请先退出该房间`);
+      } else {
+        alert(password ? '密码错误或加入失败，请重试' : '加入房间失败，请重试');
+      }
     }
   };
 

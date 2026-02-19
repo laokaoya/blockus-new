@@ -41,8 +41,30 @@ export class RoomManager {
     return room ? this.sanitizeRoom(room) : undefined;
   }
 
+  // 检查玩家是否在任何房间中
+  // 返回所在的 roomId，如果不在任何房间则返回 undefined
+  getPlayerRoomId(userId: string): string | undefined {
+    for (const [roomId, room] of this.rooms.entries()) {
+      if (room.players.some(p => p.id === userId)) {
+        return roomId;
+      }
+    }
+    return undefined;
+  }
+
   // 创建房间
-  createRoom(hostId: string, hostNickname: string, name: string, password?: string, settings?: Partial<GameSettings>, gameMode?: string): GameRoom {
+  createRoom(hostId: string, hostNickname: string, name: string, password?: string, settings?: Partial<GameSettings>, gameMode?: string): GameRoom | null {
+    // 检查玩家是否已经在其他房间
+    const existingRoomId = this.getPlayerRoomId(hostId);
+    if (existingRoomId) {
+      // 玩家已在房间中，不允许创建新房间
+      // 这里返回 null 或抛出错误，由调用者处理
+      // 为了保持接口一致性，这里我们抛出一个特定的错误，或者返回 null 并在 socketHandlers 中处理
+      // 这里的返回类型是 GameRoom，所以我们可能需要修改返回类型或者抛出异常
+      // 让我们修改 createRoom 的签名或者抛出异常
+      throw new Error(`ALREADY_IN_ROOM:${existingRoomId}`);
+    }
+
     const roomId = `room_${uuidv4().substring(0, 8)}`;
     
     const hostPlayer: RoomPlayer = {
@@ -87,6 +109,12 @@ export class RoomManager {
       }
       // 如果是等待状态，也允许重连（可能是刷新页面）
       return { success: true, room: this.sanitizeRoom(room) };
+    }
+
+    // 检查玩家是否已经在其他房间
+    const existingRoomId = this.getPlayerRoomId(userId);
+    if (existingRoomId && existingRoomId !== roomId) {
+      return { success: false, error: `ALREADY_IN_ROOM:${existingRoomId}` };
     }
 
     if (room.status !== 'waiting') return { success: false, error: 'GAME_ALREADY_STARTED' };
