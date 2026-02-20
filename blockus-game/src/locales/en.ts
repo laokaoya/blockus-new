@@ -29,6 +29,7 @@ export const en = {
     pausedReconnect: 'Player left. Return to lobby and click "Resume" to continue',
     restart: 'Restart',
     quit: 'Quit Game',
+    endGame: 'End Game',
     gameOver: 'Game Over',
     winner: 'Winner',
     tie: 'Tie',

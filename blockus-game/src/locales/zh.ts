@@ -29,6 +29,7 @@ export const zh = {
     pausedReconnect: '玩家已离开，请返回大厅后点击「回到游戏」继续',
     restart: '重新开始',
     quit: '退出游戏',
+    endGame: '结束游戏',
     gameOver: '游戏结束',
     winner: '获胜者',
     tie: '平局',

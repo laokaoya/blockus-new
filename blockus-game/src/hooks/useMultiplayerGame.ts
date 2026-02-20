@@ -288,12 +288,16 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       })
     );
 
-    // 时间更新
+    // 时间更新（忽略过期值，避免回合切换时旧计时覆盖新回合导致闪回）
     unsubscribers.push(
       socketService.on('game:timeUpdate', (data: { roomId: string; timeLeft: number }) => {
         if (data.roomId !== roomId) return;
         const safeTimeLeft = Number.isFinite(data.timeLeft) && data.timeLeft >= 0 ? data.timeLeft : 0;
-        setGameState(prev => ({ ...prev, timeLeft: safeTimeLeft }));
+        setGameState(prev => {
+          // 忽略过期更新：若新值比当前值小很多（>2），说明是旧回合的过期 tick，避免闪回
+          if (safeTimeLeft < prev.timeLeft - 2) return prev;
+          return { ...prev, timeLeft: safeTimeLeft };
+        });
         if (safeTimeLeft <= 10 && safeTimeLeft > 0) {
           soundManager.timeWarning();
         }

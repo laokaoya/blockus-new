@@ -9,7 +9,7 @@ interface RoomContextType {
   isLoading: boolean;
   isOnline: boolean;
   isSpectating: boolean;
-  createRoom: (name: string, password?: string, settings?: Partial<GameSettings>, gameMode?: GameMode) => Promise<GameRoom>;
+  createRoom: (name: string, password?: string, settings?: Partial<GameSettings>, gameMode?: GameMode, options?: { skipSetCurrentRoom?: boolean }) => Promise<GameRoom>;
   joinRoom: (roomId: string, password?: string) => Promise<boolean>;
   leaveRoom: () => Promise<void>;
   updateRoom: (roomId: string, updates: Partial<GameRoom>) => Promise<boolean>;
@@ -190,15 +190,16 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     }
   }, [isOnline, user]);
 
-  const createRoom = useCallback(async (name: string, password?: string, settings?: Partial<GameSettings>, gameMode?: GameMode): Promise<GameRoom> => {
+  const createRoom = useCallback(async (name: string, password?: string, settings?: Partial<GameSettings>, gameMode?: GameMode, options?: { skipSetCurrentRoom?: boolean }): Promise<GameRoom> => {
     if (!user) throw new Error('用户未登录');
 
     const mode = gameMode || 'classic';
+    const skipSetCurrentRoom = options?.skipSetCurrentRoom ?? false;
 
     if (socketService.isConnected) {
       const result = await socketService.createRoom(name, password, settings, mode);
       if (result.success && result.room) {
-        setCurrentRoom(result.room);
+        if (!skipSetCurrentRoom) setCurrentRoom(result.room);
         return result.room;
       }
       throw new Error(result.error || 'CREATE_FAILED');
@@ -234,7 +235,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       createdAt: Date.now(),
       lastActivityAt: Date.now(),
     };
-    setCurrentRoom(localRoom);
+    if (!skipSetCurrentRoom) setCurrentRoom(localRoom);
     return localRoom;
   }, [user]);
 

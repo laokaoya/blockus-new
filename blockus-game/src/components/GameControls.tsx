@@ -281,7 +281,7 @@ const GameControls: React.FC<GameControlsProps> = ({
           </StatusSection>
         )}
 
-        {gameState.timeLeft > 0 && (
+        {gameState.timeLeft > 0 && isMyTurn && (
           <StatusSection>
             <StatusTitle>{t('game.time') || 'TIME'}</StatusTitle>
             <TimeDisplay timeLeft={gameState.timeLeft}>

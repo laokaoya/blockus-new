@@ -365,7 +365,8 @@ const MainLobby: React.FC = () => {
         `${user.profile.nickname} · 经典单机房`,
         undefined,
         { turnTimeLimit: settings.timeLimit, aiDifficulty: settings.aiDifficulty, privateRoom: false },
-        'classic'
+        'classic',
+        { skipSetCurrentRoom: true }
       );
       if (!room) throw new Error('创建失败');
       await addAI(room.id, settings.aiDifficulty);
@@ -401,7 +402,8 @@ const MainLobby: React.FC = () => {
         `${user.profile.nickname} · 创意单机房`,
         undefined,
         { turnTimeLimit: settings.timeLimit, aiDifficulty: settings.aiDifficulty, privateRoom: false },
-        'creative'
+        'creative',
+        { skipSetCurrentRoom: true }
       );
       if (!room) throw new Error('创建失败');
       await addAI(room.id, settings.aiDifficulty);
