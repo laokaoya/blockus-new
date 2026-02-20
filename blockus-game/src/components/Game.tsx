@@ -644,6 +644,14 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
     return unsub;
   }, [roomId, user?.profile.id, leaveRoom, navigate]);
 
+  // 道具使用成功后关闭目标选择（服务端广播 game:itemUsed 时兜底，确保 UI 正确关闭）
+  useEffect(() => {
+    const unsub = socketService.on('game:itemUsed', (data: { roomId: string }) => {
+      if (data.roomId === roomId) setItemTargetSelection(null);
+    });
+    return unsub;
+  }, [roomId]);
+
   const handleSettings = () => {
     soundManager.buttonClick();
     navigate('/settings');

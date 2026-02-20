@@ -674,6 +674,15 @@ export function setupSocketHandlers(
         pieceIdRemoved: result.pieceIdRemoved,
         targetPlayerId: result.targetPlayerId,
       });
+      // 道具阶段结束、主计时器启动，广播 turnChanged 确保客户端同步 timeLeft 与 creativeState
+      const room = roomManager.getRoom(data.roomId);
+      const payload: any = {
+        roomId: data.roomId,
+        currentPlayerIndex: result.gameState!.currentPlayerIndex,
+        timeLeft: room?.gameSettings.turnTimeLimit || 60,
+      };
+      if (result.gameState!.creativeState) payload.creativeState = result.gameState!.creativeState;
+      io.to(data.roomId).emit('game:turnChanged', payload);
     });
 
     // 玩家结算

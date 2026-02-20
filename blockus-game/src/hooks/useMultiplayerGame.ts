@@ -382,6 +382,8 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string;
       }) => {
         if (data.roomId !== roomId) return;
+        const newCreativeState = data.gameState.creativeState;
+        if (newCreativeState && !newCreativeState.itemPhase) setItemPhaseTimeLeft(0);
         setGameState(prev => {
           let newPlayers = prev.players.map(p => ({
             ...p,
