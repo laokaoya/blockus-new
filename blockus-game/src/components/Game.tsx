@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import styled, { keyframes } from 'styled-components';
 import { useGameState } from '../hooks/useGameState';
 import { useMultiplayerGame } from '../hooks/useMultiplayerGame';
@@ -598,11 +599,15 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   const isSpectateMode = searchParams.get('spectate') === 'true' || isSpectating;
   const [showRulesModal, setShowRulesModal] = useState(false);
 
+  const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
+  const [itemTargetSelection, setItemTargetSelection] = useState<{ cardIndex: number; card: ItemCard } | null>(null);
+
   const mp = useMultiplayerGame({
     roomId,
     myUserId: user?.profile.id || '',
     myNickname: user?.profile.nickname || '',
     isSpectating: isSpectateMode,
+    isSelectingItemTarget: !!itemTargetSelection,
   });
 
   const { 
@@ -611,9 +616,6 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
     canPlayerContinue, isMyTurn, isPaused, myColor, showingEffect,
     isItemPhase, itemPhaseTimeLeft,
   } = mp;
-
-  const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
-  const [itemTargetSelection, setItemTargetSelection] = useState<{ cardIndex: number; card: ItemCard } | null>(null);
 
   const myCreative = gameState.creativeState?.creativePlayers.find(c => c.playerId === user?.profile.id);
   
@@ -727,7 +729,14 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   const handleConfirmItemTarget = async (targetPlayerId: string) => {
     if (!itemTargetSelection) return;
     const result = await doUseItemCard(itemTargetSelection.cardIndex, targetPlayerId);
-    if (result.success) setItemTargetSelection(null);
+    if (result.success) {
+      setItemTargetSelection(null);
+    } else if (result.error) {
+      const msg = result.error === 'NOT_IN_ITEM_PHASE'
+        ? (t('creative.itemUseExpired') || '道具阶段已结束，请下次回合再试')
+        : (t('creative.itemUseFailed') || `使用失败：${result.error}`);
+      alert(msg);
+    }
   };
 
   useEffect(() => {
@@ -862,8 +871,8 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
             </PieceLibraryWrapper>
           </BottomDock>
 
-          {/* 创意模式道具卡栏 */}
-          {gameState.creativeState && myCreative && (
+          {/* 创意模式道具卡栏：用 Portal 渲染到 body，确保不被遮罩阻挡点击 */}
+          {gameState.creativeState && myCreative && createPortal(
             <ItemCardBar
               creativePlayer={myCreative as CreativePlayerState}
               isItemPhase={isItemPhase && !isSpectateMode}
@@ -871,13 +880,19 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
               players={gameState.players}
               currentPlayerId={myPlayer?.id ?? ''}
               onUseCard={handleUseItemCard}
-              onSkipPhase={() => { soundManager.buttonClick(); skipItemPhase(); setItemTargetSelection(null); }}
+              onSkipPhase={async () => {
+                soundManager.buttonClick();
+                setItemTargetSelection(null);
+                const ok = await skipItemPhase();
+                if (!ok) alert(t('creative.itemUseFailed') || '跳过失败，请重试');
+              }}
               targetSelection={itemTargetSelection}
               onConfirmTarget={handleConfirmItemTarget}
-            />
+            />,
+            document.body
           )}
 
-          {/* 创意模式道具阶段遮罩 */}
+          {/* 创意模式道具阶段遮罩（道具卡栏已用 Portal 渲染到 body，不会被遮挡） */}
           {isItemPhase && !isSpectateMode && <ItemPhaseOverlay />}
 
           {showingEffect && (

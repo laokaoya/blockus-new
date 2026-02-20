@@ -400,5 +400,7 @@ export const en = {
   creative: {
     eventLog: 'Event Log',
     noEvents: 'No events yet',
+    itemUseExpired: 'Item phase ended. Please try again next turn.',
+    itemUseFailed: 'Failed to use item. Please try again.',
   },
 };

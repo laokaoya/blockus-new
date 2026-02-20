@@ -35,7 +35,8 @@ const Container = styled.div<{ $isPhase: boolean }>`
   bottom: ${props => props.$isPhase ? '120px' : '110px'};
   left: 50%;
   transform: translateX(-50%);
-  z-index: 3000;
+  z-index: 9999;
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
   align-items: center;

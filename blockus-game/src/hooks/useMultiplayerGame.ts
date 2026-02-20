@@ -22,10 +22,12 @@ interface MultiplayerGameOptions {
   myUserId: string;
   myNickname: string;
   isSpectating?: boolean;
+  /** 用户正在选择道具目标时暂停倒计时，避免提前 skip 导致无法使用 */
+  isSelectingItemTarget?: boolean;
 }
 
 export function useMultiplayerGame(options: MultiplayerGameOptions) {
-  const { roomId, myUserId, myNickname, isSpectating = false } = options;
+  const { roomId, myUserId, myNickname, isSpectating = false, isSelectingItemTarget = false } = options;
   const { joinRoom, spectateGame } = useRoom();
   
   const [gameState, setGameState] = useState<GameState>({
@@ -462,13 +464,14 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     }
   }, [effectQueue, showingEffect]);
 
-  // 创意模式：道具阶段倒计时，结束时自动调用 skipItemPhase
+  // 创意模式：道具阶段倒计时，结束时自动调用 skipItemPhase（选择目标时暂停，避免提前 skip 导致无法使用）
   const isItemPhase = !!gameState.creativeState?.itemPhase;
   useEffect(() => {
     if (!isItemPhase) {
       setItemPhaseTimeLeft(0);
       return;
     }
+    if (isSelectingItemTarget) return; // 用户正在选择目标，不自动 skip
     const t = setInterval(() => {
       setItemPhaseTimeLeft(prev => {
         if (prev <= 1) {
@@ -479,7 +482,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       });
     }, 1000);
     return () => clearInterval(t);
-  }, [isItemPhase, roomId]);
+  }, [isItemPhase, isSelectingItemTarget, roomId]);
 
   // 选择拼图（本地操作）
   const selectPiece = useCallback((piece: Piece | null) => {

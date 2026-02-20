@@ -381,6 +381,7 @@ export class GameManager {
 
     const cs = game.state.creativeState;
     if (!cs) return { success: false, error: 'NO_CREATIVE_STATE' };
+    if (!cs.itemPhase) return { success: false, error: 'NOT_IN_ITEM_PHASE' };
 
     const currentPlayer = game.players[game.state.currentPlayerIndex];
     if (currentPlayer.id !== playerId) return { success: false, error: 'NOT_YOUR_TURN' };

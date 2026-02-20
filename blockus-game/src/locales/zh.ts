@@ -442,5 +442,7 @@ export const zh = {
   creative: {
     eventLog: '历史记录',
     noEvents: '暂无记录',
+    itemUseExpired: '道具阶段已结束，请下次回合再试',
+    itemUseFailed: '道具使用失败，请重试',
   },
 };
