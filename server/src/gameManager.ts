@@ -181,7 +181,6 @@ export class GameManager {
     if (!piece) return { success: false, error: 'INVALID_PIECE' };
 
     // 创意模式：屏障、big_piece_ban 校验
-    const cs = game.state.creativeState;
     if (cs) {
       if (overlapsBarrier(piece.shape, move.position, cs.specialTiles)) {
         return { success: false, error: 'BARRIER_BLOCKED' };
