@@ -12,6 +12,8 @@ dist/
 .env
 .env.local
 .env.*.local
+serviceAccountKey.json
+**/serviceAccountKey.json
 
 # IDE
 .vscode/

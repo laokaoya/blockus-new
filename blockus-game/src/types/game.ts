@@ -57,11 +57,13 @@ export interface Position {
 export interface UserProfile {
   id: string;
   nickname: string;
+  email?: string;
+  isGuest?: boolean;
   age?: number;
   gender?: 'male' | 'female' | 'other';
   location?: string;
-  avatar?: string; // 头像图片的base64或URL
-  bio?: string; // 一句话介绍
+  avatar?: string;
+  bio?: string;
   createdAt: number;
   lastLoginAt: number;
 }

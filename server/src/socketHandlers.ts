@@ -1,8 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { RoomManager } from './roomManager';
 import { GameManager } from './gameManager';
-import { verifyToken } from './auth';
-import { generateToken } from './auth';
+import { verifyToken, verifyFirebaseToken, generateToken, generateTokenForFirebaseUser } from './auth';
 import { ServerToClientEvents, ClientToServerEvents, TokenPayload } from './types';
 
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -29,18 +28,26 @@ export function setupSocketHandlers(
     gameManager.removeGame(roomId);
   };
 
-  // Socket.io 中间件：认证
-  io.use((socket: AuthenticatedSocket, next) => {
+  // Socket.io 中间件：认证（支持 local JWT 和 Firebase ID token）
+  io.use(async (socket: AuthenticatedSocket, next) => {
     const token = socket.handshake.auth.token;
     if (token) {
+      // Try local JWT first
       const payload = verifyToken(token);
       if (payload) {
         socket.data.userId = payload.userId;
         socket.data.nickname = payload.nickname;
         return next();
       }
+
+      // Then try Firebase ID token
+      const fbDecoded = await verifyFirebaseToken(token);
+      if (fbDecoded) {
+        socket.data.userId = `fb_${fbDecoded.uid}`;
+        socket.data.nickname = fbDecoded.name || fbDecoded.email?.split('@')[0] || 'Player';
+        return next();
+      }
     }
-    // 允许未认证连接（用于登录）
     next();
   });
 
@@ -53,22 +60,40 @@ export function setupSocketHandlers(
     }
 
     // ===================== 认证 =====================
-    socket.on('auth:login', (data, callback) => {
-      if (!data.nickname || data.nickname.trim().length === 0) {
-        return callback({ success: false, error: 'NICKNAME_REQUIRED' });
-      }
-      const nickname = data.nickname.trim().substring(0, 20);
-      if (nickname.length < 1) {
-        return callback({ success: false, error: 'NICKNAME_REQUIRED' });
-      }
+    socket.on('auth:login', async (data, callback) => {
+      try {
+        if (!data?.nickname || data.nickname.trim().length === 0) {
+          return callback({ success: false, error: 'NICKNAME_REQUIRED' });
+        }
+        const nickname = data.nickname.trim().substring(0, 20);
+        if (nickname.length < 1) {
+          return callback({ success: false, error: 'NICKNAME_REQUIRED' });
+        }
 
-      const { token, userId } = generateToken(nickname, data.avatar);
-      socket.data.userId = userId;
-      socket.data.nickname = nickname;
+        // If the socket already has a Firebase-linked userId, issue a token tied to that uid
+        if (socket.data.userId?.startsWith('fb_')) {
+          const fbUid = socket.data.userId.replace('fb_', '');
+          const { token, userId } = generateTokenForFirebaseUser(fbUid, nickname, data.avatar);
+          socket.data.userId = userId;
+          socket.data.nickname = nickname;
+          socket.emit('authenticated', { userId, nickname });
+          callback({ success: true, token, userId });
+          console.log(`[Auth] Firebase user logged in: ${nickname} (${userId})`);
+          return;
+        }
 
-      socket.emit('authenticated', { userId, nickname });
-      callback({ success: true, token, userId });
-      console.log(`[Auth] User logged in: ${nickname} (${userId})`);
+        // Guest / legacy login
+        const { token, userId } = generateToken(nickname, data.avatar);
+        socket.data.userId = userId;
+        socket.data.nickname = nickname;
+
+        socket.emit('authenticated', { userId, nickname });
+        callback({ success: true, token, userId });
+        console.log(`[Auth] Guest logged in: ${nickname} (${userId})`);
+      } catch (err) {
+        console.error('[Auth] Login error:', err);
+        callback({ success: false, error: 'LOGIN_FAILED' });
+      }
     });
 
     // ===================== 房间操作 =====================

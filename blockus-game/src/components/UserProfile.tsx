@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import styled from 'styled-components';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { UserProfile as UserProfileType } from '../types/game';
@@ -416,9 +417,117 @@ const CancelButton = styled.button`
   }
 `;
 
+const PasswordSection = styled.div`
+  margin-top: 20px;
+  padding: 20px;
+  background: var(--surface-highlight);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--surface-border);
+`;
+
+const PasswordTitle = styled.h3`
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+`;
+
+const PasswordForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const PasswordInput = styled.input`
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface-color);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+  }
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+`;
+
+const SmallButton = styled.button`
+  background: var(--primary-gradient);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-start;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
+const InfoRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+
+  span.label {
+    color: var(--text-muted);
+    min-width: 80px;
+  }
+
+  span.value {
+    color: var(--text-primary);
+    word-break: break-all;
+  }
+
+  span.badge {
+    background: var(--primary-color);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  span.guest-badge {
+    background: var(--surface-border);
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+`;
+
+const AlertMessage = styled.div<{ type?: 'success' | 'error' }>`
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  background: ${p => p.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'};
+  color: ${p => p.type === 'success' ? '#10b981' : '#ef4444'};
+  border: 1px solid ${p => p.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'};
+`;
+
 const UserProfile: React.FC = () => {
   const navigate = useNavigate();
-  const { user, logout, updateProfile } = useAuth();
+  const { user, firebaseUser, isGuest, logout, updateProfile } = useAuth();
   const { t } = useLanguage();
   
   const [isEditing, setIsEditing] = useState(false);
@@ -433,9 +542,16 @@ const UserProfile: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Password change state
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   if (!user) {
-    navigate('/login');
-    return null;
+    return <Navigate to="/login" replace />;
   }
 
   const handleLogout = () => {
@@ -536,6 +652,37 @@ const UserProfile: React.FC = () => {
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordMsg(null);
+
+    if (!firebaseUser || !firebaseUser.email) return;
+    if (!currentPassword) { setPasswordMsg({ type: 'error', text: '请输入当前密码' }); return; }
+    if (newPassword.length < 6) { setPasswordMsg({ type: 'error', text: '新密码至少需要6个字符' }); return; }
+    if (newPassword !== confirmNewPassword) { setPasswordMsg({ type: 'error', text: '两次输入的新密码不一致' }); return; }
+
+    setIsChangingPassword(true);
+    try {
+      const credential = EmailAuthProvider.credential(firebaseUser.email, currentPassword);
+      await reauthenticateWithCredential(firebaseUser, credential);
+      await updatePassword(firebaseUser, newPassword);
+      setPasswordMsg({ type: 'success', text: '密码已成功修改' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setShowPasswordForm(false);
+    } catch (err: any) {
+      const code = err?.code || '';
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        setPasswordMsg({ type: 'error', text: '当前密码不正确' });
+      } else {
+        setPasswordMsg({ type: 'error', text: '修改密码失败，请重试' });
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const handleViewStats = () => {
     navigate('/statistics');
   };
@@ -617,10 +764,75 @@ const UserProfile: React.FC = () => {
 
         <div>
           <SectionTitle>账户信息</SectionTitle>
-          <div style={{ color: '#666', marginBottom: '20px' }}>
-            <p>注册时间：{formatDate(user.profile.createdAt)}</p>
-            <p>最后登录：{formatDate(user.profile.lastLoginAt)}</p>
+          <div style={{ marginBottom: '20px' }}>
+            <InfoRow>
+              <span className="label">账户类型</span>
+              {isGuest
+                ? <span className="guest-badge">访客</span>
+                : <span className="badge">邮箱用户</span>
+              }
+            </InfoRow>
+            {user.profile.email && (
+              <InfoRow>
+                <span className="label">邮箱</span>
+                <span className="value">{user.profile.email}</span>
+              </InfoRow>
+            )}
+            <InfoRow>
+              <span className="label">注册时间</span>
+              <span className="value">{formatDate(user.profile.createdAt)}</span>
+            </InfoRow>
+            <InfoRow>
+              <span className="label">最后登录</span>
+              <span className="value">{formatDate(user.profile.lastLoginAt)}</span>
+            </InfoRow>
           </div>
+
+          {firebaseUser && firebaseUser.email && (
+            <PasswordSection>
+              <PasswordTitle>安全设置</PasswordTitle>
+              {!showPasswordForm ? (
+                <SmallButton type="button" onClick={() => { setShowPasswordForm(true); setPasswordMsg(null); }}>
+                  修改密码
+                </SmallButton>
+              ) : (
+                <PasswordForm onSubmit={handleChangePassword}>
+                  <PasswordInput
+                    type="password"
+                    value={currentPassword}
+                    onChange={e => setCurrentPassword(e.target.value)}
+                    placeholder="当前密码"
+                    autoComplete="current-password"
+                  />
+                  <PasswordInput
+                    type="password"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    placeholder="新密码（至少6位）"
+                    autoComplete="new-password"
+                  />
+                  <PasswordInput
+                    type="password"
+                    value={confirmNewPassword}
+                    onChange={e => setConfirmNewPassword(e.target.value)}
+                    placeholder="确认新密码"
+                    autoComplete="new-password"
+                  />
+                  {passwordMsg && <AlertMessage type={passwordMsg.type}>{passwordMsg.text}</AlertMessage>}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <SmallButton type="submit" disabled={isChangingPassword}>
+                      {isChangingPassword ? '修改中...' : '确认修改'}
+                    </SmallButton>
+                    <CancelButton type="button" onClick={() => { setShowPasswordForm(false); setPasswordMsg(null); }}
+                      style={{ padding: '10px 20px', fontSize: '14px' }}>
+                      取消
+                    </CancelButton>
+                  </div>
+                </PasswordForm>
+              )}
+              {passwordMsg && !showPasswordForm && <AlertMessage type={passwordMsg.type} style={{ marginTop: '10px' }}>{passwordMsg.text}</AlertMessage>}
+            </PasswordSection>
+          )}
         </div>
 
         <ActionsSection>

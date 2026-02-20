@@ -107,21 +107,21 @@ const BackgroundShape = styled.div<{ size: number; top: string; left: string; co
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { loginAsGuest } = useAuth();
   const { t } = useLanguage();
 
   const handleStart = useCallback(async () => {
-    // 自动以访客身份登录
     const guestProfile = {
       id: `guest_${Date.now()}`,
       nickname: `Guest_${Math.floor(Math.random() * 10000)}`,
+      isGuest: true,
       createdAt: Date.now(),
       lastLoginAt: Date.now()
     };
     
-    await login(guestProfile);
+    await loginAsGuest(guestProfile);
     navigate('/', { state: { showTransition: true } });
-  }, [login, navigate]);
+  }, [loginAsGuest, navigate]);
 
   return (
     <Container>

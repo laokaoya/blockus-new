@@ -1,8 +1,8 @@
 // 游戏棋盘组件
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { GameState, Position, Piece } from '../types/game';
+import { GameState, Position } from '../types/game';
 import { SpecialTile, SpecialTileType } from '../types/creative';
 import { canPlacePiece } from '../utils/gameEngine';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -222,13 +222,14 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const [mousePosition, setMousePosition] = useState<Position>({ x: 0, y: 0 });
   const [dragMode, setDragMode] = useState<'none' | 'dragging' | 'placing'>('none');
   const [isTrashHovered, setIsTrashHovered] = useState(false);
-  const [originalPiecePosition, setOriginalPiecePosition] = useState<Position | null>(null);
+  const [, setOriginalPiecePosition] = useState<Position | null>(null);
   
   // 悬停预览状态
   const [hoverPosition, setHoverPosition] = useState<Position | null>(null);
 
   // 触摸交互标记：防止移动端 touch 后的兼容性 mouse 事件干扰
   const isTouchActiveRef = useRef(false);
+  const touchDragActive = useRef(false);
   
   // 全局鼠标事件监听
   useEffect(() => {
@@ -249,7 +250,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
     };
     
     const handleStartDragFromLibrary = (e: CustomEvent) => {
-      const { piece, clientX, clientY } = e.detail;
+      const { clientX, clientY } = e.detail;
       setIsDragging(true);
       setDragMode('dragging');
       
@@ -384,7 +385,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   // ===== 触摸事件处理（移动端） =====
   const TOUCH_Y_OFFSET_PX = 80;
-  const touchDragActive = useRef(false);
 
   const touchToBoardPos = (touch: React.Touch, grid: Element, applyOffset: boolean): Position | null => {
     const rect = grid.getBoundingClientRect();
