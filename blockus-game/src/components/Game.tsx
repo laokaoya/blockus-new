@@ -311,6 +311,14 @@ const RulesButton = styled.button`
 // SettleButton removed
 // const SettleButton = styled.button...
 
+const ItemPhaseOverlay = styled.div`
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 2500;
+  pointer-events: none;
+`;
+
 const PausedOverlay = styled.div`
   position: fixed;
   inset: 0;
@@ -598,9 +606,10 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   });
 
   const { 
-    gameState, selectPiece, placePieceOnBoard, settlePlayer, doUseItemCard,
+    gameState, selectPiece, placePieceOnBoard, settlePlayer, doUseItemCard, skipItemPhase,
     rotateSelectedPiece, flipSelectedPiece, thinkingAI, lastAIMove,
-    canPlayerContinue, isMyTurn, isPaused, myColor, showingEffect
+    canPlayerContinue, isMyTurn, isPaused, myColor, showingEffect,
+    isItemPhase, itemPhaseTimeLeft,
   } = mp;
 
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
@@ -644,14 +653,14 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   };
   
   const handlePieceSelect = (piece: Piece) => {
-    if (!isSpectateMode && isMyTurn && !piece.isUsed) {
+    if (!isSpectateMode && isMyTurn && !piece.isUsed && !isItemPhase) {
       soundManager.selectPiece();
       selectPiece(piece);
     }
   };
   
   const handleStartDrag = (piece: Piece, e: React.MouseEvent) => {
-    if (!isSpectateMode && isMyTurn && !piece.isUsed) {
+    if (!isSpectateMode && isMyTurn && !piece.isUsed && !isItemPhase) {
       soundManager.selectPiece();
       selectPiece(piece);
       const gameBoard = document.querySelector('[data-board-grid]');
@@ -675,7 +684,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   };
 
   const handleBoardClick = (position: Position) => {
-    if (!isSpectateMode && isMyTurn && gameState.selectedPiece) {
+    if (!isSpectateMode && isMyTurn && !isItemPhase && gameState.selectedPiece) {
       if (canPlaceAt(position)) {
         soundManager.placePiece();
         placePieceOnBoard(position);
@@ -686,7 +695,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   };
   
   const handlePiecePlace = (position: Position) => {
-    if (!isSpectateMode && isMyTurn && gameState.selectedPiece) {
+    if (!isSpectateMode && isMyTurn && !isItemPhase && gameState.selectedPiece) {
       if (canPlaceAt(position)) {
         soundManager.placePiece();
         placePieceOnBoard(position);
@@ -854,16 +863,19 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
           {gameState.creativeState && myCreative && (
             <ItemCardBar
               creativePlayer={myCreative as CreativePlayerState}
-              isItemPhase={isMyTurn && !isSpectateMode && myCreative.itemCards.length > 0 && !itemTargetSelection}
-              itemPhaseTimeLeft={0}
+              isItemPhase={isItemPhase && !isSpectateMode}
+              itemPhaseTimeLeft={itemPhaseTimeLeft}
               players={gameState.players}
               currentPlayerId={myPlayer?.id ?? ''}
               onUseCard={handleUseItemCard}
-              onSkipPhase={() => setItemTargetSelection(null)}
+              onSkipPhase={() => { soundManager.buttonClick(); skipItemPhase(); setItemTargetSelection(null); }}
               targetSelection={itemTargetSelection}
               onConfirmTarget={handleConfirmItemTarget}
             />
           )}
+
+          {/* 创意模式道具阶段遮罩 */}
+          {isItemPhase && !isSpectateMode && <ItemPhaseOverlay />}
 
           {showingEffect && (
             <EffectPopup effect={showingEffect.effect} result={showingEffect.result} />

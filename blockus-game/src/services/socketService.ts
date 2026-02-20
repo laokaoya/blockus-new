@@ -108,6 +108,7 @@ class SocketService {
       this.socket.on('game:state', (data) => this.trigger('game:state', data));
       this.socket.on('game:move', (data) => this.trigger('game:move', data));
       this.socket.on('game:turnChanged', (data) => this.trigger('game:turnChanged', data));
+      this.socket.on('game:creativeState', (data) => this.trigger('game:creativeState', data));
       this.socket.on('game:playerSettled', (data) => this.trigger('game:playerSettled', data));
       this.socket.on('game:finished', (data) => this.trigger('game:finished', data));
       this.socket.on('game:timeUpdate', (data) => this.trigger('game:timeUpdate', data));
@@ -200,6 +201,10 @@ class SocketService {
 
   spectateGame(roomId: string): Promise<{ success: boolean; error?: string }> {
     return this.emitWithCallback('game:spectate', { roomId });
+  }
+
+  skipItemPhase(roomId: string): Promise<{ success: boolean; error?: string }> {
+    return this.emitWithCallback('game:skipItemPhase', { roomId });
   }
 
   // ===================== 事件系统 =====================

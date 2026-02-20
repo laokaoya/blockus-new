@@ -443,14 +443,17 @@ export function setupSocketHandlers(
             ...(triggeredEffects && triggeredEffects.length > 0 ? { triggeredEffects } : {}),
           });
 
-          // 广播回合切换
+          // 广播回合切换（创意模式道具阶段时包含 creativeState）
           if (gameState.gamePhase === 'playing') {
             const room = roomManager.getRoom(roomId);
-            io.to(roomId).emit('game:turnChanged', {
+            const freshState = gameManager.getGameState(roomId);
+            const payload: any = {
               roomId,
               currentPlayerIndex: gameState.currentPlayerIndex,
               timeLeft: room?.gameSettings.turnTimeLimit || 60,
-            });
+            };
+            if (freshState?.creativeState) payload.creativeState = freshState.creativeState;
+            io.to(roomId).emit('game:turnChanged', payload);
           }
 
           // 检查游戏是否结束
@@ -595,14 +598,16 @@ export function setupSocketHandlers(
         ...(result.triggeredEffects && result.triggeredEffects.length > 0 ? { triggeredEffects: result.triggeredEffects } : {}),
       });
 
-      // 广播回合切换
+      // 广播回合切换（创意模式道具阶段时包含 creativeState）
       if (result.gameState!.gamePhase === 'playing') {
         const room = roomManager.getRoom(data.roomId);
-        io.to(data.roomId).emit('game:turnChanged', {
+        const payload: any = {
           roomId: data.roomId,
           currentPlayerIndex: result.gameState!.currentPlayerIndex,
           timeLeft: room?.gameSettings.turnTimeLimit || 60,
-        });
+        };
+        if (result.gameState!.creativeState) payload.creativeState = result.gameState!.creativeState;
+        io.to(data.roomId).emit('game:turnChanged', payload);
       }
 
       // 检查游戏是否结束
@@ -617,6 +622,31 @@ export function setupSocketHandlers(
           roomManager.setGameFinished(data.roomId);
         }
       }
+    });
+
+    // 创意模式：跳过道具阶段
+    socket.on('game:skipItemPhase', (data, callback) => {
+      if (!socket.data.userId) {
+        return callback({ success: false, error: 'NOT_AUTHENTICATED' });
+      }
+      const result = gameManager.skipItemPhase(data.roomId, socket.data.userId);
+      if (!result.success) {
+        return callback({ success: false, error: result.error });
+      }
+      callback({ success: true });
+      const state = gameManager.getGameState(data.roomId);
+      const room = roomManager.getRoom(data.roomId);
+      if (state?.creativeState) {
+        io.to(data.roomId).emit('game:creativeState', {
+          roomId: data.roomId,
+          creativeState: state.creativeState,
+        });
+      }
+      io.to(data.roomId).emit('game:turnChanged', {
+        roomId: data.roomId,
+        currentPlayerIndex: state!.currentPlayerIndex,
+        timeLeft: room?.gameSettings.turnTimeLimit || 60,
+      });
     });
 
     // 创意模式：使用道具卡
@@ -679,11 +709,13 @@ export function setupSocketHandlers(
       } else if (result.gameState?.gamePhase === 'playing') {
         // 通知回合切换
         const room = roomManager.getRoom(data.roomId);
-        io.to(data.roomId).emit('game:turnChanged', {
+        const payload: any = {
           roomId: data.roomId,
           currentPlayerIndex: result.gameState.currentPlayerIndex,
           timeLeft: room?.gameSettings.turnTimeLimit || 60,
-        });
+        };
+        if (result.gameState.creativeState) payload.creativeState = result.gameState.creativeState;
+        io.to(data.roomId).emit('game:turnChanged', payload);
       }
     });
 

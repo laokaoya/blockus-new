@@ -51,6 +51,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
   const [isPaused, setIsPaused] = useState(false);
   const [effectQueue, setEffectQueue] = useState<Array<{ effect: TileEffect; result: EffectResult }>>([]);
   const [showingEffect, setShowingEffect] = useState<{ effect: TileEffect; result: EffectResult } | null>(null);
+  const [itemPhaseTimeLeft, setItemPhaseTimeLeft] = useState(0);
 
   // 根据服务端 playerColors 创建本地 Player 数组
   const createPlayersFromServerData = useCallback((
@@ -255,9 +256,9 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       })
     );
 
-    // 回合切换
+    // 回合切换（创意模式含 creativeState 时同步道具阶段）
     unsubscribers.push(
-      socketService.on('game:turnChanged', (data: { roomId: string; currentPlayerIndex: number; timeLeft: number }) => {
+      socketService.on('game:turnChanged', (data: { roomId: string; currentPlayerIndex: number; timeLeft: number; creativeState?: any }) => {
         if (data.roomId !== roomId) return;
         const safeTimeLeft = Number.isFinite(data.timeLeft) && data.timeLeft >= 0 ? data.timeLeft : 60;
 
@@ -267,13 +268,20 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
             isCurrentTurn: idx === data.currentPlayerIndex,
           }));
 
-          return {
+          const next: any = {
             ...prev,
             players: newPlayers,
             currentPlayerIndex: data.currentPlayerIndex,
             timeLeft: safeTimeLeft,
           };
+          if (data.creativeState) {
+            next.creativeState = { ...prev.creativeState, ...data.creativeState };
+          }
+          return next;
         });
+        if (data.creativeState?.itemPhase) {
+          setItemPhaseTimeLeft(data.creativeState.itemPhaseTimeLeft ?? 30);
+        }
 
         // 检查是否轮到自己
         setGameState(prev => {
@@ -285,6 +293,20 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
           }
           return prev;
         });
+      })
+    );
+
+    // 创意模式：creativeState 单独同步（如跳过道具阶段）
+    unsubscribers.push(
+      socketService.on('game:creativeState', (data: { roomId: string; creativeState: any }) => {
+        if (data.roomId !== roomId) return;
+        setGameState(prev => ({
+          ...prev,
+          creativeState: prev.creativeState ? { ...prev.creativeState, ...data.creativeState } : data.creativeState,
+        }));
+        if (data.creativeState?.itemPhase) {
+          setItemPhaseTimeLeft(data.creativeState.itemPhaseTimeLeft ?? 30);
+        }
       })
     );
 
@@ -440,6 +462,25 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     }
   }, [effectQueue, showingEffect]);
 
+  // 创意模式：道具阶段倒计时，结束时自动调用 skipItemPhase
+  const isItemPhase = !!gameState.creativeState?.itemPhase;
+  useEffect(() => {
+    if (!isItemPhase) {
+      setItemPhaseTimeLeft(0);
+      return;
+    }
+    const t = setInterval(() => {
+      setItemPhaseTimeLeft(prev => {
+        if (prev <= 1) {
+          socketService.skipItemPhase(roomId);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [isItemPhase, roomId]);
+
   // 选择拼图（本地操作）
   const selectPiece = useCallback((piece: Piece | null) => {
     if (piece) soundManager.selectPiece();
@@ -467,6 +508,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
   // 放置拼图（发送到服务器）
   const placePieceOnBoard = useCallback((position: Position): boolean => {
     if (!gameState.selectedPiece || !isMyTurn || isPaused) return false;
+    if (gameState.creativeState?.itemPhase) return false; // 道具阶段不能落子
 
     const myPlayerIndex = gameState.players.findIndex(p => p.id === myUserId);
     if (myPlayerIndex < 0) return false;
@@ -567,6 +609,11 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       soundManager.invalidMove();
     }
     return result;
+  }, [roomId]);
+
+  const skipItemPhase = useCallback(async () => {
+    const result = await socketService.skipItemPhase(roomId);
+    return result.success;
   }, [roomId]);
 
   // 判断当前玩家是否可以继续
@@ -672,6 +719,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     placePieceOnBoard,
     settlePlayer,
     doUseItemCard,
+    skipItemPhase,
     rotateSelectedPiece,
     flipSelectedPiece,
     thinkingAI,
@@ -685,5 +733,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     playerColorMap,
     currentTurnTime: gameState.timeLeft,
     showingEffect,
+    isItemPhase,
+    itemPhaseTimeLeft,
   };
 }

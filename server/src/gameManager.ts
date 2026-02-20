@@ -169,6 +169,9 @@ export class GameManager {
     if (!game) return { success: false, error: 'GAME_NOT_FOUND' };
     if (game.state.gamePhase !== 'playing') return { success: false, error: 'GAME_NOT_PLAYING' };
     if (game.isPaused) return { success: false, error: 'GAME_PAUSED' };
+    // 创意模式：道具阶段不能落子
+    const cs = game.state.creativeState;
+    if (cs?.itemPhase) return { success: false, error: 'IN_ITEM_PHASE' };
 
     const currentPlayer = game.players[game.state.currentPlayerIndex];
     if (currentPlayer.id !== playerId) return { success: false, error: 'NOT_YOUR_TURN' };
@@ -316,7 +319,14 @@ export class GameManager {
         cp.statusEffects = tickStatusEffects(cp.statusEffects);
       });
 
-      if (!extraTurn) this.advanceTurn(roomId);
+      if (extraTurn) {
+        // 额外回合：重置计时器，给满额时间
+        this.clearTurnTimer(roomId);
+        game.timeLeft = 0;
+        this.startTurnTimer(roomId);
+      } else {
+        this.advanceTurn(roomId);
+      }
     } else {
       this.advanceTurn(roomId);
     }
@@ -456,6 +466,13 @@ export class GameManager {
       }
     }
 
+    // 道具阶段结束，启动主计时器
+    if (cs.itemPhase) {
+      cs.itemPhase = false;
+      cs.itemPhaseTimeLeft = 0;
+      this.startTurnTimer(roomId);
+    }
+
     return {
       success: true,
       gameState: game.state,
@@ -463,6 +480,22 @@ export class GameManager {
       pieceIdRemoved,
       targetPlayerId,
     };
+  }
+
+  // 创意模式：跳过道具阶段
+  skipItemPhase(roomId: string, playerId: string): { success: boolean; error?: string } {
+    const game = this.games.get(roomId);
+    if (!game) return { success: false, error: 'GAME_NOT_FOUND' };
+    if (game.state.gamePhase !== 'playing') return { success: false, error: 'GAME_NOT_PLAYING' };
+    const cs = game.state.creativeState;
+    if (!cs || !cs.itemPhase) return { success: false, error: 'NOT_IN_ITEM_PHASE' };
+    const currentPlayer = game.players[game.state.currentPlayerIndex];
+    if (currentPlayer.id !== playerId) return { success: false, error: 'NOT_YOUR_TURN' };
+
+    cs.itemPhase = false;
+    cs.itemPhaseTimeLeft = 0;
+    this.startTurnTimer(roomId);
+    return { success: true };
   }
 
   // 切换到下一个活跃玩家
@@ -506,7 +539,22 @@ export class GameManager {
     game.state.turnCount++;
 
     this.checkAndProcessAITurn(roomId);
-    this.startTurnTimer(roomId);
+    // 仅人类回合启动主计时器；AI 回合不启动，避免倒计时连续不重置
+    const currentPlayer = game.players[game.state.currentPlayerIndex];
+    const hasHostedAI = !currentPlayer.isAI && currentPlayer.isOffline && game.hostedAIPlayers.has(currentPlayer.id);
+    if (!currentPlayer.isAI && !hasHostedAI) {
+      // 创意模式：人类有道具卡则先进入道具阶段，不启动主计时器
+      const cs = game.state.creativeState;
+      const cp = cs?.creativePlayers.find(p => p.playerId === currentPlayer.id);
+      const hasItemCards = cp && cp.itemCards && cp.itemCards.length > 0;
+      if (cs && hasItemCards) {
+        cs.itemPhase = true;
+        cs.itemPhaseTimeLeft = 30;
+        // 道具阶段由客户端计时，服务端不启动主计时器
+      } else {
+        this.startTurnTimer(roomId);
+      }
+    }
   }
 
   // 当前玩家超时，跳过本回合（不结算）
