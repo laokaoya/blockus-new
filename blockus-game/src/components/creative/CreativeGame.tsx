@@ -250,14 +250,8 @@ const getPlayerColorIndex = (color: string): number => {
   }
 };
 
-const CreativeGame: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const roomId = searchParams.get('roomId');
-  // 多人创意房间：交由 Game 组件渲染（复用 MultiplayerGameView）
-  if (roomId) {
-    return <Game />;
-  }
-
+// 本地单机创意模式（独立组件，保证 Hooks 调用顺序一致）
+const LocalCreativeGame: React.FC = () => {
   const {
     gameState, selectPiece, placePieceOnBoard, settlePlayer, resetGame,
     rotateSelectedPiece, flipSelectedPiece, thinkingAI, lastAIMove,
@@ -455,6 +449,16 @@ const CreativeGame: React.FC = () => {
       <GameRulesModal isOpen={showRulesModal} onClose={() => { setShowRulesModal(false); setPaused(false); }} mode="creative" />
     </>
   );
+};
+
+// 创意模式入口：多人房间用 Game，本地单机用 LocalCreativeGame
+const CreativeGame: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const roomId = searchParams.get('roomId');
+  if (roomId) {
+    return <Game />;
+  }
+  return <LocalCreativeGame />;
 };
 
 export default CreativeGame;

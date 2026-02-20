@@ -594,7 +594,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   });
 
   const { 
-    gameState, selectPiece, placePieceOnBoard, settlePlayer, useItemCard,
+    gameState, selectPiece, placePieceOnBoard, settlePlayer, doUseItemCard,
     rotateSelectedPiece, flipSelectedPiece, thinkingAI, lastAIMove,
     canPlayerContinue, isMyTurn, isPaused, myColor
   } = mp;
@@ -707,13 +707,13 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
     if (card.needsTarget) {
       setItemTargetSelection({ cardIndex, card });
     } else {
-      useItemCard(cardIndex);
+      doUseItemCard(cardIndex);
     }
   };
 
   const handleConfirmItemTarget = async (targetPlayerId: string) => {
     if (!itemTargetSelection) return;
-    const result = await useItemCard(itemTargetSelection.cardIndex, targetPlayerId);
+    const result = await doUseItemCard(itemTargetSelection.cardIndex, targetPlayerId);
     if (result.success) setItemTargetSelection(null);
   };
 

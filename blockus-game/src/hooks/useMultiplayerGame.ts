@@ -130,7 +130,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         moves: isStart ? [] : (data.gameState.moves || []),
         selectedPiece: null,
         selectedPiecePosition: null,
-        creativeState: data.gameState.creativeState,
+        creativeState: data.gameState.creativeState as GameState['creativeState'],
       }));
 
       setIsMyTurn(players[data.gameState.currentPlayerIndex]?.id === myUserId);
@@ -215,7 +215,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
             currentPlayerIndex: data.gameState.currentPlayerIndex,
             moves: [...prev.moves, data.move],
             turnCount: data.gameState.turnCount,
-            creativeState: data.gameState.creativeState ?? prev.creativeState,
+            creativeState: (data.gameState.creativeState ?? prev.creativeState) as GameState['creativeState'],
           };
         });
 
@@ -353,7 +353,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
           }
           return {
             ...prev,
-            creativeState: data.gameState.creativeState ?? prev.creativeState,
+            creativeState: (data.gameState.creativeState ?? prev.creativeState) as GameState['creativeState'],
             board: data.gameState.board,
             players: newPlayers,
           };
@@ -521,7 +521,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     socketService.settlePlayer(roomId);
   }, [roomId]);
 
-  const useItemCard = useCallback(async (cardIndex: number, targetPlayerId?: string) => {
+  const doUseItemCard = useCallback(async (cardIndex: number, targetPlayerId?: string) => {
     const result = await socketService.useItemCard(roomId, cardIndex, targetPlayerId);
     if (result.success) {
       soundManager.placePiece(); // 使用道具音效
@@ -633,7 +633,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     selectPiece,
     placePieceOnBoard,
     settlePlayer,
-    useItemCard,
+    doUseItemCard,
     rotateSelectedPiece,
     flipSelectedPiece,
     thinkingAI,
