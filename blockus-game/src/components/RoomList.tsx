@@ -1055,8 +1055,7 @@ const RoomList: React.FC = () => {
     try {
       const success = await joinRoom(room.id);
       if (success) {
-        const mode = room.gameMode || 'classic';
-        const path = mode === 'creative' ? '/creative' : '/game';
+        const path = room.gameMode === 'creative' ? '/creative' : '/game';
         navigate(`${path}?roomId=${room.id}`, { state: { showTransition: true } });
       } else {
         alert(t('game.resumeFailed') || '回到游戏失败，请重试');

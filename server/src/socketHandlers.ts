@@ -493,7 +493,8 @@ export function setupSocketHandlers(
                timeLeft: room?.gameSettings.turnTimeLimit || 60,
              });
           }
-        }
+        },
+        room.gameMode || 'classic',
       );
 
       roomManager.setGameStarted(data.roomId);
@@ -614,6 +615,33 @@ export function setupSocketHandlers(
           roomManager.setGameFinished(data.roomId);
         }
       }
+    });
+
+    // 创意模式：使用道具卡
+    socket.on('game:useItemCard', (data, callback) => {
+      if (!socket.data.userId) {
+        return callback({ success: false, error: 'NOT_AUTHENTICATED' });
+      }
+
+      const result = gameManager.useItemCard(
+        data.roomId,
+        socket.data.userId,
+        data.cardIndex,
+        data.targetPlayerId
+      );
+
+      if (!result.success) {
+        return callback({ success: false, error: result.error });
+      }
+
+      callback({ success: true });
+      io.to(data.roomId).emit('game:itemUsed', {
+        roomId: data.roomId,
+        gameState: result.gameState!,
+        pieceIdUnused: result.pieceIdUnused,
+        pieceIdRemoved: result.pieceIdRemoved,
+        targetPlayerId: result.targetPlayerId,
+      });
     });
 
     // 玩家结算

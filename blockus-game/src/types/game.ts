@@ -1,5 +1,7 @@
 // 游戏核心数据类型定义
 
+import type { SpecialTile } from './creative';
+
 export type PlayerColor = 'red' | 'yellow' | 'blue' | 'green';
 
 export type PieceType = 1 | 2 | 3 | 4 | 5;
@@ -21,6 +23,8 @@ export interface Player {
   isSettled: boolean;
   isCurrentTurn: boolean;
   isAI?: boolean;
+  /** 断线离线，托管 AI 代打中 */
+  isOffline?: boolean;
 }
 
 export interface GameMove {
@@ -35,6 +39,22 @@ export interface GameMove {
   timestamp: number;
 }
 
+// 创意模式状态（多人时由服务端下发）
+export interface CreativeStateInGame {
+  specialTiles: SpecialTile[];
+  creativePlayers: Array<{
+    playerId: string;
+    color: string;
+    itemCards: any[];
+    statusEffects: any[];
+    bonusScore: number;
+  }>;
+  itemPhase: boolean;
+  itemPhaseTimeLeft: number;
+  pendingEffect: any;
+  lastTriggeredTile: any;
+}
+
 export interface GameState {
   board: number[][]; // 0=空, 1=红, 2=黄, 3=蓝, 4=绿
   players: Player[];
@@ -46,6 +66,7 @@ export interface GameState {
   selectedPiecePosition: { x: number; y: number } | null;
   turnCount: number; // 当前回合数
   moves: GameMove[]; // 游戏移动记录
+  creativeState?: CreativeStateInGame; // 创意模式专用
 }
 
 export interface Position {

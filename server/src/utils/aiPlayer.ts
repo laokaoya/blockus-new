@@ -3,6 +3,8 @@
 import { Piece, Position, PlayerColor } from '../types';
 import { canPlacePiece } from './gameEngine';
 import { getUniqueTransformations } from './pieceTransformations';
+import { overlapsBarrier, pieceCellCount } from './creativeModeEngine';
+import type { SpecialTile } from './creativeTypes';
 
 export class AIPlayer {
   private color: PlayerColor;
@@ -31,6 +33,71 @@ export class AIPlayer {
     return colorMap[color];
   }
   
+  /** 创意模式落子：过滤屏障格、big_piece_ban 限制 */
+  public makeMoveCreative(
+    board: number[][],
+    pieces: Piece[],
+    specialTiles: SpecialTile[],
+    hasBigPieceBan: boolean,
+  ): { piece: Piece; position: Position } | null {
+    let availablePieces = pieces.filter(p => !p.isUsed);
+    if (hasBigPieceBan) {
+      availablePieces = availablePieces.filter(p => pieceCellCount(p.shape) <= 4);
+    }
+    if (availablePieces.length === 0) return null;
+
+    const pieceTypes = [...new Set(availablePieces.map(p => p.type))].sort((a, b) => b - a);
+    for (const pieceType of pieceTypes) {
+      const piecesOfType = availablePieces.filter(p => p.type === pieceType);
+      const scoredPieces = piecesOfType.map(piece => {
+        const transformations = getUniqueTransformations(piece);
+        let bestScore = -Infinity;
+        let bestMove: { piece: Piece; position: Position } | null = null;
+        for (const transformedPiece of transformations) {
+          const position = this.findBestPositionCreative(board, transformedPiece, specialTiles);
+          if (position) {
+            const score = this.evaluatePosition(board, transformedPiece, position);
+            if (score > bestScore) {
+              bestScore = score;
+              bestMove = { piece: transformedPiece, position };
+            }
+          }
+        }
+        return { piece, score: bestScore, bestMove };
+      }).filter(item => item.bestMove !== null);
+
+      if (scoredPieces.length === 0) continue;
+      scoredPieces.sort((a, b) => b.score - a.score);
+      const topChoices = scoredPieces.slice(0, Math.min(3, scoredPieces.length));
+      const idx = this.difficulty === 'hard' ? 0 : this.getWeightedRandomIndex(topChoices.map(c => c.score));
+      return topChoices[idx].bestMove;
+    }
+    return null;
+  }
+
+  private findBestPositionCreative(
+    board: number[][],
+    piece: Piece,
+    specialTiles: SpecialTile[],
+  ): Position | null {
+    const positions: Position[] = [];
+    for (let y = 0; y < board.length; y++) {
+      for (let x = 0; x < board[y].length; x++) {
+        if (canPlacePiece(board, piece, { x, y }, this.colorIndex) &&
+            !overlapsBarrier(piece.shape, { x, y }, specialTiles)) {
+          positions.push({ x, y });
+        }
+      }
+    }
+    if (positions.length === 0) return null;
+    const scored = positions.map(pos => ({
+      position: pos,
+      score: this.evaluatePosition(board, piece, pos),
+    }));
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0].position;
+  }
+
   // AI的主要决策函数
   public makeMove(board: number[][], pieces: Piece[]): { piece: Piece; position: Position } | null {
     const availablePieces = pieces.filter(p => !p.isUsed);

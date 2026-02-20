@@ -423,16 +423,13 @@ const GameRoom: React.FC = () => {
   useEffect(() => {
     const unsubscribe = socketService.on('game:started', (data: { roomId: string }) => {
       if (data.roomId === params.roomId || data.roomId === currentRoom?.id) {
-        const mode = targetRoom?.gameMode || 'classic';
-        if (mode === 'creative') {
-          navigate(`/creative?roomId=${data.roomId}`, { state: { showTransition: true } });
-        } else {
-          navigate(`/game?roomId=${data.roomId}`, { state: { showTransition: true } });
-        }
+        const room = currentRoom || rooms.find(r => r.id === data.roomId);
+        const path = room?.gameMode === 'creative' ? '/creative' : '/game';
+        navigate(`${path}?roomId=${data.roomId}`, { state: { showTransition: true } });
       }
     });
     return () => unsubscribe();
-  }, [params.roomId, currentRoom?.id, navigate, targetRoom?.gameMode]);
+  }, [params.roomId, currentRoom, rooms, navigate]);
 
   useEffect(() => {
     if (targetRoom && user) {
@@ -442,12 +439,8 @@ const GameRoom: React.FC = () => {
       if (targetRoom.status === 'playing') {
         const isPlayer = targetRoom.players.some(p => p.id === user.profile.id);
         if (isPlayer) {
-          const mode = targetRoom.gameMode || 'classic';
-          if (mode === 'creative') {
-            navigate(`/creative?roomId=${targetRoom.id}`, { replace: true });
-          } else {
-            navigate(`/game?roomId=${targetRoom.id}`, { replace: true });
-          }
+          const path = targetRoom.gameMode === 'creative' ? '/creative' : '/game';
+          navigate(`${path}?roomId=${targetRoom.id}`, { replace: true });
         }
       }
       return;
@@ -522,12 +515,8 @@ const GameRoom: React.FC = () => {
       try {
         const success = await startGame(targetRoom.id);
         if (success) {
-          const mode = targetRoom.gameMode || 'classic';
-          if (mode === 'creative') {
-            navigate(`/creative?roomId=${targetRoom.id}`, { state: { showTransition: true } });
-          } else {
-            navigate(`/game?roomId=${targetRoom.id}`, { state: { showTransition: true } });
-          }
+          const path = targetRoom.gameMode === 'creative' ? '/creative' : '/game';
+          navigate(`${path}?roomId=${targetRoom.id}`, { state: { showTransition: true } });
         } else {
           alert(t('gameRoom.startFailed') || '开始游戏失败，请确认房间满4人且所有玩家已准备');
         }

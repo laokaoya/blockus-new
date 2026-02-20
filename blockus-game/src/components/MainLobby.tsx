@@ -315,12 +315,13 @@ const MainLobby: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { user, isAuthenticated } = useAuth();
-  const { currentRoom } = useRoom();
+  const { currentRoom, createRoom, addAI, setReady, startGame, isOnline } = useRoom();
   
   const [userStats, setUserStats] = useState<UserStats>({
     totalGames: 0, totalWins: 0, totalScore: 0, winRate: 0, bestScore: 0,
   });
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  const [isQuickStarting, setIsQuickStarting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -341,27 +342,84 @@ const MainLobby: React.FC = () => {
   useEffect(() => {
     if (currentRoom && currentRoom.id) {
       if (currentRoom.status === 'playing') {
-        navigate(`/game?roomId=${currentRoom.id}`);
+        const path = currentRoom.gameMode === 'creative' ? '/creative' : '/game';
+        navigate(`${path}?roomId=${currentRoom.id}`);
       } else {
         navigate(`/room/${currentRoom.id}`);
       }
     }
   }, [currentRoom, navigate]);
 
-  const handleQuickClassic = () => {
+  const handleQuickClassic = async () => {
     soundManager.buttonClick();
-    localStorage.setItem('gameSettings', JSON.stringify({
-      aiDifficulty: 'medium', timeLimit: 60, showHints: true, soundEnabled: true,
-    }));
-    navigate('/game', { state: { showTransition: true } });
+    if (!user || isQuickStarting) return;
+    const settings = { aiDifficulty: 'medium' as const, timeLimit: 60, showHints: true, soundEnabled: true };
+    localStorage.setItem('gameSettings', JSON.stringify(settings));
+    if (!isOnline) {
+      navigate('/game', { state: { showTransition: true } });
+      return;
+    }
+    setIsQuickStarting(true);
+    try {
+      const room = await createRoom(
+        `${user.profile.nickname} · 经典单机房`,
+        undefined,
+        { turnTimeLimit: settings.timeLimit, aiDifficulty: settings.aiDifficulty, privateRoom: false },
+        'classic'
+      );
+      if (!room) throw new Error('创建失败');
+      await addAI(room.id, settings.aiDifficulty);
+      await addAI(room.id, settings.aiDifficulty);
+      await addAI(room.id, settings.aiDifficulty);
+      await setReady(room.id, true);
+      const ok = await startGame(room.id);
+      if (ok) {
+        navigate(`/game?roomId=${room.id}`, { state: { showTransition: true } });
+      } else {
+        navigate(`/room/${room.id}`, { state: { showTransition: true } });
+      }
+    } catch (e) {
+      console.error('快捷开始失败:', e);
+      alert(t('gameRoom.startFailed') || '开始游戏失败，请重试');
+    } finally {
+      setIsQuickStarting(false);
+    }
   };
 
-  const handleQuickCreative = () => {
+  const handleQuickCreative = async () => {
     soundManager.buttonClick();
-    localStorage.setItem('gameSettings', JSON.stringify({
-      aiDifficulty: 'medium', timeLimit: 60, showHints: true, soundEnabled: true,
-    }));
-    navigate('/creative', { state: { showTransition: true } });
+    if (!user || isQuickStarting) return;
+    const settings = { aiDifficulty: 'medium' as const, timeLimit: 60, showHints: true, soundEnabled: true };
+    localStorage.setItem('gameSettings', JSON.stringify(settings));
+    if (!isOnline) {
+      navigate('/creative', { state: { showTransition: true } });
+      return;
+    }
+    setIsQuickStarting(true);
+    try {
+      const room = await createRoom(
+        `${user.profile.nickname} · 创意单机房`,
+        undefined,
+        { turnTimeLimit: settings.timeLimit, aiDifficulty: settings.aiDifficulty, privateRoom: false },
+        'creative'
+      );
+      if (!room) throw new Error('创建失败');
+      await addAI(room.id, settings.aiDifficulty);
+      await addAI(room.id, settings.aiDifficulty);
+      await addAI(room.id, settings.aiDifficulty);
+      await setReady(room.id, true);
+      const ok = await startGame(room.id);
+      if (ok) {
+        navigate(`/creative?roomId=${room.id}`, { state: { showTransition: true } });
+      } else {
+        navigate(`/room/${room.id}`, { state: { showTransition: true } });
+      }
+    } catch (e) {
+      console.error('快捷开始失败:', e);
+      alert(t('gameRoom.startFailed') || '开始游戏失败，请重试');
+    } finally {
+      setIsQuickStarting(false);
+    }
   };
 
   return (
@@ -403,11 +461,13 @@ const MainLobby: React.FC = () => {
             <ActionCard 
               $gradient="linear-gradient(135deg, #6366f1, #a855f7)"
               onClick={handleQuickClassic}
-              onMouseEnter={() => soundManager.buttonHover()}
+              onMouseEnter={() => !isQuickStarting && soundManager.buttonHover()}
+              disabled={isQuickStarting}
+              style={{ opacity: isQuickStarting ? 0.7 : 1, cursor: isQuickStarting ? 'wait' : 'pointer' }}
             >
               <RocketIcon />
               <ActionText>
-                <ActionLabel>{t('lobby.classicMode')}</ActionLabel>
+                <ActionLabel>{isQuickStarting ? (t('common.loading') || '加载中...') : t('lobby.classicMode')}</ActionLabel>
                 <ActionSub>{t('lobby.quickMatch')}</ActionSub>
               </ActionText>
             </ActionCard>
@@ -415,11 +475,13 @@ const MainLobby: React.FC = () => {
             <ActionCard 
               $gradient="linear-gradient(135deg, #f59e0b, #f97316)"
               onClick={handleQuickCreative}
-              onMouseEnter={() => soundManager.buttonHover()}
+              onMouseEnter={() => !isQuickStarting && soundManager.buttonHover()}
+              disabled={isQuickStarting}
+              style={{ opacity: isQuickStarting ? 0.7 : 1, cursor: isQuickStarting ? 'wait' : 'pointer' }}
             >
               <RocketIcon />
               <ActionText>
-                <ActionLabel>{t('lobby.creativeMode')}</ActionLabel>
+                <ActionLabel>{isQuickStarting ? (t('common.loading') || '加载中...') : t('lobby.creativeMode')}</ActionLabel>
                 <ActionSub>{t('lobby.newGameplay')}</ActionSub>
               </ActionText>
             </ActionCard>

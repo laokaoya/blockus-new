@@ -1,6 +1,14 @@
 import { GameState, GameMove, PlayerColor, RoomPlayer, Piece } from './types';
+import { GameMode } from './types';
 import { AIPlayer } from './utils/aiPlayer';
 import { PIECE_SHAPES, PIECE_COUNTS } from './constants/pieces';
+import {
+  generateSpecialTiles, initCreativePlayerStates, findTriggeredTiles,
+  resolveEffect, rollGoldEffect, rollPurpleEffect, rollRedEffect,
+  rollItemCard, addItemCard, tickStatusEffects, overlapsBarrier, pieceCellCount,
+  findTerritoryExpansionCell, resolveItemCard,
+} from './utils/creativeModeEngine';
+import type { CreativeGameState, CreativePlayerState, SpecialTile } from './utils/creativeTypes';
 
 const BOARD_SIZE = 20;
 const PLAYER_COLORS: PlayerColor[] = ['red', 'yellow', 'blue', 'green'];
@@ -13,16 +21,16 @@ interface ActiveGame {
   colorPlayerMap: Record<string, string>;
   playerPieces: Record<string, Piece[]>;
   aiPlayers: Map<string, AIPlayer>;
-  /** 托管 AI：断线人类玩家由 AI 暂时代管，key 为被托管的人类 playerId */
   hostedAIPlayers: Map<string, AIPlayer>;
   turnTimer: NodeJS.Timeout | null;
   turnTimeLimit: number;
-  isPaused: boolean; // 单机模式人类断线时暂停
+  isPaused: boolean;
   onTurnTimeout: (roomId: string) => void;
   onTimeUpdate: (roomId: string, timeLeft: number) => void;
   onAIMove: (roomId: string, move: GameMove, gameState: GameState) => void;
   onAISettle: (roomId: string, playerId: string) => void;
   timeoutCounts: Record<string, number>;
+  gameMode: GameMode;
 }
 
 export class GameManager {
@@ -36,7 +44,8 @@ export class GameManager {
     onTurnTimeout: (roomId: string) => void,
     onTimeUpdate: (roomId: string, timeLeft: number) => void,
     onAIMove: (roomId: string, move: GameMove, gameState: GameState) => void,
-    onAISettle: (roomId: string, playerId: string) => void
+    onAISettle: (roomId: string, playerId: string) => void,
+    gameMode: GameMode = 'classic',
   ): { gameState: GameState; playerColors: Record<string, PlayerColor> } {
     const normalizedTurnTimeLimit =
       Number.isFinite(turnTimeLimit) && turnTimeLimit > 0 ? turnTimeLimit : 60;
@@ -76,10 +85,25 @@ export class GameManager {
       settledPlayers: [],
     };
 
-    // 初始化分数
     players.forEach(p => {
       gameState.playerScores[p.id] = 0;
     });
+
+    // 创意模式：生成特殊格、初始化创意玩家状态
+    if (gameMode === 'creative') {
+      const specialTiles = generateSpecialTiles();
+      const creativePlayers = initCreativePlayerStates(
+        players.map(p => ({ id: p.id, color: playerColorMap[p.id] }))
+      );
+      gameState.creativeState = {
+        specialTiles,
+        creativePlayers,
+        itemPhase: false,
+        itemPhaseTimeLeft: 0,
+        pendingEffect: null,
+        lastTriggeredTile: null,
+      };
+    }
 
     const game: ActiveGame = {
       roomId,
@@ -98,6 +122,7 @@ export class GameManager {
       onAIMove,
       onAISettle,
       timeoutCounts,
+      gameMode,
     };
 
     this.games.set(roomId, game);
@@ -135,41 +160,141 @@ export class GameManager {
     const game = this.games.get(roomId);
     if (!game) return { success: false, error: 'GAME_NOT_FOUND' };
     if (game.state.gamePhase !== 'playing') return { success: false, error: 'GAME_NOT_PLAYING' };
+    if (game.isPaused) return { success: false, error: 'GAME_PAUSED' };
 
-    // 验证是否轮到该玩家
     const currentPlayer = game.players[game.state.currentPlayerIndex];
     if (currentPlayer.id !== playerId) return { success: false, error: 'NOT_YOUR_TURN' };
 
-    // 标记拼图为已使用
-    // 注意：如果是 AI 移动，move.pieceId 应该是有效的
-    // 如果是客户端移动，我们需要根据 move 中的信息找到对应的拼图并标记
-    // 这里简化处理：假设 move 中包含 pieceId，或者我们信任客户端
-    // 为了更严谨，我们应该在 GameMove 中包含 pieceId（已添加）
-    
     const pieces = game.playerPieces[playerId];
-    if (pieces) {
-      // 这里的 pieceId 匹配逻辑需要确保客户端发送正确的 ID
-      // 客户端发送的 move 应该包含 pieceId
-      // 让我们检查 types.ts 中的 GameMove 定义... 包含了 pieceId
-      const pieceIndex = pieces.findIndex(p => p.id === move.pieceId);
-      if (pieceIndex !== -1) {
-        pieces[pieceIndex].isUsed = true;
+    const piece = pieces?.find(p => p.id === move.pieceId);
+    if (!piece) return { success: false, error: 'INVALID_PIECE' };
+
+    // 创意模式：屏障、big_piece_ban 校验
+    const cs = game.state.creativeState;
+    if (cs) {
+      if (overlapsBarrier(piece.shape, move.position, cs.specialTiles)) {
+        return { success: false, error: 'BARRIER_BLOCKED' };
+      }
+      const cp = cs.creativePlayers.find(p => p.playerId === playerId);
+      const hasBigBan = cp?.statusEffects.some(e => e.type === 'big_piece_ban' && e.remainingTurns > 0);
+      if (hasBigBan && pieceCellCount(piece.shape) > 4) {
+        return { success: false, error: 'BIG_PIECE_BANNED' };
       }
     }
+
+    const pieceIndex = pieces!.findIndex(p => p.id === move.pieceId);
+    if (pieceIndex !== -1) pieces![pieceIndex].isUsed = true;
 
     // 应用落子
     move.boardChanges.forEach(change => {
       game.state.board[change.y][change.x] = change.color;
     });
 
-    // 更新分数
-    game.state.playerScores[playerId] = (game.state.playerScores[playerId] || 0) + move.boardChanges.length;
-
-    // 记录移动
+    let baseScore = move.boardChanges.length;
+    if (cs) {
+      const curCp = cs.creativePlayers.find(p => p.playerId === playerId);
+      if (curCp?.statusEffects.some(e => e.type === 'next_double' && e.remainingTurns > 0)) {
+        baseScore *= 2;
+      }
+      if (curCp?.statusEffects.some(e => e.type === 'half_score' && e.remainingTurns > 0)) {
+        baseScore = Math.floor(baseScore / 2);
+      }
+    }
+    game.state.playerScores[playerId] = (game.state.playerScores[playerId] || 0) + baseScore;
     game.state.moves.push(move);
 
-    // 切换到下一个玩家
-    this.advanceTurn(roomId);
+    // 创意模式：处理触发格效果
+    let extraTurn = false;
+    if (cs) {
+      const triggered = findTriggeredTiles(piece.shape, move.position, cs.specialTiles);
+      const allPlayers: { id: string; color: PlayerColor; score: number }[] = game.players.map(p => ({
+        id: p.id,
+        color: game.playerColorMap[p.id]!,
+        score: game.state.playerScores[p.id] || 0,
+      }));
+
+      const curCp = cs.creativePlayers.find(p => p.playerId === playerId)!;
+      for (const tile of triggered) {
+        tile.used = true;
+        const hasPurpleUpgrade = curCp.statusEffects.some((e: { type: string; remainingTurns: number }) => e.type === 'purple_upgrade' && e.remainingTurns > 0);
+        const effect = tile.type === 'gold' ? rollGoldEffect()
+          : tile.type === 'purple' ? rollPurpleEffect(!!hasPurpleUpgrade)
+          : tile.type === 'red' ? rollRedEffect() : null;
+        if (!effect) continue;
+
+        const result = resolveEffect(effect.id, {
+          id: playerId,
+          color: currentPlayer.color!,
+          score: game.state.playerScores[playerId] || 0,
+        }, allPlayers, curCp);
+
+        if (result.scoreChange) {
+          const newScore = Math.max(0, (game.state.playerScores[playerId] || 0) + result.scoreChange);
+          game.state.playerScores[playerId] = newScore;
+        }
+        if (result.grantItemCard) {
+          const card = rollItemCard();
+          curCp.itemCards = addItemCard(curCp.itemCards, card);
+        }
+        if (result.extraTurn) extraTurn = true;
+        if (result.newStatusEffects) {
+          curCp.statusEffects.push(...result.newStatusEffects);
+        }
+        if (result.undoLastMove) {
+          move.boardChanges.forEach(c => { game.state.board[c.y][c.x] = 0; });
+          game.state.playerScores[playerId] = Math.max(0, (game.state.playerScores[playerId] || 0) - baseScore);
+          if (pieceIndex !== -1) pieces![pieceIndex].isUsed = false;
+          game.state.moves.pop();
+          return { success: true, gameState: game.state };
+        }
+        if (result.territoryExpand) {
+          const colorIdx = PLAYER_COLORS.indexOf(currentPlayer.color!) + 1;
+          const cell = findTerritoryExpansionCell(game.state.board, colorIdx);
+          if (cell) {
+            game.state.board[cell.y][cell.x] = colorIdx;
+            game.state.playerScores[playerId] = (game.state.playerScores[playerId] || 0) + 1;
+          }
+        }
+        if (result.removePiece === 'largest' || result.removePiece === 'random') {
+          const unused = pieces!.filter(p => !p.isUsed);
+          if (unused.length > 0) {
+            const toRemove = result.removePiece === 'largest'
+              ? unused.reduce((a, b) => pieceCellCount(a.shape) >= pieceCellCount(b.shape) ? a : b)
+              : unused[Math.floor(Math.random() * unused.length)];
+            toRemove.isUsed = true;
+          }
+        }
+        if (result.setAllScoresToAverage) {
+          const scores = game.players.map(p => game.state.playerScores[p.id] || 0);
+          const avg = Math.floor(scores.reduce((a, b) => a + b, 0) / scores.length);
+          game.players.forEach(p => { game.state.playerScores[p.id] = avg; });
+        }
+        if (result.swapScoreWithHighest) {
+          const sorted = [...game.players].sort((a, b) =>
+            (game.state.playerScores[b.id] || 0) - (game.state.playerScores[a.id] || 0));
+          const highest = sorted[0];
+          if (highest && highest.id !== playerId) {
+            const myScore = game.state.playerScores[playerId] || 0;
+            const hisScore = game.state.playerScores[highest.id] || 0;
+            game.state.playerScores[playerId] = hisScore;
+            game.state.playerScores[highest.id] = myScore;
+          }
+        }
+        if (result.globalBonus) {
+          const placedCount = game.state.board.flat().filter(c => c === PLAYER_COLORS.indexOf(currentPlayer.color!) + 1).length;
+          game.state.playerScores[playerId] = (game.state.playerScores[playerId] || 0) + placedCount;
+        }
+      }
+
+      // tick 状态效果
+      cs.creativePlayers.forEach(cp => {
+        cp.statusEffects = tickStatusEffects(cp.statusEffects);
+      });
+
+      if (!extraTurn) this.advanceTurn(roomId);
+    } else {
+      this.advanceTurn(roomId);
+    }
 
     return { success: true, gameState: game.state };
   }
@@ -179,6 +304,7 @@ export class GameManager {
   settlePlayer(roomId: string, playerId: string): { success: boolean; gameState?: GameState; isGameOver: boolean } {
     const game = this.games.get(roomId);
     if (!game) return { success: false, isGameOver: false };
+    if (game.isPaused) return { success: false, isGameOver: false };
 
     if (!game.state.settledPlayers.includes(playerId)) {
       game.state.settledPlayers.push(playerId);
@@ -204,6 +330,116 @@ export class GameManager {
     return { success: true, gameState: game.state, isGameOver: false };
   }
 
+  // 创意模式：使用道具卡
+  useItemCard(
+    roomId: string,
+    playerId: string,
+    cardIndex: number,
+    targetPlayerId?: string
+  ): { success: boolean; error?: string; gameState?: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string } {
+    const game = this.games.get(roomId);
+    if (!game) return { success: false, error: 'GAME_NOT_FOUND' };
+    if (game.state.gamePhase !== 'playing') return { success: false, error: 'GAME_NOT_PLAYING' };
+    if (game.isPaused) return { success: false, error: 'GAME_PAUSED' };
+    if (game.gameMode !== 'creative') return { success: false, error: 'NOT_CREATIVE' };
+
+    const cs = game.state.creativeState;
+    if (!cs) return { success: false, error: 'NO_CREATIVE_STATE' };
+
+    const currentPlayer = game.players[game.state.currentPlayerIndex];
+    if (currentPlayer.id !== playerId) return { success: false, error: 'NOT_YOUR_TURN' };
+
+    const selfCp = cs.creativePlayers.find(p => p.playerId === playerId);
+    if (!selfCp) return { success: false, error: 'INVALID_PLAYER' };
+
+    const card = selfCp.itemCards[cardIndex];
+    if (!card) return { success: false, error: 'INVALID_CARD' };
+
+    if (card.needsTarget) {
+      if (!targetPlayerId || targetPlayerId === playerId) return { success: false, error: 'INVALID_TARGET' };
+      if (game.state.settledPlayers.includes(targetPlayerId)) return { success: false, error: 'TARGET_SETTLED' };
+      if (!game.players.some(p => p.id === targetPlayerId)) return { success: false, error: 'TARGET_NOT_FOUND' };
+    }
+
+    const selfPlayerLike = { id: playerId, color: currentPlayer.color!, score: game.state.playerScores[playerId] || 0 };
+    const targetPlayer = game.players.find(p => p.id === targetPlayerId);
+    const targetCp = targetPlayerId ? cs.creativePlayers.find(p => p.playerId === targetPlayerId) : null;
+    const targetPlayerLike = targetPlayer
+      ? { id: targetPlayer.id, color: targetPlayer.color!, score: game.state.playerScores[targetPlayer.id] || 0 }
+      : null;
+
+    const result = resolveItemCard(card.cardType, selfPlayerLike, targetPlayerLike, selfCp, targetCp);
+
+    // 移除使用的道具卡
+    selfCp.itemCards = selfCp.itemCards.filter((_, i) => i !== cardIndex);
+
+    // 应用效果
+    if (result.selfScoreChange) {
+      game.state.playerScores[playerId] = Math.max(0, (game.state.playerScores[playerId] || 0) + result.selfScoreChange);
+    }
+    if (result.targetScoreChange && targetPlayerId) {
+      game.state.playerScores[targetPlayerId] = Math.max(0, (game.state.playerScores[targetPlayerId] || 0) + result.targetScoreChange);
+    }
+    if (result.selfStatusEffects?.length) {
+      selfCp.statusEffects.push(...result.selfStatusEffects);
+    }
+    if (result.targetStatusEffects?.length && targetCp) {
+      targetCp.statusEffects.push(...result.targetStatusEffects);
+    }
+
+    let pieceIdUnused: string | undefined;
+    let pieceIdRemoved: string | undefined;
+
+    if (result.targetRemovePiece === 'largest' && targetPlayerId) {
+      const pieces = game.playerPieces[targetPlayerId];
+      if (pieces) {
+        const unused = pieces.filter(p => !p.isUsed);
+        if (unused.length > 0) {
+          const largest = unused.reduce((a, b) => pieceCellCount(a.shape) >= pieceCellCount(b.shape) ? a : b);
+          pieceIdRemoved = largest.id;
+          const idx = pieces.findIndex(p => p.id === largest.id);
+          if (idx !== -1) pieces[idx].isUsed = true;
+        }
+      }
+    }
+
+    if (result.targetUndoLastMove && targetPlayerId) {
+      const moves = game.state.moves;
+      for (let i = moves.length - 1; i >= 0; i--) {
+        if (moves[i].playerColor === game.playerColorMap[targetPlayerId]) {
+          const m = moves[i];
+          pieceIdUnused = m.pieceId;
+          m.boardChanges.forEach(c => { game.state.board[c.y][c.x] = 0; });
+          const piece = game.playerPieces[targetPlayerId]?.find(p => p.id === m.pieceId);
+          if (piece) {
+            const pieceIdx = game.playerPieces[targetPlayerId]!.findIndex(p => p.id === m.pieceId);
+            if (pieceIdx !== -1) game.playerPieces[targetPlayerId]![pieceIdx].isUsed = false;
+          }
+          game.state.playerScores[targetPlayerId] = Math.max(0, (game.state.playerScores[targetPlayerId] || 0) - m.boardChanges.length);
+          game.state.moves.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    if (result.transferDebuff && targetPlayerId && targetCp) {
+      const negTypes = ['half_score', 'skip_turn', 'time_pressure', 'big_piece_ban'];
+      const toTransfer = selfCp.statusEffects.find(e => negTypes.includes(e.type));
+      if (toTransfer) {
+        selfCp.statusEffects = selfCp.statusEffects.filter(e => e !== toTransfer);
+        targetCp.statusEffects.push({ ...toTransfer });
+      }
+    }
+
+    return {
+      success: true,
+      gameState: game.state,
+      pieceIdUnused,
+      pieceIdRemoved,
+      targetPlayerId,
+    };
+  }
+
   // 切换到下一个活跃玩家
   private advanceTurn(roomId: string): void {
     const game = this.games.get(roomId);
@@ -214,17 +450,27 @@ export class GameManager {
     let nextIndex = (game.state.currentPlayerIndex + 1) % game.players.length;
     let attempts = 0;
 
-    // 跳过已结算的玩家
     while (attempts < game.players.length) {
       const nextPlayer = game.players[nextIndex];
       if (!game.state.settledPlayers.includes(nextPlayer.id)) {
+        // 创意模式：检查 skip_turn
+        const cs = game.state.creativeState;
+        if (cs) {
+          const cp = cs.creativePlayers.find(p => p.playerId === nextPlayer.id);
+          const skipEffect = cp?.statusEffects.find(e => e.type === 'skip_turn' && e.remainingTurns > 0);
+          if (skipEffect) {
+            cp.statusEffects = tickStatusEffects(cp.statusEffects);
+            nextIndex = (nextIndex + 1) % game.players.length;
+            attempts++;
+            continue;
+          }
+        }
         break;
       }
       nextIndex = (nextIndex + 1) % game.players.length;
       attempts++;
     }
 
-    // 如果所有玩家都结算了
     if (attempts >= game.players.length) {
       game.state.gamePhase = 'finished';
       return;
@@ -233,10 +479,7 @@ export class GameManager {
     game.state.currentPlayerIndex = nextIndex;
     game.state.turnCount++;
 
-    // 检查是否是 AI 回合
     this.checkAndProcessAITurn(roomId);
-
-    // 启动下一个玩家的回合计时
     this.startTurnTimer(roomId);
   }
 
@@ -271,7 +514,16 @@ export class GameManager {
           if (game.state.gamePhase !== 'playing' || game.players[game.state.currentPlayerIndex].id !== currentPlayer.id) return;
 
           const pieces = game.playerPieces[currentPlayer.id];
-          const moveResult = aiPlayer.makeMove(game.state.board, pieces);
+          const moveResult = game.gameMode === 'creative' && game.state.creativeState
+            ? aiPlayer.makeMoveCreative(
+                game.state.board,
+                pieces,
+                game.state.creativeState.specialTiles,
+                game.state.creativeState.creativePlayers
+                  .find(p => p.playerId === currentPlayer.id)
+                  ?.statusEffects.some(e => e.type === 'big_piece_ban' && e.remainingTurns > 0) ?? false,
+              )
+            : aiPlayer.makeMove(game.state.board, pieces);
 
           if (moveResult) {
             // 构建 GameMove

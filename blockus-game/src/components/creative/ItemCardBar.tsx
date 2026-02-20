@@ -255,7 +255,10 @@ const ItemCardBar: React.FC<ItemCardBarProps> = ({
       {/* 目标选择面板 */}
       {targetSelection && (
         <TargetPanel>
-          <TargetTitle>选择目标 — {targetSelection.card.name}</TargetTitle>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+            <TargetTitle>选择目标 — {targetSelection.card.name}</TargetTitle>
+            <SkipButton onClick={onSkipPhase}>取消</SkipButton>
+          </div>
           <TargetList>
             {opponents.map(p => (
               <TargetButton key={p.id} $color={p.color} onClick={() => onConfirmTarget(p.id)}>

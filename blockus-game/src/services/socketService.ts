@@ -5,6 +5,22 @@ const SERVER_URL = process.env.REACT_APP_SERVER_URL || (
   process.env.NODE_ENV === 'production' ? window.location.origin : 'http://localhost:3001'
 );
 
+// 创意模式状态（与服务端 creativeTypes 一致）
+export interface ServerCreativeState {
+  specialTiles: Array<{ x: number; y: number; type: string; used: boolean }>;
+  creativePlayers: Array<{
+    playerId: string;
+    color: string;
+    itemCards: any[];
+    statusEffects: any[];
+    bonusScore: number;
+  }>;
+  itemPhase: boolean;
+  itemPhaseTimeLeft: number;
+  pendingEffect: any;
+  lastTriggeredTile: any;
+}
+
 // 服务端游戏状态（精简版）
 export interface ServerGameState {
   board: number[][];
@@ -14,6 +30,7 @@ export interface ServerGameState {
   moves: any[];
   playerScores: Record<string, number>;
   settledPlayers: string[];
+  creativeState?: ServerCreativeState;
 }
 
 export interface GameRanking {
@@ -175,6 +192,10 @@ class SocketService {
 
   settlePlayer(roomId: string): Promise<{ success: boolean; error?: string }> {
     return this.emitWithCallback('game:settle', { roomId });
+  }
+
+  useItemCard(roomId: string, cardIndex: number, targetPlayerId?: string): Promise<{ success: boolean; error?: string }> {
+    return this.emitWithCallback('game:useItemCard', { roomId, cardIndex, targetPlayerId });
   }
 
   spectateGame(roomId: string): Promise<{ success: boolean; error?: string }> {

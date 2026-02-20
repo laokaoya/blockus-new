@@ -5,6 +5,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { GameState, Player, Piece, Position, PlayerColor, GameMove } from '../types/game';
 import { PIECE_SHAPES, PIECE_COUNTS } from '../constants/pieces';
 import { canPlacePiece } from '../utils/gameEngine';
+import { overlapsBarrier } from '../utils/creativeModeEngine';
 import { rotatePiece, flipPiece } from '../utils/pieceTransformations';
 import socketService, { ServerGameState, GameRanking } from '../services/socketService';
 import soundManager from '../utils/soundManager';
@@ -129,6 +130,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         moves: isStart ? [] : (data.gameState.moves || []),
         selectedPiece: null,
         selectedPiecePosition: null,
+        creativeState: data.gameState.creativeState,
       }));
 
       setIsMyTurn(players[data.gameState.currentPlayerIndex]?.id === myUserId);
@@ -213,6 +215,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
             currentPlayerIndex: data.gameState.currentPlayerIndex,
             moves: [...prev.moves, data.move],
             turnCount: data.gameState.turnCount,
+            creativeState: data.gameState.creativeState ?? prev.creativeState,
           };
         });
 
@@ -320,6 +323,44 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       })
     );
 
+    // 创意模式：道具使用
+    unsubscribers.push(
+      socketService.on('game:itemUsed', (data: {
+        roomId: string; gameState: ServerGameState;
+        pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string;
+      }) => {
+        if (data.roomId !== roomId) return;
+        setGameState(prev => {
+          let newPlayers = prev.players.map(p => ({
+            ...p,
+            score: data.gameState.playerScores[p.id] ?? p.score,
+          }));
+          // 同步 targetUndoLastMove：目标玩家的棋子恢复未使用
+          if (data.pieceIdUnused && data.targetPlayerId) {
+            newPlayers = newPlayers.map(p =>
+              p.id === data.targetPlayerId
+                ? { ...p, pieces: p.pieces.map(pc => pc.id === data.pieceIdUnused ? { ...pc, isUsed: false } : pc) }
+                : p
+            );
+          }
+          // 同步 targetRemovePiece：目标玩家的棋子标记为已使用
+          if (data.pieceIdRemoved && data.targetPlayerId) {
+            newPlayers = newPlayers.map(p =>
+              p.id === data.targetPlayerId
+                ? { ...p, pieces: p.pieces.map(pc => pc.id === data.pieceIdRemoved ? { ...pc, isUsed: true } : pc) }
+                : p
+            );
+          }
+          return {
+            ...prev,
+            creativeState: data.gameState.creativeState ?? prev.creativeState,
+            board: data.gameState.board,
+            players: newPlayers,
+          };
+        });
+      })
+    );
+
     // 单机模式暂停/恢复
     unsubscribers.push(
       socketService.on('game:paused', (data: { roomId: string }) => {
@@ -329,6 +370,30 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     unsubscribers.push(
       socketService.on('game:resumed', (data: { roomId: string }) => {
         if (data.roomId === roomId) setIsPaused(false);
+      })
+    );
+
+    // 多人模式：玩家离线/上线（托管 AI 代打 / 移除托管）
+    unsubscribers.push(
+      socketService.on('room:playerOffline', (data: { roomId: string; playerId: string }) => {
+        if (data.roomId !== roomId) return;
+        setGameState(prev => ({
+          ...prev,
+          players: prev.players.map(p =>
+            p.id === data.playerId ? { ...p, isOffline: true } : p
+          ),
+        }));
+      })
+    );
+    unsubscribers.push(
+      socketService.on('room:playerOnline', (data: { roomId: string; playerId: string }) => {
+        if (data.roomId !== roomId) return;
+        setGameState(prev => ({
+          ...prev,
+          players: prev.players.map(p =>
+            p.id === data.playerId ? { ...p, isOffline: false } : p
+          ),
+        }));
       })
     );
 
@@ -363,7 +428,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
 
   // 放置拼图（发送到服务器）
   const placePieceOnBoard = useCallback((position: Position): boolean => {
-    if (!gameState.selectedPiece || !isMyTurn) return false;
+    if (!gameState.selectedPiece || !isMyTurn || isPaused) return false;
 
     const myPlayerIndex = gameState.players.findIndex(p => p.id === myUserId);
     if (myPlayerIndex < 0) return false;
@@ -371,6 +436,12 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     const colorIndex = COLOR_ORDER.indexOf(myColor) + 1;
 
     if (!canPlacePiece(gameState.board, gameState.selectedPiece, position, colorIndex)) {
+      soundManager.invalidMove();
+      return false;
+    }
+    // 创意模式：禁止放置到屏障格
+    const specialTiles = gameState.creativeState?.specialTiles;
+    if (specialTiles?.length && overlapsBarrier(gameState.selectedPiece.shape, position, specialTiles)) {
       soundManager.invalidMove();
       return false;
     }
@@ -400,13 +471,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
 
     soundManager.placePiece();
 
-    // 发送到服务器
-    socketService.sendMove(roomId, move).then(result => {
-      if (!result.success) {
-        console.error('Move rejected by server:', result.error);
-      }
-    });
-
+    const prevState = gameState;
     // 乐观更新：立即应用到本地
     setGameState(prev => {
       const newBoard = prev.board.map(row => [...row]);
@@ -438,13 +503,32 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       };
     });
 
+    // 发送到服务器，失败时回滚
+    socketService.sendMove(roomId, move).then(result => {
+      if (!result.success) {
+        console.error('Move rejected by server:', result.error);
+        soundManager.invalidMove();
+        setGameState(prevState);
+      }
+    });
+
     return true;
-  }, [gameState, isMyTurn, myUserId, myColor, roomId]);
+  }, [gameState, isMyTurn, isPaused, myUserId, myColor, roomId]);
 
   // 结算（发送到服务器）
   const settlePlayer = useCallback(() => {
     soundManager.settle();
     socketService.settlePlayer(roomId);
+  }, [roomId]);
+
+  const useItemCard = useCallback(async (cardIndex: number, targetPlayerId?: string) => {
+    const result = await socketService.useItemCard(roomId, cardIndex, targetPlayerId);
+    if (result.success) {
+      soundManager.placePiece(); // 使用道具音效
+    } else {
+      soundManager.invalidMove();
+    }
+    return result;
   }, [roomId]);
 
   // 判断当前玩家是否可以继续
@@ -457,19 +541,20 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
 
     const colorIndex = COLOR_ORDER.indexOf(myColor) + 1;
     
+    const specialTiles = gameState.creativeState?.specialTiles;
     return myPlayer.pieces
       .filter(p => !p.isUsed)
       .some(piece => {
         for (let y = 0; y < BOARD_SIZE; y++) {
           for (let x = 0; x < BOARD_SIZE; x++) {
             if (canPlacePiece(gameState.board, piece, { x, y }, colorIndex)) {
-              return true;
+              if (!specialTiles?.length || !overlapsBarrier(piece.shape, { x, y }, specialTiles)) return true;
             }
           }
         }
         return false;
       });
-  }, [gameState.board, gameState.players, myUserId, myColor]);
+  }, [gameState.board, gameState.players, gameState.creativeState?.specialTiles, myUserId, myColor]);
 
   // 自动检测当前玩家是否可以继续，如果不能则自动结算
   useEffect(() => {
@@ -486,14 +571,14 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       if (!myPlayer) return;
 
       const colorIndex = COLOR_ORDER.indexOf(myColor) + 1;
+      const specialTiles = gameState.creativeState?.specialTiles;
       const canContinue = myPlayer.pieces
         .filter(p => !p.isUsed)
         .some(piece => {
-          // 遍历棋盘所有位置尝试放置
           for (let y = 0; y < BOARD_SIZE; y++) {
             for (let x = 0; x < BOARD_SIZE; x++) {
               if (canPlacePiece(gameState.board, piece, { x, y }, colorIndex)) {
-                return true;
+                if (!specialTiles?.length || !overlapsBarrier(piece.shape, { x, y }, specialTiles)) return true;
               }
             }
           }
@@ -548,6 +633,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     selectPiece,
     placePieceOnBoard,
     settlePlayer,
+    useItemCard,
     rotateSelectedPiece,
     flipSelectedPiece,
     thinkingAI,

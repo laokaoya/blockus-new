@@ -10,7 +10,9 @@ import GameOver from './GameOver';
 import GameRulesModal from './GameRulesModal';
 import ChatBox from './ChatBox';
 import { Position, Piece } from '../types/game';
+import type { SpecialTile } from '../types/creative';
 import { canPlacePiece } from '../utils/gameEngine';
+import { overlapsBarrier } from '../utils/creativeModeEngine';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,6 +20,8 @@ import { useRoom } from '../contexts/RoomContext';
 import soundManager from '../utils/soundManager';
 import socketService from '../services/socketService';
 import { BookIcon, SettingsIcon, RotateIcon, FlipIcon, EyeIcon } from './Icons';
+import ItemCardBar from './creative/ItemCardBar';
+import type { ItemCard, CreativePlayerState } from '../types/creative';
 
 // --- Responsive Layout Components ---
 
@@ -321,6 +325,34 @@ const PausedOverlay = styled.div`
   padding: 20px;
 `;
 
+const PauseOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  color: var(--text-primary);
+  padding: 24px;
+  text-align: center;
+`;
+
+const PauseTitle = styled.div`
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--primary-color);
+`;
+
+const PauseDesc = styled.div`
+  font-size: 1rem;
+  color: var(--text-secondary);
+  max-width: 320px;
+`;
+
 const SpectatorBadge = styled.div`
   position: fixed;
   top: 70px;
@@ -501,6 +533,7 @@ const SinglePlayerGame: React.FC = () => {
                 onRotate={rotateSelectedPiece}
                 onFlip={flipSelectedPiece}
                 lastAIMove={lastAIMove}
+                specialTiles={gameState.creativeState?.specialTiles as SpecialTile[] | undefined}
               />
             </BoardArea>
 
@@ -561,12 +594,15 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   });
 
   const { 
-    gameState, selectPiece, placePieceOnBoard, settlePlayer,
+    gameState, selectPiece, placePieceOnBoard, settlePlayer, useItemCard,
     rotateSelectedPiece, flipSelectedPiece, thinkingAI, lastAIMove,
     canPlayerContinue, isMyTurn, isPaused, myColor
   } = mp;
 
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
+  const [itemTargetSelection, setItemTargetSelection] = useState<{ cardIndex: number; card: ItemCard } | null>(null);
+
+  const myCreative = gameState.creativeState?.creativePlayers.find(c => c.playerId === user?.profile.id);
   
   // 找到自己的 player 对象
   const myPlayer = gameState.players.find(p => p.id === user?.profile.id);
@@ -625,25 +661,34 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   
   const handlePieceCancel = () => { if (!isSpectateMode) selectPiece(null); };
   
+  const canPlaceAt = (position: Position) => {
+    if (!gameState.selectedPiece) return false;
+    const ok = canPlacePiece(gameState.board, gameState.selectedPiece, position, getPlayerColorIndex(myColor));
+    if (!ok) return false;
+    const specialTiles = gameState.creativeState?.specialTiles;
+    if (specialTiles?.length && overlapsBarrier(gameState.selectedPiece.shape, position, specialTiles)) return false;
+    return true;
+  };
+
   const handleBoardClick = (position: Position) => {
     if (!isSpectateMode && isMyTurn && gameState.selectedPiece) {
-      if (canPlacePiece(gameState.board, gameState.selectedPiece, position, getPlayerColorIndex(myColor))) {
+      if (canPlaceAt(position)) {
         soundManager.placePiece();
+        placePieceOnBoard(position);
       } else {
         soundManager.invalidMove();
       }
-      placePieceOnBoard(position);
     }
   };
   
   const handlePiecePlace = (position: Position) => {
     if (!isSpectateMode && isMyTurn && gameState.selectedPiece) {
-      if (canPlacePiece(gameState.board, gameState.selectedPiece, position, getPlayerColorIndex(myColor))) {
+      if (canPlaceAt(position)) {
         soundManager.placePiece();
+        placePieceOnBoard(position);
       } else {
         soundManager.invalidMove();
       }
-      placePieceOnBoard(position);
     }
   };
   
@@ -653,6 +698,23 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
       soundManager.settle();
       settlePlayer(); 
     }
+  };
+
+  const handleUseItemCard = (cardIndex: number) => {
+    if (isSpectateMode || !isMyTurn || !myCreative) return;
+    const card = myCreative.itemCards[cardIndex];
+    if (!card) return;
+    if (card.needsTarget) {
+      setItemTargetSelection({ cardIndex, card });
+    } else {
+      useItemCard(cardIndex);
+    }
+  };
+
+  const handleConfirmItemTarget = async (targetPlayerId: string) => {
+    if (!itemTargetSelection) return;
+    const result = await useItemCard(itemTargetSelection.cardIndex, targetPlayerId);
+    if (result.success) setItemTargetSelection(null);
   };
 
   useEffect(() => {
@@ -743,6 +805,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
                 onRotate={rotateSelectedPiece}
                 onFlip={flipSelectedPiece}
                 lastAIMove={lastAIMove}
+                specialTiles={gameState.creativeState?.specialTiles as SpecialTile[] | undefined}
               />
             </BoardArea>
             
@@ -783,8 +846,29 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
             </PieceLibraryWrapper>
           </BottomDock>
 
+          {/* 创意模式道具卡栏 */}
+          {gameState.creativeState && myCreative && (
+            <ItemCardBar
+              creativePlayer={myCreative as CreativePlayerState}
+              isItemPhase={isMyTurn && !isSpectateMode && myCreative.itemCards.length > 0 && !itemTargetSelection}
+              itemPhaseTimeLeft={0}
+              players={gameState.players}
+              currentPlayerId={myPlayer?.id ?? ''}
+              onUseCard={handleUseItemCard}
+              onSkipPhase={() => setItemTargetSelection(null)}
+              targetSelection={itemTargetSelection}
+              onConfirmTarget={handleConfirmItemTarget}
+            />
+          )}
+
           {isSpectateMode && (
             <SpectatorBadge><EyeIcon /> {t('room.spectate') || '观战模式'}</SpectatorBadge>
+          )}
+          {isPaused && (
+            <PauseOverlay>
+              <PauseTitle>{t('game.paused') || '游戏已暂停'}</PauseTitle>
+              <PauseDesc>{t('game.pausedReconnect') || '玩家已离开，请返回大厅后点击「回到游戏」继续'}</PauseDesc>
+            </PauseOverlay>
           )}
           <ChatBox />
         </GameContainer>

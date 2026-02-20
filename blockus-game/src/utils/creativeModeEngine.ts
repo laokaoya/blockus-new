@@ -397,6 +397,24 @@ export function findTriggeredTiles(
   return triggered;
 }
 
+/** 检查落子是否与屏障格重叠 */
+export function overlapsBarrier(
+  shape: number[][],
+  position: { x: number; y: number },
+  specialTiles: SpecialTile[],
+): boolean {
+  const barriers = specialTiles.filter(t => t.type === 'barrier');
+  for (let dy = 0; dy < shape.length; dy++) {
+    for (let dx = 0; dx < shape[dy].length; dx++) {
+      if (shape[dy][dx] !== 1) continue;
+      const bx = position.x + dx;
+      const by = position.y + dy;
+      if (barriers.some(t => t.x === bx && t.y === by)) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * 领地扩张：在己方棋子对角方向找一个空位放置 1×1 方块
  * 返回放置的坐标，失败返回 null

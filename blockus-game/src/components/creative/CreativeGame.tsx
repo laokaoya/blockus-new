@@ -1,6 +1,8 @@
-// 创意模式游戏界面
+// 创意模式游戏界面（本地单机 + 多人服务端）
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import Game from '../Game';
 import styled, { keyframes } from 'styled-components';
 import { useCreativeGameState } from '../../hooks/useCreativeGameState';
 import GameBoard from '../GameBoard';
@@ -14,7 +16,6 @@ import ItemCardBar from './ItemCardBar';
 import EventLog from './EventLog';
 import { Position, Piece } from '../../types/game';
 import { canPlacePiece } from '../../utils/gameEngine';
-import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import soundManager from '../../utils/soundManager';
 import { BookIcon, SettingsIcon, RotateIcon, FlipIcon } from '../Icons';
@@ -250,6 +251,13 @@ const getPlayerColorIndex = (color: string): number => {
 };
 
 const CreativeGame: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const roomId = searchParams.get('roomId');
+  // 多人创意房间：交由 Game 组件渲染（复用 MultiplayerGameView）
+  if (roomId) {
+    return <Game />;
+  }
+
   const {
     gameState, selectPiece, placePieceOnBoard, settlePlayer, resetGame,
     rotateSelectedPiece, flipSelectedPiece, thinkingAI, lastAIMove,

@@ -363,6 +363,7 @@ export class RoomManager {
     if (room) {
       room.status = 'playing';
       room.lastActivityAt = Date.now();
+      room.lastActiveHumanAt = Date.now(); // 初始化，用于 120 秒无活跃真人则销毁
     }
   }
 

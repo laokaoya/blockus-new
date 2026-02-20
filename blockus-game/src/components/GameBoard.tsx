@@ -5,6 +5,7 @@ import styled, { keyframes, css } from 'styled-components';
 import { GameState, Position } from '../types/game';
 import { SpecialTile, SpecialTileType } from '../types/creative';
 import { canPlacePiece } from '../utils/gameEngine';
+import { overlapsBarrier } from '../utils/creativeModeEngine';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface GameBoardProps {
@@ -292,7 +293,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
     if (!selectedPiece) return false;
     
     const colorIndex = currentPlayerIndex + 1;
-    return canPlacePiece(board, selectedPiece, { x, y }, colorIndex);
+    if (!canPlacePiece(board, selectedPiece, { x, y }, colorIndex)) return false;
+    // 创意模式：禁止放置到屏障格
+    if (specialTiles?.length && overlapsBarrier(selectedPiece.shape, { x, y }, specialTiles)) return false;
+    return true;
   };
   
   // 开始拖拽（仅桌面端鼠标）

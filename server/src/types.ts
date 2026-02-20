@@ -81,6 +81,8 @@ export interface GameState {
   moves: GameMove[];
   playerScores: Record<string, number>;
   settledPlayers: string[];
+  /** 创意模式专用状态（gameMode=creative 时存在） */
+  creativeState?: import('./utils/creativeTypes').CreativeGameState;
 }
 
 // JWT payload
@@ -106,6 +108,7 @@ export interface ServerToClientEvents {
   'game:started': (data: { roomId: string; gameState: GameState; playerColors: Record<string, PlayerColor>; playerNames: Record<string, string> }) => void;
   'game:state': (data: { roomId: string; gameState: GameState; playerColors: Record<string, PlayerColor>; playerNames: Record<string, string>; isPaused?: boolean }) => void;
   'game:move': (data: { roomId: string; move: GameMove; gameState: GameState }) => void;
+  'game:itemUsed': (data: { roomId: string; gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string }) => void;
   'game:turnChanged': (data: { roomId: string; currentPlayerIndex: number; timeLeft: number }) => void;
   'game:playerSettled': (data: { roomId: string; playerId: string }) => void;
   'game:finished': (data: { roomId: string; gameState: GameState; rankings: Array<{ playerId: string; nickname: string; color: PlayerColor; score: number; rank: number }> }) => void;
@@ -139,6 +142,7 @@ export interface ClientToServerEvents {
   'game:start': (data: { roomId: string }, callback: (response: { success: boolean; error?: string }) => void) => void;
   'game:getState': (data: { roomId: string }) => void;
   'game:move': (data: { roomId: string; move: GameMove }, callback: (response: { success: boolean; error?: string }) => void) => void;
+  'game:useItemCard': (data: { roomId: string; cardIndex: number; targetPlayerId?: string }, callback: (response: { success: boolean; error?: string }) => void) => void;
   'game:settle': (data: { roomId: string }, callback: (response: { success: boolean; error?: string }) => void) => void;
   'game:spectate': (data: { roomId: string }, callback: (response: { success: boolean; error?: string }) => void) => void;
 }

@@ -142,12 +142,13 @@ const PlayerName = styled.div`
   }
 `;
 
-const PlayerStatus = styled.div<{ $isCurrentTurn: boolean; $isSettled: boolean; $isThinking: boolean }>`
+const PlayerStatus = styled.div<{ $isCurrentTurn: boolean; $isSettled: boolean; $isThinking: boolean; $isOffline?: boolean }>`
   font-size: 13px;
   color: ${props => {
     if (props.$isThinking) return '#ff4444';
     if (props.$isCurrentTurn) return '#FF9800';
     if (props.$isSettled) return '#4CAF50';
+    if (props.$isOffline) return '#9CA3AF';
     return 'var(--text-secondary)';
   }};
   display: flex;
@@ -279,6 +280,7 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({
   const [viewingPlayer, setViewingPlayer] = useState<Player | null>(null);
 
   const getStatusText = (player: Player): string => {
+    if (player.isOffline) return t('game.offlineHosted') || '离线，托管 AI 代打中';
     if (player.isSettled) return t('game.settled');
     if (player.isCurrentTurn) return t('game.currentTurn');
     return t('game.waiting');
@@ -314,6 +316,7 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({
                   $isCurrentTurn={player.isCurrentTurn}
                   $isSettled={player.isSettled}
                   $isThinking={thinkingAI === player.color}
+                  $isOffline={player.isOffline}
                 >
                   {thinkingAI === player.color ? t('game.thinking') : getStatusText(player)}
                 </PlayerStatus>
