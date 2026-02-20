@@ -106,7 +106,7 @@ const SlideTrack = styled.div<{ $offset: number }>`
 
 const Slide = styled.div`
   min-width: 100%;
-  padding: 20px 24px 24px;
+  padding: 16px 24px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -114,15 +114,18 @@ const Slide = styled.div`
   box-sizing: border-box;
 
   &::-webkit-scrollbar { width: 3px; }
-  &::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+  &::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 4px; }
+
+  @media (max-width: 768px) {
+    padding: 12px 16px 16px;
+  }
 `;
 
 const SlideVisual = styled.div`
   width: 100%;
-  aspect-ratio: 4 / 3;
-  max-height: 280px;
+  min-height: 120px;
   border-radius: 14px;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -142,10 +145,11 @@ const SlideTitle = styled.div`
 
 const SlideDesc = styled.div`
   font-size: 0.88rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   line-height: 1.6;
   text-align: center;
   max-width: 400px;
+  opacity: 0.85;
 `;
 
 const NavRow = styled.div`
@@ -258,7 +262,7 @@ const TileName = styled.div<{ $color: string }>`
 
 const TileDesc = styled.div`
   font-size: 0.78rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   line-height: 1.4;
 `;
 
@@ -441,45 +445,39 @@ const KbdStyle: React.CSSProperties = {
 };
 
 const ControlsDiagram: React.FC = () => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 360 }}>
-    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 2 }}>🖱️ 鼠标 / 👆 触屏</div>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 360 }}>
+    <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 600, marginBottom: 2 }}>🖱️ 鼠标 / 👆 触屏</div>
     <div style={{
-      display: 'flex', flexDirection: 'column', gap: 8,
-      padding: '10px 14px', borderRadius: 10,
+      display: 'flex', flexDirection: 'column', gap: 6,
+      padding: '8px 12px', borderRadius: 10,
       background: 'var(--surface-highlight)',
       border: '1px solid var(--surface-border)',
     }}>
       {[
-        { label: '选择拼图', desc: '点击底部拼图库中的拼图块' },
-        { label: '放置拼图', desc: '点击棋盘目标位置，或拖拽到目标位置松手' },
-        { label: '右键旋转', desc: '鼠标右键点击棋盘可快速旋转' },
+        { label: '选择', desc: '点击底部拼图库' },
+        { label: '放置', desc: '点击或拖拽到棋盘' },
+        { label: '旋转', desc: '右键点击棋盘' },
       ].map((item, i) => (
-        <div key={i} style={{ display: 'flex', gap: 8, fontSize: '0.84rem' }}>
-          <span style={{ color: 'var(--primary-color)', fontWeight: 600, minWidth: 64, flexShrink: 0 }}>{item.label}</span>
-          <span style={{ color: 'var(--text-secondary)' }}>{item.desc}</span>
+        <div key={i} style={{ display: 'flex', gap: 6, fontSize: '0.82rem' }}>
+          <span style={{ color: 'var(--primary-color)', fontWeight: 700, minWidth: 40, flexShrink: 0 }}>{item.label}</span>
+          <span style={{ color: 'var(--text-primary)' }}>{item.desc}</span>
         </div>
       ))}
     </div>
-    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4, marginBottom: 2 }}>⌨️ 键盘快捷键</div>
+    <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 600, marginTop: 2, marginBottom: 2 }}>⌨️ 键盘快捷键</div>
     <div style={{
-      display: 'flex', flexDirection: 'column', gap: 8,
-      padding: '10px 14px', borderRadius: 10,
+      display: 'flex', flexDirection: 'column', gap: 6,
+      padding: '8px 12px', borderRadius: 10,
       background: 'var(--surface-highlight)',
       border: '1px solid var(--surface-border)',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.84rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem' }}>
         <span style={KbdStyle}>→</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>或底部</span>
-        <span style={{ fontSize: '1rem' }}>⟳</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>按钮</span>
-        <span style={{ marginLeft: 'auto', color: 'var(--text-secondary)', fontWeight: 500 }}>旋转 90°</span>
+        <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>旋转 90°</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.84rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem' }}>
         <span style={KbdStyle}>Shift</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>或底部</span>
-        <span style={{ fontSize: '1rem' }}>↔</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>按钮</span>
-        <span style={{ marginLeft: 'auto', color: 'var(--text-secondary)', fontWeight: 500 }}>水平翻转</span>
+        <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>水平翻转</span>
       </div>
     </div>
   </div>
@@ -534,8 +532,8 @@ const ItemCardsVisual: React.FC = () => (
         border: '1px solid var(--surface-border)',
       }}>
         <span style={{ fontSize: '1.1rem' }}>{card.icon}</span>
-        <span style={{ color: '#a5b4fc', fontWeight: 600, fontSize: '0.85rem', minWidth: 40 }}>{card.name}</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{card.desc}</span>
+        <span style={{ color: 'var(--primary-color)', fontWeight: 700, fontSize: '0.85rem', minWidth: 40 }}>{card.name}</span>
+        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{card.desc}</span>
       </div>
     ))}
   </div>

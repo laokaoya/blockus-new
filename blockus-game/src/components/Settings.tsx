@@ -236,7 +236,8 @@ const Select = styled.select`
   }
 
   option {
-    background: #1e293b;
+    background: var(--surface-color);
+    color: var(--text-primary);
   }
 `;
 
@@ -414,7 +415,7 @@ const Settings: React.FC = () => {
             <SectionTitle>{t('settings.sound')}</SectionTitle>
             
             <SettingItem>
-              <SettingLabel>{t('settings.sound')}: {settings.soundEnabled ? t('settings.on') : t('settings.off')}</SettingLabel>
+              <SettingLabel>{t('settings.sound')}</SettingLabel>
               <ToggleSwitch>
                 <ToggleInput
                   type="checkbox"
@@ -426,7 +427,7 @@ const Settings: React.FC = () => {
             </SettingItem>
 
             <SettingItem>
-              <SettingLabel>{t('settings.music')}: {settings.musicEnabled ? t('settings.on') : t('settings.off')}</SettingLabel>
+              <SettingLabel>{t('settings.music')}</SettingLabel>
               <ToggleSwitch>
                 <ToggleInput
                   type="checkbox"
@@ -435,34 +436,6 @@ const Settings: React.FC = () => {
                 />
                 <ToggleSlider />
               </ToggleSwitch>
-            </SettingItem>
-
-            <SettingItem>
-              <SettingLabel>{t('settings.sound')} {t('settings.volume')}: {settings.soundVolume}%</SettingLabel>
-              <VolumeSlider>
-                <Slider
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={settings.soundVolume}
-                  onChange={(e) => handleVolumeChange('soundVolume', parseInt(e.target.value))}
-                />
-                <VolumeValue>{settings.soundVolume}%</VolumeValue>
-              </VolumeSlider>
-            </SettingItem>
-
-            <SettingItem>
-              <SettingLabel>{t('settings.music')} {t('settings.volume')}: {settings.musicVolume}%</SettingLabel>
-              <VolumeSlider>
-                <Slider
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={settings.musicVolume}
-                  onChange={(e) => handleVolumeChange('musicVolume', parseInt(e.target.value))}
-                />
-                <VolumeValue>{settings.musicVolume}%</VolumeValue>
-              </VolumeSlider>
             </SettingItem>
           </SettingsCard>
         </LeftPanel>
