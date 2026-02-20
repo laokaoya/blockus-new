@@ -368,7 +368,7 @@ export class GameManager {
       ? { id: targetPlayer.id, color: targetPlayer.color!, score: game.state.playerScores[targetPlayer.id] || 0 }
       : null;
 
-    const result = resolveItemCard(card.cardType, selfPlayerLike, targetPlayerLike, selfCp, targetCp);
+    const result = resolveItemCard(card.cardType, selfPlayerLike, targetPlayerLike, selfCp, targetCp ?? null);
 
     // 移除使用的道具卡
     selfCp.itemCards = selfCp.itemCards.filter((_, i) => i !== cardIndex);
@@ -458,7 +458,7 @@ export class GameManager {
         if (cs) {
           const cp = cs.creativePlayers.find(p => p.playerId === nextPlayer.id);
           const skipEffect = cp?.statusEffects.find(e => e.type === 'skip_turn' && e.remainingTurns > 0);
-          if (skipEffect) {
+          if (skipEffect && cp) {
             cp.statusEffects = tickStatusEffects(cp.statusEffects);
             nextIndex = (nextIndex + 1) % game.players.length;
             attempts++;
