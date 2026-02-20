@@ -383,23 +383,30 @@ const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   // ===== 触摸事件处理（移动端） =====
-  const touchToBoardPos = (touch: React.Touch, grid: Element): Position | null => {
+  const TOUCH_Y_OFFSET_PX = 80;
+  const touchDragActive = useRef(false);
+
+  const touchToBoardPos = (touch: React.Touch, grid: Element, applyOffset: boolean): Position | null => {
     const rect = grid.getBoundingClientRect();
-    const x = Math.floor((touch.clientX - rect.left) / (rect.width / 20));
-    const y = Math.floor((touch.clientY - rect.top) / (rect.height / 20));
-    if (x >= 0 && x < 20 && y >= 0 && y < 20) return { x, y };
-    return null;
+    const cellSize = rect.width / 20;
+    const rawX = (touch.clientX - rect.left) / cellSize;
+    const rawY = (touch.clientY - rect.top - (applyOffset ? TOUCH_Y_OFFSET_PX : 0)) / cellSize;
+    const x = Math.max(0, Math.min(19, Math.floor(rawX)));
+    const y = Math.max(0, Math.min(19, Math.floor(rawY)));
+    if (rawX < -1 || rawX > 21 || rawY < -2 || rawY > 21) return null;
+    return { x, y };
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!selectedPiece || e.touches.length !== 1) return;
+    e.preventDefault();
     isTouchActiveRef.current = true;
-    // 重置被兼容性鼠标事件污染的拖拽状态
+    touchDragActive.current = false;
     if (dragMode !== 'none') {
       setDragMode('none');
       setIsDragging(false);
     }
-    const pos = touchToBoardPos(e.touches[0], e.currentTarget);
+    const pos = touchToBoardPos(e.touches[0], e.currentTarget, true);
     if (pos) {
       setHoverPosition(pos);
     }
@@ -407,7 +414,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!selectedPiece || e.touches.length !== 1) return;
-    const pos = touchToBoardPos(e.touches[0], e.currentTarget);
+    e.preventDefault();
+    touchDragActive.current = true;
+    const pos = touchToBoardPos(e.touches[0], e.currentTarget, true);
     if (pos) {
       setHoverPosition(pos);
     }
@@ -415,14 +424,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (!selectedPiece || !hoverPosition) {
-      // 延迟清除触摸标记，覆盖浏览器兼容性 mouse 事件窗口
       setTimeout(() => { isTouchActiveRef.current = false; }, 400);
+      touchDragActive.current = false;
       return;
     }
     if (canPlaceAt(hoverPosition.x, hoverPosition.y)) {
       onPiecePlace(hoverPosition);
     }
     setHoverPosition(null);
+    touchDragActive.current = false;
     setTimeout(() => { isTouchActiveRef.current = false; }, 400);
   };
   

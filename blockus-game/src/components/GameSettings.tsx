@@ -245,10 +245,10 @@ const ToggleSlider = styled.span`
     width: 26px;
     left: 3px;
     bottom: 3px;
-    background-color: white;
+    background-color: var(--bg-color);
     transition: 0.4s;
     border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
   }
 `;
 

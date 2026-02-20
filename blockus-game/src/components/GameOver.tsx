@@ -121,7 +121,6 @@ const Title = styled.h1`
   background: linear-gradient(to bottom, var(--text-primary), var(--primary-color));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
   line-height: 1;
   
   @media (max-width: 768px) {
@@ -211,7 +210,7 @@ const AvatarWrapper = styled.div<{ color: string; rank: number }>`
   font-weight: bold;
   color: white;
   box-shadow: 0 0 ${props => props.rank === 1 ? '40px' : '25px'} ${props => PLAYER_COLORS[props.color]};
-  border: 4px solid rgba(255, 255, 255, 0.3);
+  border: 4px solid var(--surface-border);
   margin-bottom: 15px;
   position: relative;
   z-index: 2;
@@ -221,8 +220,8 @@ const AvatarWrapper = styled.div<{ color: string; rank: number }>`
     content: '${props => props.rank}';
     position: absolute;
     bottom: -8px;
-    background: #0f172a;
-    color: white;
+    background: var(--surface-color);
+    color: var(--text-primary);
     width: 28px;
     height: 28px;
     border-radius: 50%;
@@ -308,7 +307,7 @@ const PlayerName = styled.div`
   font-family: 'Orbitron', sans-serif;
   font-size: 1.1rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
@@ -323,9 +322,8 @@ const PlayerName = styled.div`
 
 const PlayerScoreLarge = styled.div`
   font-size: 1.4rem;
-  color: var(--primary-color);
+  color: var(--text-primary);
   font-weight: 800;
-  text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
   
   @media (max-width: 768px) {
     font-size: 1.2rem;
@@ -575,10 +573,10 @@ const GameOver: React.FC<GameOverProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 padding: '12px 20px',
-                background: 'rgba(255, 255, 255, 0.05)',
+                background: 'var(--surface-highlight)',
                 borderRadius: '8px',
                 marginBottom: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
+                border: '1px solid var(--surface-border)'
               }}>
                 <div style={{ 
                   fontFamily: "'Orbitron', sans-serif", 
@@ -590,8 +588,8 @@ const GameOver: React.FC<GameOverProps> = ({
                   width: '28px', height: '28px', borderRadius: '50%',
                   background: PLAYER_COLORS[player.color], marginRight: '15px'
                 }} />
-                <div style={{ flex: 1, fontWeight: 600, color: 'white' }}>{player.name}</div>
-                <div style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 700, color: 'white' }}>
+                <div style={{ flex: 1, fontWeight: 600, color: 'var(--text-primary)' }}>{player.name}</div>
+                <div style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 700, color: 'var(--text-primary)' }}>
                   {player.score} PTS
                 </div>
               </div>

@@ -117,7 +117,7 @@ const CardSlot = styled.button<{ $cardType: ItemCardId }>`
   
   &:hover {
     transform: translateY(-5px) scale(1.05);
-    border-color: white;
+    border-color: var(--text-primary);
     box-shadow: 0 0 20px ${props => getCardColor(props.$cardType)}40;
   }
   

@@ -69,7 +69,7 @@ const CloseButton = styled.button`
   transition: color 0.2s;
 
   &:hover {
-    color: white;
+    color: var(--text-primary);
   }
 `;
 
@@ -85,10 +85,10 @@ const MessagesArea = styled.div`
     width: 4px;
   }
   &::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--surface-highlight);
   }
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-border);
     border-radius: 2px;
   }
 `;
@@ -195,10 +195,10 @@ const ToggleButton = styled.button<{ isOpen: boolean; hasUnread: boolean }>`
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--surface-color);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
+  border: 1px solid var(--surface-border);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;

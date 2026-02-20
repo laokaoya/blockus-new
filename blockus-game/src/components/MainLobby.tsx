@@ -84,8 +84,8 @@ const SidebarIcon = styled.button<{ $active?: boolean }>`
   svg { width: 24px; height: 24px; }
   
   &:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: white;
+    background: var(--surface-highlight);
+    color: var(--text-primary);
     transform: scale(1.05);
   }
   

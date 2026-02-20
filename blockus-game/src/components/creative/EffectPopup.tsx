@@ -77,18 +77,13 @@ const EffectName = styled.div`
   font-family: 'Orbitron', sans-serif;
   font-size: 2rem;
   font-weight: 800;
-  color: white;
+  color: #fff;
   margin-bottom: 10px;
-  background: linear-gradient(90deg, #fff, rgba(255,255,255,0.7), #fff);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: ${shimmer} 2s linear infinite;
 `;
 
 const EffectDescription = styled.div`
   font-size: 1rem;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.7);
   font-family: 'Rajdhani', 'Microsoft YaHei', sans-serif;
   line-height: 1.5;
 `;

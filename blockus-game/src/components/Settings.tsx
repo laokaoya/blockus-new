@@ -158,7 +158,7 @@ const ToggleSlider = styled.span`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--surface-border);
   border: 1px solid var(--surface-border);
   transition: 0.4s;
   border-radius: 34px;
@@ -170,10 +170,10 @@ const ToggleSlider = styled.span`
     width: 26px;
     left: 3px;
     bottom: 3px;
-    background-color: white;
+    background-color: var(--bg-color);
     transition: 0.4s;
     border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
   }
 `;
 
@@ -187,7 +187,7 @@ const Slider = styled.input`
   flex: 1;
   height: 6px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-border);
   outline: none;
   -webkit-appearance: none;
   
@@ -225,7 +225,7 @@ const Select = styled.select`
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   font-size: 1rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   cursor: pointer;
   transition: border-color 0.3s ease;

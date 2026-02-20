@@ -343,7 +343,7 @@ const AvatarPreview = styled.div<{ image?: string }>`
   color: white;
   font-weight: bold;
   cursor: pointer;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid var(--surface-border);
   transition: border-color 0.3s ease;
   
   &:hover {

@@ -443,36 +443,178 @@ export function initCreativePlayerStates(players: Player[]): CreativePlayerState
 }
 
 /**
- * AI 决定是否使用道具卡
- * 简单策略：有道具就随机对最高分对手使用，钢铁留给自己
+ * AI 决定是否使用道具卡 — 按难度区分策略
  */
 export function aiDecideItemCard(
   aiCreative: CreativePlayerState,
   allPlayers: Player[],
   allCreative: CreativePlayerState[],
+  difficulty: 'easy' | 'medium' | 'hard' = 'medium',
+  specialTiles: SpecialTile[] = [],
 ): { cardIndex: number; targetPlayerId: string | null } | null {
   if (aiCreative.itemCards.length === 0) return null;
 
-  // 30% 概率不使用道具
-  if (Math.random() < 0.3) return null;
-
-  const card = aiCreative.itemCards[0]; // 使用最早的道具
-
-  if (card.cardType === 'item_steel') {
-    return { cardIndex: 0, targetPlayerId: null };
-  }
-
-  if (card.cardType === 'item_blame') {
-    const hasDebuff = aiCreative.statusEffects.some(e =>
-      ['skip_turn', 'time_pressure', 'half_score', 'big_piece_ban'].includes(e.type)
-    );
-    if (!hasDebuff) return null; // 没有负面状态，不用嫁祸
-  }
-
-  // 找最高分的对手
   const opponents = allPlayers.filter(p => p.id !== aiCreative.playerId);
   if (opponents.length === 0) return null;
 
+  const myScore = (allPlayers.find(p => p.id === aiCreative.playerId)?.score ?? 0) + aiCreative.bonusScore;
+  const hasDebuff = aiCreative.statusEffects.some(e =>
+    ['skip_turn', 'time_pressure', 'half_score', 'big_piece_ban'].includes(e.type)
+  );
+  const hasSteel = aiCreative.statusEffects.some(
+    e => e.type === 'steel' && e.remainingTurns > 0
+  );
+
+  // === Easy: 50% skip, random card, random target ===
+  if (difficulty === 'easy') {
+    if (Math.random() < 0.5) return null;
+    const idx = Math.floor(Math.random() * aiCreative.itemCards.length);
+    const card = aiCreative.itemCards[idx];
+    if (!card.needsTarget) return { cardIndex: idx, targetPlayerId: null };
+    if (card.cardType === 'item_blame' && !hasDebuff) return null;
+    const target = opponents[Math.floor(Math.random() * opponents.length)];
+    return { cardIndex: idx, targetPlayerId: target.id };
+  }
+
+  // === Medium & Hard: score each card and pick the best ===
+  let bestCardIndex = -1;
+  let bestCardScore = -Infinity;
+  let bestTarget: string | null = null;
+
+  for (let i = 0; i < aiCreative.itemCards.length; i++) {
+    const card = aiCreative.itemCards[i];
+    const { score: cardScore, targetId } = evaluateCard(
+      card, aiCreative, allPlayers, allCreative, myScore, opponents,
+      hasDebuff, hasSteel, specialTiles, difficulty,
+    );
+    if (cardScore > bestCardScore) {
+      bestCardScore = cardScore;
+      bestCardIndex = i;
+      bestTarget = targetId;
+    }
+  }
+
+  // Medium: 15% chance to skip even with a good card
+  if (difficulty === 'medium' && Math.random() < 0.15) return null;
+  // Only use if there's positive value
+  if (bestCardScore <= 0 || bestCardIndex < 0) return null;
+
+  return { cardIndex: bestCardIndex, targetPlayerId: bestTarget };
+}
+
+function evaluateCard(
+  card: import('../types/creative').ItemCard,
+  aiCreative: CreativePlayerState,
+  allPlayers: Player[],
+  allCreative: CreativePlayerState[],
+  myScore: number,
+  opponents: Player[],
+  hasDebuff: boolean,
+  hasSteel: boolean,
+  specialTiles: SpecialTile[],
+  difficulty: 'easy' | 'medium' | 'hard',
+): { score: number; targetId: string | null } {
+  const opponentsWithCreative = opponents.map(p => ({
+    player: p,
+    creative: allCreative.find(c => c.playerId === p.id),
+  }));
+
   const topOpponent = opponents.reduce((a, b) => a.score > b.score ? a : b);
-  return { cardIndex: 0, targetPlayerId: topOpponent.id };
+  const topScore = topOpponent.score + (allCreative.find(c => c.playerId === topOpponent.id)?.bonusScore ?? 0);
+  const scoreDiff = myScore - topScore;
+
+  switch (card.cardType) {
+    case 'item_steel': {
+      // High value if we're near red tiles or have debuffs
+      const nearRedTiles = specialTiles.filter(t => t.type === 'red' && !t.used).length;
+      if (hasSteel) return { score: -1, targetId: null };
+      let value = 10;
+      if (nearRedTiles > 0) value += nearRedTiles * 15;
+      if (hasDebuff) value += 20;
+      return { score: value, targetId: null };
+    }
+
+    case 'item_blame': {
+      if (!hasDebuff) return { score: -1, targetId: null };
+      // Transfer debuff to the leading opponent
+      const target = findBestTarget(opponentsWithCreative, 'highest_score');
+      return { score: 35, targetId: target };
+    }
+
+    case 'item_plunder': {
+      // Steal from the closest scoring opponent for max relative gain
+      const sorted = [...opponents].sort((a, b) => {
+        const diffA = Math.abs(a.score - myScore);
+        const diffB = Math.abs(b.score - myScore);
+        return diffA - diffB;
+      });
+      const closest = sorted.find(p => p.score > 0) ?? topOpponent;
+      const stealAmount = Math.min(3, closest.score);
+      const targetCreative = allCreative.find(c => c.playerId === closest.id);
+      if (targetCreative?.statusEffects.some(e => e.type === 'steel' && e.remainingTurns > 0)) {
+        return { score: -1, targetId: null };
+      }
+      let value = stealAmount * 2 + 5;
+      if (scoreDiff < -5) value += 10;
+      return { score: value, targetId: closest.id };
+    }
+
+    case 'item_freeze': {
+      // Freeze the most threatening opponent
+      const target = findBestTarget(opponentsWithCreative, 'highest_score_no_steel');
+      if (!target) return { score: -1, targetId: null };
+      let value = 25;
+      if (difficulty === 'hard' && scoreDiff < 0) value += 10;
+      return { score: value, targetId: target };
+    }
+
+    case 'item_curse': {
+      const target = findBestTarget(opponentsWithCreative, 'highest_score_no_steel');
+      if (!target) return { score: -1, targetId: null };
+      return { score: 20, targetId: target };
+    }
+
+    case 'item_shrink': {
+      // Target the opponent with the most large unused pieces
+      const targetData = opponentsWithCreative
+        .filter(o => !o.creative?.statusEffects.some(e => e.type === 'steel' && e.remainingTurns > 0))
+        .map(o => {
+          const largePieces = o.player.pieces.filter(p => !p.isUsed && p.type >= 4).length;
+          return { id: o.player.id, largePieces };
+        })
+        .sort((a, b) => b.largePieces - a.largePieces);
+      if (targetData.length === 0 || targetData[0].largePieces === 0) return { score: 5, targetId: topOpponent.id };
+      return { score: 15 + targetData[0].largePieces * 2, targetId: targetData[0].id };
+    }
+
+    case 'item_blackhole': {
+      const target = findBestTarget(opponentsWithCreative, 'highest_score_no_steel');
+      if (!target) return { score: -1, targetId: null };
+      return { score: 22, targetId: target };
+    }
+
+    case 'item_pressure': {
+      const target = findBestTarget(opponentsWithCreative, 'highest_score_no_steel');
+      if (!target) return { score: -1, targetId: null };
+      return { score: 15, targetId: target };
+    }
+
+    default:
+      return { score: 5, targetId: topOpponent.id };
+  }
+}
+
+function findBestTarget(
+  opponentsWithCreative: Array<{ player: Player; creative: CreativePlayerState | undefined }>,
+  strategy: 'highest_score' | 'highest_score_no_steel',
+): string | null {
+  let candidates = opponentsWithCreative;
+  if (strategy === 'highest_score_no_steel') {
+    candidates = candidates.filter(
+      o => !o.creative?.statusEffects.some(e => e.type === 'steel' && e.remainingTurns > 0)
+    );
+  }
+  if (candidates.length === 0) return null;
+  const best = candidates.reduce((a, b) => a.player.score > b.player.score ? a : b);
+  return best.player.id;
 }

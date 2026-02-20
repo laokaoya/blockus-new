@@ -306,7 +306,7 @@ const AddAIButton = styled.button`
   }
   
   &:disabled {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-highlight);
     color: var(--text-muted);
     border-color: var(--surface-border);
     cursor: not-allowed;
@@ -316,7 +316,7 @@ const AddAIButton = styled.button`
 
 const StartGameButton = styled.button`
   background: var(--primary-gradient);
-  color: white;
+  color: #fff;
   border: none;
   padding: 14px;
   border-radius: 8px;
@@ -345,7 +345,7 @@ const StartGameButton = styled.button`
 `;
 
 const BackButton = styled.button`
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-highlight);
   color: var(--text-secondary);
   border: 1px solid var(--surface-border);
   padding: 8px 16px;
@@ -359,9 +359,8 @@ const BackButton = styled.button`
   gap: 8px;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-border);
     color: var(--text-primary);
-    border-color: rgba(255, 255, 255, 0.2);
   }
 `;
 
@@ -411,11 +410,12 @@ const ReadyButton = styled.button<{ $isReady: boolean }>`
 const GameRoom: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams();
-  const { currentRoom, leaveRoom, startGame, addAI, rooms, refreshRooms, removePlayer } = useRoom();
+  const { currentRoom, leaveRoom, startGame, addAI, rooms, refreshRooms, removePlayer, isOnline } = useRoom();
   const { user } = useAuth();
   const { t } = useLanguage();
   const [selectedAIDifficulty, setSelectedAIDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [isLoading, setIsLoading] = useState(true);
+  const retryCountRef = React.useRef(0);
   
   const roomId = params.roomId;
   const targetRoom = currentRoom || (roomId ? rooms.find(r => r.id === roomId) : null);
@@ -437,8 +437,8 @@ const GameRoom: React.FC = () => {
   useEffect(() => {
     if (targetRoom && user) {
       setIsLoading(false);
+      retryCountRef.current = 0;
       
-      // 如果游戏正在进行，且我是玩家，自动跳转到游戏界面
       if (targetRoom.status === 'playing') {
         const isPlayer = targetRoom.players.some(p => p.id === user.profile.id);
         if (isPlayer) {
@@ -453,18 +453,22 @@ const GameRoom: React.FC = () => {
       return;
     }
 
-    if (!targetRoom && roomId) {
+    if (!targetRoom && roomId && isOnline) {
       refreshRooms();
     }
 
+    const retryDelay = Math.min(1000 * (retryCountRef.current + 1), 3000);
     const timeout = setTimeout(() => {
-      if (!targetRoom || !user) {
+      retryCountRef.current++;
+      if (retryCountRef.current >= 3) {
         navigate('/', { replace: true });
+      } else if (isOnline && roomId) {
+        refreshRooms();
       }
-    }, 3000);
+    }, retryDelay);
 
     return () => clearTimeout(timeout);
-  }, [targetRoom, user, roomId, navigate, refreshRooms]);
+  }, [targetRoom, user, roomId, navigate, refreshRooms, isOnline]);
 
   if (isLoading || !targetRoom || !user) {
     return (

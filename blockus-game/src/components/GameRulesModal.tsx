@@ -427,23 +427,61 @@ const PiecesDiagram: React.FC = () => {
   );
 };
 
+const KbdStyle: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '2px 7px',
+  borderRadius: 5,
+  background: 'var(--surface-color)',
+  border: '1px solid var(--surface-border)',
+  fontFamily: 'monospace',
+  fontSize: '0.82rem',
+  fontWeight: 600,
+  color: 'var(--text-primary)',
+  lineHeight: 1.6,
+};
+
 const ControlsDiagram: React.FC = () => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 320 }}>
-    {[
-      { key: '🖱️ / 👆', action: '选择 & 拖放拼图块' },
-      { key: '→ / ⟳', action: '旋转 90°' },
-      { key: 'Shift / ↔', action: '翻转' },
-    ].map((item, i) => (
-      <div key={i} style={{
-        display: 'flex', alignItems: 'center', gap: 12,
-        padding: '10px 16px', borderRadius: 10,
-        background: 'var(--surface-highlight)',
-        border: '1px solid var(--surface-border)',
-      }}>
-        <span style={{ fontSize: '1.2rem', minWidth: 50, textAlign: 'center' }}>{item.key}</span>
-        <span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>{item.action}</span>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 360 }}>
+    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 2 }}>🖱️ 鼠标 / 👆 触屏</div>
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8,
+      padding: '10px 14px', borderRadius: 10,
+      background: 'var(--surface-highlight)',
+      border: '1px solid var(--surface-border)',
+    }}>
+      {[
+        { label: '选择拼图', desc: '点击底部拼图库中的拼图块' },
+        { label: '放置拼图', desc: '点击棋盘目标位置，或拖拽到目标位置松手' },
+        { label: '右键旋转', desc: '鼠标右键点击棋盘可快速旋转' },
+      ].map((item, i) => (
+        <div key={i} style={{ display: 'flex', gap: 8, fontSize: '0.84rem' }}>
+          <span style={{ color: 'var(--primary-color)', fontWeight: 600, minWidth: 64, flexShrink: 0 }}>{item.label}</span>
+          <span style={{ color: 'var(--text-secondary)' }}>{item.desc}</span>
+        </div>
+      ))}
+    </div>
+    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4, marginBottom: 2 }}>⌨️ 键盘快捷键</div>
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8,
+      padding: '10px 14px', borderRadius: 10,
+      background: 'var(--surface-highlight)',
+      border: '1px solid var(--surface-border)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.84rem' }}>
+        <span style={KbdStyle}>→</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>或底部</span>
+        <span style={{ fontSize: '1rem' }}>⟳</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>按钮</span>
+        <span style={{ marginLeft: 'auto', color: 'var(--text-secondary)', fontWeight: 500 }}>旋转 90°</span>
       </div>
-    ))}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.84rem' }}>
+        <span style={KbdStyle}>Shift</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>或底部</span>
+        <span style={{ fontSize: '1rem' }}>↔</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>按钮</span>
+        <span style={{ marginLeft: 'auto', color: 'var(--text-secondary)', fontWeight: 500 }}>水平翻转</span>
+      </div>
+    </div>
   </div>
 );
 
@@ -544,7 +582,7 @@ const GameRulesModal: React.FC<GameRulesModalProps> = ({ isOpen, onClose, mode =
     {
       visual: <ControlsDiagram />,
       title: t('help.slideControlsTitle') || '操作方式',
-      desc: t('help.slideControlsDesc') || '点击或拖拽选择拼图块，方向键/Shift 旋转翻转',
+      desc: t('help.slideControlsDesc') || '从拼图库选择拼图块后，点击或拖拽到棋盘放置；键盘 → 旋转，Shift 翻转',
     },
   ];
 

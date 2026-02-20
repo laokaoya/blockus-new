@@ -10,7 +10,7 @@ import {
 } from '../types/creative';
 import { PIECE_SHAPES } from '../constants/pieces';
 import { canPlacePiece, placePiece, calculateScore, isGameFinished } from '../utils/gameEngine';
-import { AIPlayer } from '../utils/aiPlayer';
+import { AIPlayer, CreativeContext, GamePhase } from '../utils/aiPlayer';
 import { rotatePiece, flipPiece, getUniqueTransformations } from '../utils/pieceTransformations';
 import soundManager from '../utils/soundManager';
 import {
@@ -231,6 +231,8 @@ export function useCreativeGameState() {
       aiCreative,
       gameState.players,
       creativeState.creativePlayers,
+      gameSettings.aiDifficulty,
+      creativeState.specialTiles,
     );
 
     if (!decision) return;
@@ -835,11 +837,38 @@ export function useCreativeGameState() {
       const boardWithBarriers = gameState.board.map(row => [...row]);
       creativeState.specialTiles.forEach(t => {
         if (t.type === 'barrier' && !t.used) {
-          boardWithBarriers[t.y][t.x] = -1; // 临时标记
+          boardWithBarriers[t.y][t.x] = -1;
         }
       });
 
-      const move = aiPlayer.makeMove(boardWithBarriers, availablePieces);
+      const totalPieces = currentPlayer.pieces.length;
+      const remainingPieces = currentPlayer.pieces.filter(p => !p.isUsed).length;
+      const usedRatio = 1 - (remainingPieces / totalPieces);
+      const turnNumber = gameState.turnCount;
+      let gamePhase: GamePhase = 'mid';
+      if (turnNumber <= 5 && usedRatio < 0.2) gamePhase = 'early';
+      else if (usedRatio > 0.65 || turnNumber > 30) gamePhase = 'late';
+
+      const opponentScores = gameState.players
+        .filter(p => p.id !== currentPlayer.id)
+        .map(p => p.score + (creativeState.creativePlayers.find(cp => cp.playerId === p.id)?.bonusScore ?? 0));
+
+      const creativeContext: CreativeContext = {
+        specialTiles: creativeState.specialTiles,
+        hasShield: !!aiCreative?.statusEffects.some(e => e.type === 'score_shield' && e.remainingTurns > 0),
+        hasSteel: !!aiCreative?.statusEffects.some(e => e.type === 'steel' && e.remainingTurns > 0),
+        hasPurpleUpgrade: !!aiCreative?.statusEffects.some(e => e.type === 'purple_upgrade' && e.remainingTurns > 0),
+        bonusScore: aiCreative?.bonusScore ?? 0,
+        opponentScores,
+        myScore: currentPlayer.score + (aiCreative?.bonusScore ?? 0),
+        turnNumber,
+        itemCards: aiCreative?.itemCards ?? [],
+        allPlayersCreative: creativeState.creativePlayers,
+        gamePhase,
+        remainingPieces,
+      };
+
+      const move = aiPlayer.makeMoveCreative(boardWithBarriers, availablePieces, creativeContext);
 
       if (move) {
         addEvent('place', currentPlayer.color, currentPlayer.name,

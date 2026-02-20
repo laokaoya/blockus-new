@@ -139,24 +139,29 @@ const TransitionOverlay: React.FC = () => {
   const [message, setMessage] = useState(LOADING_MESSAGES[0]);
 
   useEffect(() => {
-    // Check if transition should be shown
     const state = location.state as { showTransition?: boolean } | null;
     if (!state?.showTransition) return;
 
-    // 随机选择一条消息
     const randomMsg = LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
     setMessage(randomMsg);
 
-    // 触发转场动画
     setIsActive(true);
     soundManager.pageTransition();
+
+    // Clear state to prevent re-trigger on re-render
+    window.history.replaceState({}, '');
 
     const timer = setTimeout(() => {
       setIsActive(false);
     }, 1400);
 
-    return () => clearTimeout(timer);
-  }, [location]); // 监听 location 变化
+    // Safety: force-hide after 3s in case something goes wrong
+    const safety = setTimeout(() => {
+      setIsActive(false);
+    }, 3000);
+
+    return () => { clearTimeout(timer); clearTimeout(safety); };
+  }, [location]);
 
   if (!isActive) return null;
 

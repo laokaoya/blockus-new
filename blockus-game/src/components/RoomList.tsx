@@ -279,10 +279,10 @@ const ToggleSwitch = styled.div<{ checked: boolean }>`
     top: 2px;
     width: 16px;
     height: 16px;
-    background: white;
+    background: var(--bg-color);
     border-radius: 50%;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
   }
 `;
 
@@ -721,7 +721,7 @@ const CheckboxGroup = styled.label`
   margin-bottom: 20px;
   
   &:hover {
-    color: white;
+    color: var(--primary-color);
   }
 `;
 
@@ -729,9 +729,9 @@ const Checkbox = styled.input`
   appearance: none;
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid var(--surface-border);
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-highlight);
   position: relative;
   transition: all 0.2s ease;
   cursor: pointer;

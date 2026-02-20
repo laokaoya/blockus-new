@@ -162,7 +162,7 @@ const AvatarInput = styled.input`
 `;
 
 const UploadButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-highlight);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   padding: 8px 16px;
@@ -172,7 +172,7 @@ const UploadButton = styled.button`
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--surface-border);
     transform: translateY(-1px);
   }
 `;
