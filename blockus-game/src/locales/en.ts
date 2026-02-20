@@ -24,6 +24,7 @@ export const en = {
     start: 'Start Game',
     pause: 'Pause',
     resume: 'Resume',
+    resumeFailed: 'Failed to resume game, please try again',
     restart: 'Restart',
     quit: 'Quit Game',
     gameOver: 'Game Over',

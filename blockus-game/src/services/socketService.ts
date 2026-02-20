@@ -94,6 +94,10 @@ class SocketService {
       this.socket.on('game:playerSettled', (data) => this.trigger('game:playerSettled', data));
       this.socket.on('game:finished', (data) => this.trigger('game:finished', data));
       this.socket.on('game:timeUpdate', (data) => this.trigger('game:timeUpdate', data));
+      this.socket.on('game:paused', (data) => this.trigger('game:paused', data));
+      this.socket.on('game:resumed', (data) => this.trigger('game:resumed', data));
+      this.socket.on('room:playerOffline', (data) => this.trigger('room:playerOffline', data));
+      this.socket.on('room:playerOnline', (data) => this.trigger('room:playerOnline', data));
 
       // 超时处理
       setTimeout(() => {

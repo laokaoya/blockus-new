@@ -8,6 +8,7 @@ import { canPlacePiece } from '../utils/gameEngine';
 import { rotatePiece, flipPiece } from '../utils/pieceTransformations';
 import socketService, { ServerGameState, GameRanking } from '../services/socketService';
 import soundManager from '../utils/soundManager';
+import { useRoom } from '../contexts/RoomContext';
 
 const BOARD_SIZE = 20;
 const COLOR_ORDER: PlayerColor[] = ['red', 'yellow', 'blue', 'green'];
@@ -16,10 +17,12 @@ interface MultiplayerGameOptions {
   roomId: string;
   myUserId: string;
   myNickname: string;
+  isSpectating?: boolean;
 }
 
 export function useMultiplayerGame(options: MultiplayerGameOptions) {
-  const { roomId, myUserId, myNickname } = options;
+  const { roomId, myUserId, myNickname, isSpectating = false } = options;
+  const { joinRoom, spectateGame } = useRoom();
   
   const [gameState, setGameState] = useState<GameState>({
     board: Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(0)),
@@ -41,6 +44,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
   const [lastAIMove, setLastAIMove] = useState<Array<{ x: number; y: number }>>([]);
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   // 根据服务端 playerColors 创建本地 Player 数组
   const createPlayersFromServerData = useCallback((
@@ -101,7 +105,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     const unsubscribers: (() => void)[] = [];
 
     // 处理游戏状态初始化的通用函数
-    const handleGameStateInit = (data: { roomId: string; gameState: ServerGameState; playerColors: Record<string, PlayerColor>; playerNames?: Record<string, string> }, isStart: boolean) => {
+    const handleGameStateInit = (data: { roomId: string; gameState: ServerGameState; playerColors: Record<string, PlayerColor>; playerNames?: Record<string, string>; isPaused?: boolean }, isStart: boolean) => {
       if (data.roomId !== roomId) return;
 
       const myPlayerColor = data.playerColors[myUserId];
@@ -128,6 +132,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       }));
 
       setIsMyTurn(players[data.gameState.currentPlayerIndex]?.id === myUserId);
+      setIsPaused(!!data.isPaused);
       if (isStart) {
         setIsGameOver(false);
         soundManager.yourTurn();
@@ -146,16 +151,29 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     );
 
     // 主动请求当前游戏状态（用于页面刚加载、断线重连等场景）
+    const fetchState = () => socketService.emit('game:getState', { roomId });
+
+    const doReconnect = async () => {
+      try {
+        if (isSpectating) {
+          await spectateGame(roomId);
+        } else {
+          await joinRoom(roomId);
+        }
+        fetchState();
+      } catch (e) {
+        console.warn('[Multiplayer] Reconnect rejoin failed:', e);
+        fetchState();
+      }
+    };
+
     if (socketService.isConnected) {
-      socketService.emit('game:getState', { roomId });
+      doReconnect();
     } else {
       const connectHandler = (connected: boolean) => {
-        if (connected) {
-          socketService.emit('game:getState', { roomId });
-        }
+        if (connected) doReconnect();
       };
-      const unsubscribeConnect = socketService.on('connectionChange', connectHandler);
-      unsubscribers.push(unsubscribeConnect);
+      unsubscribers.push(socketService.on('connectionChange', connectHandler));
     }
 
     // 其他玩家落子
@@ -302,10 +320,22 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       })
     );
 
+    // 单机模式暂停/恢复
+    unsubscribers.push(
+      socketService.on('game:paused', (data: { roomId: string }) => {
+        if (data.roomId === roomId) setIsPaused(true);
+      })
+    );
+    unsubscribers.push(
+      socketService.on('game:resumed', (data: { roomId: string }) => {
+        if (data.roomId === roomId) setIsPaused(false);
+      })
+    );
+
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
-  }, [roomId, myUserId, myNickname, myColor, createPlayersFromServerData]);
+  }, [roomId, myUserId, myNickname, myColor, isSpectating, joinRoom, spectateGame, createPlayersFromServerData]);
 
   // 选择拼图（本地操作）
   const selectPiece = useCallback((piece: Piece | null) => {
@@ -525,6 +555,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     canPlayerContinue,
     isMyTurn,
     isGameOver,
+    isPaused,
     rankings,
     myColor,
     playerColorMap,

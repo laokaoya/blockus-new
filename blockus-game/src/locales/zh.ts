@@ -24,6 +24,7 @@ export const zh = {
     start: '开始游戏',
     pause: '暂停',
     resume: '继续',
+    resumeFailed: '回到游戏失败，请重试',
     restart: '重新开始',
     quit: '退出游戏',
     gameOver: '游戏结束',

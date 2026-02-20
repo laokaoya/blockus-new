@@ -14,10 +14,13 @@ const DEFAULT_SETTINGS: GameSettings = {
   privateRoom: false,
 };
 
+const NO_ACTIVE_HUMAN_DESTROY_MS = 120 * 1000; // 120 秒无活跃真人则销毁房间
+
 export class RoomManager {
   private rooms: Map<string, GameRoom> = new Map();
   private cleanupInterval: NodeJS.Timeout;
   private hostReadyCheckInterval: NodeJS.Timeout;
+  private noActiveHumanCheckInterval: NodeJS.Timeout;
   private hostUnreadySince: Map<string, number> = new Map();
   onRoomDeleted?: (roomId: string) => void;
   onRoomUpdated?: (roomId: string) => void;
@@ -27,12 +30,14 @@ export class RoomManager {
     this.cleanupInterval = setInterval(() => this.cleanupOldRooms(), 5 * 60 * 1000);
     // 每 3 秒检查等待房间中房主是否超过 30 秒未准备
     this.hostReadyCheckInterval = setInterval(() => this.checkHostReadyTimeout(), 3 * 1000);
+    // 每 5 秒检查游戏中房间：120 秒无活跃真人则销毁
+    this.noActiveHumanCheckInterval = setInterval(() => this.checkNoActiveHuman(), 5 * 1000);
   }
 
-  // 获取所有公开房间列表
+  // 获取所有公开房间列表（单机房 privateRoom: false 也会显示）
   getPublicRooms(): GameRoom[] {
     return Array.from(this.rooms.values())
-      .filter(room => !room.gameSettings.privateRoom)
+      .filter(room => !(room.gameSettings?.privateRoom))
       .map(room => this.sanitizeRoom(room));
   }
 
@@ -97,25 +102,27 @@ export class RoomManager {
       lastActivityAt: Date.now(),
     };
 
+    room.lastActiveHumanAt = Date.now();
     this.rooms.set(roomId, room);
     this.updateHostReadyTracking(room);
     return this.sanitizeRoom(room);
   }
 
   // 加入房间
-  joinRoom(roomId: string, userId: string, nickname: string, password?: string): { success: boolean; error?: string; room?: GameRoom } {
+  joinRoom(roomId: string, userId: string, nickname: string, password?: string): { success: boolean; error?: string; room?: GameRoom; isRejoin?: boolean } {
     const room = this.rooms.get(roomId);
     if (!room) return { success: false, error: 'ROOM_NOT_FOUND' };
     
     // 检查是否是重连（玩家已在房间中）
     const existingPlayer = room.players.find(p => p.id === userId);
     if (existingPlayer) {
-      // 如果游戏正在进行，允许重连
-      if (room.status === 'playing') {
-        return { success: true, room: this.sanitizeRoom(room) };
+      // 重连：清除离线状态，更新最后活跃时间
+      if (existingPlayer.isOffline) {
+        existingPlayer.isOffline = false;
+        existingPlayer.disconnectedAt = undefined;
       }
-      // 如果是等待状态，也允许重连（可能是刷新页面）
-      return { success: true, room: this.sanitizeRoom(room) };
+      room.lastActiveHumanAt = Date.now();
+      return { success: true, room: this.sanitizeRoom(room), isRejoin: true };
     }
 
     // 检查玩家是否已经在其他房间
@@ -143,9 +150,10 @@ export class RoomManager {
 
     room.players.push(newPlayer);
     room.lastActivityAt = Date.now();
+    room.lastActiveHumanAt = Date.now();
     this.updateHostReadyTracking(room);
 
-    return { success: true, room: this.sanitizeRoom(room) };
+    return { success: true, room: this.sanitizeRoom(room), isRejoin: false };
   }
 
   // 离开房间（玩家或观战者）
@@ -162,9 +170,13 @@ export class RoomManager {
       return { success: true, deleted: false };
     }
 
-    // 如果游戏正在进行中，且是意外断线，则不移除玩家，允许重连
+    // 如果游戏正在进行中，且是意外断线，则不移除玩家，标记离线以便重连
     if (isDisconnect && room.status === 'playing') {
-      // 可以在这里标记玩家为离线状态，但目前只需保留其在 players 列表中即可
+      const player = room.players.find(p => p.id === userId);
+      if (player && !player.isAI) {
+        player.isOffline = true;
+        player.disconnectedAt = Date.now();
+      }
       return { success: true, deleted: false };
     }
 
@@ -217,6 +229,46 @@ export class RoomManager {
   isSpectator(roomId: string, userId: string): boolean {
     const room = this.rooms.get(roomId);
     return room ? room.spectators.includes(userId) : false;
+  }
+
+  // 设置玩家离线（断线时调用，保留位置）
+  // 注意：不更新 lastActiveHumanAt，以便 120 秒无活跃真人时正确销毁房间
+  setPlayerOffline(roomId: string, userId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+    const player = room.players.find(p => p.id === userId && !p.isAI);
+    if (player) {
+      player.isOffline = true;
+      player.disconnectedAt = Date.now();
+    }
+  }
+
+  // 设置玩家在线（重连时调用）
+  setPlayerOnline(roomId: string, userId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+    const player = room.players.find(p => p.id === userId);
+    if (player) {
+      player.isOffline = false;
+      player.disconnectedAt = undefined;
+      room.lastActiveHumanAt = Date.now();
+    }
+  }
+
+  // 是否单机模式（1 人类 + 3 AI）
+  isSinglePlayerRoom(roomId: string): boolean {
+    const room = this.rooms.get(roomId);
+    if (!room) return false;
+    const humanCount = room.players.filter(p => !p.isAI).length;
+    const aiCount = room.players.filter(p => p.isAI).length;
+    return humanCount === 1 && aiCount === 3;
+  }
+
+  // 房间内是否有活跃真人（在线）
+  hasActiveHuman(roomId: string): boolean {
+    const room = this.rooms.get(roomId);
+    if (!room) return false;
+    return room.players.some(p => !p.isAI && !p.isOffline);
   }
 
   // 添加 AI 玩家
@@ -417,6 +469,34 @@ export class RoomManager {
     }
   }
 
+  // 检查：游戏中房间 120 秒无活跃真人则销毁
+  private checkNoActiveHuman(): void {
+    const now = Date.now();
+    const toDelete: string[] = [];
+
+    for (const [roomId, room] of this.rooms.entries()) {
+      if (room.status !== 'playing') continue;
+      if (room.players.filter(p => !p.isAI).length === 0) continue; // 纯 AI 房不检查
+
+      const hasActive = this.hasActiveHuman(roomId);
+      if (hasActive) {
+        room.lastActiveHumanAt = now;
+        continue;
+      }
+
+      const lastActive = room.lastActiveHumanAt ?? room.lastActivityAt;
+      if (now - lastActive >= NO_ACTIVE_HUMAN_DESTROY_MS) {
+        toDelete.push(roomId);
+      }
+    }
+
+    toDelete.forEach(id => {
+      this.rooms.delete(id);
+      if (this.onRoomDeleted) this.onRoomDeleted(id);
+      console.log(`[RoomManager] Auto-destroyed room ${id} (no active human for 120s)`);
+    });
+  }
+
   // 清理过期房间
   private cleanupOldRooms(): void {
     const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
@@ -454,5 +534,6 @@ export class RoomManager {
   destroy(): void {
     clearInterval(this.cleanupInterval);
     clearInterval(this.hostReadyCheckInterval);
+    clearInterval(this.noActiveHumanCheckInterval);
   }
 }

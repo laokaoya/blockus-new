@@ -37,6 +37,9 @@ export interface RoomPlayer {
   aiDifficulty?: AIDifficulty;
   isReady: boolean;
   color?: PlayerColor;
+  /** 断线离线，保留位置待重连 */
+  isOffline?: boolean;
+  disconnectedAt?: number;
 }
 
 export type GameMode = 'classic' | 'creative';
@@ -54,6 +57,8 @@ export interface GameRoom {
   gameSettings: GameSettings;
   createdAt: number;
   lastActivityAt: number;
+  /** 最后有真人活跃的时间，用于 120 秒无活跃则销毁 */
+  lastActiveHumanAt?: number;
 }
 
 export interface GameMove {
@@ -99,12 +104,16 @@ export interface ServerToClientEvents {
 
   // 游戏事件
   'game:started': (data: { roomId: string; gameState: GameState; playerColors: Record<string, PlayerColor>; playerNames: Record<string, string> }) => void;
-  'game:state': (data: { roomId: string; gameState: GameState; playerColors: Record<string, PlayerColor>; playerNames: Record<string, string> }) => void;
+  'game:state': (data: { roomId: string; gameState: GameState; playerColors: Record<string, PlayerColor>; playerNames: Record<string, string>; isPaused?: boolean }) => void;
   'game:move': (data: { roomId: string; move: GameMove; gameState: GameState }) => void;
   'game:turnChanged': (data: { roomId: string; currentPlayerIndex: number; timeLeft: number }) => void;
   'game:playerSettled': (data: { roomId: string; playerId: string }) => void;
   'game:finished': (data: { roomId: string; gameState: GameState; rankings: Array<{ playerId: string; nickname: string; color: PlayerColor; score: number; rank: number }> }) => void;
   'game:timeUpdate': (data: { roomId: string; timeLeft: number }) => void;
+  'game:paused': (data: { roomId: string; reason: string }) => void;
+  'game:resumed': (data: { roomId: string }) => void;
+  'room:playerOffline': (data: { roomId: string; playerId: string }) => void;
+  'room:playerOnline': (data: { roomId: string; playerId: string }) => void;
 
   // 系统事件
   'error': (data: { message: string; code?: string }) => void;

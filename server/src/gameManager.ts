@@ -9,12 +9,15 @@ interface ActiveGame {
   roomId: string;
   state: GameState;
   players: RoomPlayer[];
-  playerColorMap: Record<string, PlayerColor>; // userId -> color
-  colorPlayerMap: Record<string, string>;       // color -> userId
-  playerPieces: Record<string, Piece[]>;        // userId -> pieces
-  aiPlayers: Map<string, AIPlayer>;             // userId -> AIPlayer instance
+  playerColorMap: Record<string, PlayerColor>;
+  colorPlayerMap: Record<string, string>;
+  playerPieces: Record<string, Piece[]>;
+  aiPlayers: Map<string, AIPlayer>;
+  /** 托管 AI：断线人类玩家由 AI 暂时代管，key 为被托管的人类 playerId */
+  hostedAIPlayers: Map<string, AIPlayer>;
   turnTimer: NodeJS.Timeout | null;
   turnTimeLimit: number;
+  isPaused: boolean; // 单机模式人类断线时暂停
   onTurnTimeout: (roomId: string) => void;
   onTimeUpdate: (roomId: string, timeLeft: number) => void;
   onAIMove: (roomId: string, move: GameMove, gameState: GameState) => void;
@@ -86,8 +89,10 @@ export class GameManager {
       colorPlayerMap,
       playerPieces,
       aiPlayers,
+      hostedAIPlayers: new Map(),
       turnTimer: null,
       turnTimeLimit: normalizedTurnTimeLimit,
+      isPaused: false,
       onTurnTimeout,
       onTimeUpdate,
       onAIMove,
@@ -250,10 +255,14 @@ export class GameManager {
   private checkAndProcessAITurn(roomId: string): void {
     const game = this.games.get(roomId);
     if (!game || game.state.gamePhase !== 'playing') return;
+    if (game.isPaused) return; // 单机暂停时不处理
 
     const currentPlayer = game.players[game.state.currentPlayerIndex];
-    if (currentPlayer.isAI) {
-      const aiPlayer = game.aiPlayers.get(currentPlayer.id);
+    // 真人离线且有托管 AI，或原生 AI
+    const hasHostedAI = !currentPlayer.isAI && currentPlayer.isOffline && game.hostedAIPlayers.has(currentPlayer.id);
+    const isAITurn = currentPlayer.isAI || hasHostedAI;
+    if (isAITurn) {
+      const aiPlayer = game.aiPlayers.get(currentPlayer.id) ?? game.hostedAIPlayers.get(currentPlayer.id);
       if (aiPlayer) {
         // 模拟 AI 思考时间
         const thinkingTime = Math.random() * 1000 + 1000; // 1-2秒
@@ -417,20 +426,55 @@ export class GameManager {
     return game ? game.players.some(p => p.id === playerId) : false;
   }
 
-  // 处理玩家断线
+  // 处理玩家断线（已弃用，改用 setPlayerOffline）
   handleDisconnect(roomId: string, playerId: string): { shouldSettle: boolean } {
-    const game = this.games.get(roomId);
-    if (!game) return { shouldSettle: false };
-
-    // AI 玩家不会断线
-    const player = game.players.find(p => p.id === playerId);
-    if (!player || player.isAI) return { shouldSettle: false };
-
-    // 将断线玩家标记为已结算
-    if (!game.state.settledPlayers.includes(playerId)) {
-      return { shouldSettle: true };
-    }
-
     return { shouldSettle: false };
+  }
+
+  // 玩家断线：单机暂停，多人托管 AI
+  setPlayerOffline(roomId: string, playerId: string, isSinglePlayer: boolean): void {
+    const game = this.games.get(roomId);
+    if (!game) return;
+
+    const player = game.players.find(p => p.id === playerId && !p.isAI);
+    if (!player) return;
+
+    player.isOffline = true;
+
+    if (isSinglePlayer) {
+      game.isPaused = true;
+      this.clearTurnTimer(roomId);
+    } else {
+      // 多人：添加托管 AI
+      const color = game.playerColorMap[playerId];
+      if (color && !game.hostedAIPlayers.has(playerId)) {
+        const aiDifficulty = player.aiDifficulty || 'medium';
+        game.hostedAIPlayers.set(playerId, new AIPlayer(color, aiDifficulty));
+      }
+    }
+  }
+
+  // 玩家重连：单机恢复，多人移除托管 AI
+  setPlayerOnline(roomId: string, playerId: string, isSinglePlayer: boolean): void {
+    const game = this.games.get(roomId);
+    if (!game) return;
+
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return;
+
+    player.isOffline = false;
+
+    if (isSinglePlayer) {
+      game.isPaused = false;
+      this.startTurnTimer(roomId);
+      // 若当前是 AI 回合，需触发 AI 落子
+      this.checkAndProcessAITurn(roomId);
+    } else {
+      game.hostedAIPlayers.delete(playerId);
+    }
+  }
+
+  isGamePaused(roomId: string): boolean {
+    return this.games.get(roomId)?.isPaused ?? false;
   }
 }

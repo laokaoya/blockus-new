@@ -16,6 +16,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useRoom } from '../contexts/RoomContext';
 import soundManager from '../utils/soundManager';
+import socketService from '../services/socketService';
 import { BookIcon, SettingsIcon, RotateIcon, FlipIcon, EyeIcon } from './Icons';
 
 // --- Responsive Layout Components ---
@@ -305,6 +306,21 @@ const RulesButton = styled.button`
 // SettleButton removed
 // const SettleButton = styled.button...
 
+const PausedOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 20px;
+`;
+
 const SpectatorBadge = styled.div`
   position: fixed;
   top: 70px;
@@ -541,12 +557,13 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
     roomId,
     myUserId: user?.profile.id || '',
     myNickname: user?.profile.nickname || '',
+    isSpectating: isSpectateMode,
   });
 
   const { 
     gameState, selectPiece, placePieceOnBoard, settlePlayer,
     rotateSelectedPiece, flipSelectedPiece, thinkingAI, lastAIMove,
-    canPlayerContinue, isMyTurn, myColor
+    canPlayerContinue, isMyTurn, isPaused, myColor
   } = mp;
 
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
@@ -564,6 +581,17 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
     await leaveRoom();
     navigate('/', { state: { showTransition: true } });
   };
+
+  // 被房主踢出时，立即返回主界面（房间页和游戏中都需处理）
+  useEffect(() => {
+    const unsub = socketService.on('room:playerLeft', (data: { roomId: string; playerId: string }) => {
+      if (data.roomId === roomId && data.playerId === user?.profile.id) {
+        leaveRoom();
+        navigate('/', { state: { showTransition: true } });
+      }
+    });
+    return unsub;
+  }, [roomId, user?.profile.id, leaveRoom, navigate]);
 
   const handleSettings = () => {
     soundManager.buttonClick();

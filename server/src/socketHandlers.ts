@@ -162,30 +162,50 @@ export function setupSocketHandlers(
         return callback({ success: false, error: result.error });
       }
 
-      // 加入 Socket.io 房间
       socket.join(data.roomId);
       socket.data.currentRoomId = data.roomId;
 
       callback({ success: true, room: result.room });
 
-      // 通知房间内其他人
-      socket.to(data.roomId).emit('room:playerJoined', {
-        roomId: data.roomId,
-        player: {
-          id: socket.data.userId,
-          nickname: socket.data.nickname,
-          isHost: false,
-          isAI: false,
-          isReady: false,
-        },
-      });
+      // 重连：恢复游戏（单机恢复/多人移除托管 AI），广播玩家上线，并立即发送游戏状态
+      if (result.isRejoin && result.room?.status === 'playing') {
+        const isSingle = roomManager.isSinglePlayerRoom(data.roomId);
+        gameManager.setPlayerOnline(data.roomId, socket.data.userId, isSingle);
+        io.to(data.roomId).emit('room:playerOnline', { roomId: data.roomId, playerId: socket.data.userId });
+        if (isSingle) {
+          io.to(data.roomId).emit('game:resumed', { roomId: data.roomId });
+        }
+        // 立即发送当前游戏状态给重连玩家
+        const state = gameManager.getGameState(data.roomId);
+        const playerColors = gameManager.getPlayerColorMap(data.roomId);
+        const names = gameManager.getPlayerNameMap(data.roomId);
+        if (state && playerColors) {
+          socket.emit('game:state', {
+            roomId: data.roomId,
+            gameState: state,
+            playerColors,
+            playerNames: names || {},
+            isPaused: gameManager.isGamePaused(data.roomId),
+          });
+        }
+      } else if (!result.isRejoin) {
+        socket.to(data.roomId).emit('room:playerJoined', {
+          roomId: data.roomId,
+          player: {
+            id: socket.data.userId,
+            nickname: socket.data.nickname,
+            isHost: false,
+            isAI: false,
+            isReady: false,
+          },
+        });
+      }
 
-      // 广播房间更新
       if (result.room) {
         io.to(data.roomId).emit('room:updated', result.room);
       }
       io.emit('room:list', roomManager.getPublicRooms());
-      console.log(`[Room] ${socket.data.nickname} joined ${data.roomId}`);
+      console.log(`[Room] ${socket.data.nickname} ${result.isRejoin ? 'rejoined' : 'joined'} ${data.roomId}`);
     });
 
     // 离开房间
@@ -194,12 +214,37 @@ export function setupSocketHandlers(
         return callback({ success: false, error: 'NOT_AUTHENTICATED' });
       }
 
-      // 如果游戏正在进行，先处理游戏逻辑
-      if (!roomManager.isSpectator(data.roomId, socket.data.userId)) {
-        handleGameDisconnect(data.roomId, socket.data.userId);
+      const room = roomManager.getRoomSafe(data.roomId);
+      const isPlaying = room?.status === 'playing';
+      const isSpectator = roomManager.isSpectator(data.roomId, socket.data.userId);
+
+      // 游戏进行中且为玩家：视为临时离开，不结算、不移除，允许稍后回到游戏
+      if (!isSpectator && isPlaying) {
+        const isSingle = roomManager.isSinglePlayerRoom(data.roomId);
+        roomManager.setPlayerOffline(data.roomId, socket.data.userId);
+        gameManager.setPlayerOffline(data.roomId, socket.data.userId, isSingle);
+        const result = roomManager.leaveRoom(data.roomId, socket.data.userId, true);
+        if (!result.success) {
+          return callback({ success: false, error: 'LEAVE_FAILED' });
+        }
+        socket.leave(data.roomId);
+        socket.data.currentRoomId = undefined;
+        callback({ success: true });
+        io.to(data.roomId).emit('room:playerOffline', { roomId: data.roomId, playerId: socket.data.userId });
+        if (isSingle) {
+          io.to(data.roomId).emit('game:paused', { roomId: data.roomId, reason: 'player_disconnected' });
+        }
+        io.emit('room:list', roomManager.getPublicRooms());
+        const updated = roomManager.getRoomSafe(data.roomId);
+        if (updated) io.to(data.roomId).emit('room:updated', updated);
+        console.log(`[Room] ${socket.data.nickname} temporarily left ${data.roomId} (game in progress, can rejoin)`);
+        return;
       }
 
-      // 显式离开：isDisconnect = false，会移除玩家
+      // 观战者或非游戏中：正常离开
+      if (!isSpectator) {
+        handleGameDisconnect(data.roomId, socket.data.userId);
+      }
       const result = roomManager.leaveRoom(data.roomId, socket.data.userId, false);
       if (!result.success) {
         return callback({ success: false, error: 'LEAVE_FAILED' });
@@ -211,24 +256,23 @@ export function setupSocketHandlers(
       callback({ success: true });
 
       if (result.deleted) {
-        // 房间被销毁（所有真人都退出了）
         gameManager.removeGame(data.roomId);
         io.emit('room:deleted', data.roomId);
         console.log(`[Room] Auto-destroyed room ${data.roomId} (all human players left)`);
       } else {
-        // 通知房间内其他人
-        socket.to(data.roomId).emit('room:playerLeft', {
-          roomId: data.roomId,
-          playerId: socket.data.userId,
-        });
-
         const updatedRoom = roomManager.getRoomSafe(data.roomId);
+        const playerWasRemoved = !updatedRoom?.players.some(p => p.id === socket.data.userId);
+        if (playerWasRemoved) {
+          socket.to(data.roomId).emit('room:playerLeft', {
+            roomId: data.roomId,
+            playerId: socket.data.userId,
+          });
+        }
         if (updatedRoom) {
           io.to(data.roomId).emit('room:updated', updatedRoom);
         }
       }
 
-      // 广播房间列表更新
       io.emit('room:list', roomManager.getPublicRooms());
       console.log(`[Room] ${socket.data.nickname} left ${data.roomId}`);
     });
@@ -496,6 +540,7 @@ export function setupSocketHandlers(
           gameState: state,
           playerColors,
           playerNames: spectateNames || {},
+          isPaused: gameManager.isGamePaused(data.roomId),
         });
       }
 
@@ -522,6 +567,7 @@ export function setupSocketHandlers(
           gameState: state,
           playerColors,
           playerNames: names || {},
+          isPaused: gameManager.isGamePaused(data.roomId),
         });
       }
     });
@@ -627,31 +673,36 @@ export function setupSocketHandlers(
             io.to(roomId).emit('room:updated', updatedRoom);
           }
         } else {
-          // 是玩家，处理游戏断线逻辑
-          handleGameDisconnect(roomId, userId);
-
-          // 从房间中移除
-          // 传入 isDisconnect = true，如果是游戏进行中，不会移除玩家
+          // 是玩家：不自动结算，保留玩家以便重连；单机暂停，多人托管 AI
+          const room = roomManager.getRoom(roomId);
+          const isPlaying = room?.status === 'playing';
+          if (isPlaying) {
+            const isSingle = roomManager.isSinglePlayerRoom(roomId);
+            roomManager.setPlayerOffline(roomId, userId);
+            gameManager.setPlayerOffline(roomId, userId, isSingle);
+          }
           const result = roomManager.leaveRoom(roomId, userId, true);
           
           if (result.deleted) {
-            // 房间被销毁（所有真人都退出了）
             gameManager.removeGame(roomId);
             io.emit('room:deleted', roomId);
             console.log(`[Room] Auto-destroyed room ${roomId} (all human players left)`);
           } else {
-            // 只有当玩家真正被移除时（不在 players 列表中），才广播 playerLeft
-            // 如果是游戏进行中，玩家保留在列表中，不广播 playerLeft，但可能需要广播状态更新（如离线标记，暂未实现）
-            const room = roomManager.getRoomSafe(roomId);
-            if (room) {
-              const playerStillInRoom = room.players.some(p => p.id === userId);
+            const updatedRoom = roomManager.getRoomSafe(roomId);
+            if (updatedRoom) {
+              const playerStillInRoom = updatedRoom.players.some(p => p.id === userId);
               if (!playerStillInRoom) {
-                io.to(roomId).emit('room:playerLeft', {
-                  roomId,
-                  playerId: userId,
-                });
+                io.to(roomId).emit('room:playerLeft', { roomId, playerId: userId });
+              } else if (isPlaying) {
+                io.to(roomId).emit('room:playerOffline', { roomId, playerId: userId });
+                io.to(roomId).emit('room:updated', updatedRoom);
+                const isSingle = roomManager.isSinglePlayerRoom(roomId);
+                if (isSingle) {
+                  io.to(roomId).emit('game:paused', { roomId, reason: 'player_disconnected' });
+                }
+              } else {
+                io.to(roomId).emit('room:updated', updatedRoom);
               }
-              io.to(roomId).emit('room:updated', room);
             }
           }
         }

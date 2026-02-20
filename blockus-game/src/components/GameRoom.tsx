@@ -470,6 +470,16 @@ const GameRoom: React.FC = () => {
     return () => clearTimeout(timeout);
   }, [targetRoom, user, roomId, navigate, refreshRooms, isOnline]);
 
+  const myPlayer = targetRoom && user ? targetRoom.players.find(p => p.id === user.profile.id) : undefined;
+
+  // 被房主踢出：不在房间玩家列表中，立即返回主界面（必须在 early return 之前调用）
+  useEffect(() => {
+    if (targetRoom && user && !myPlayer) {
+      leaveRoom();
+      navigate('/', { replace: true });
+    }
+  }, [targetRoom, user, myPlayer, leaveRoom, navigate]);
+
   if (isLoading || !targetRoom || !user) {
     return (
       <LoadingContainer>
@@ -480,7 +490,6 @@ const GameRoom: React.FC = () => {
   }
 
   const isHost = targetRoom.hostId === user.profile.id;
-  const myPlayer = targetRoom.players.find(p => p.id === user.profile.id);
   const allReady = targetRoom.players.every(p => p.isReady);
   const hasFourPlayers = targetRoom.players.length === 4;
   const canStart = isHost && hasFourPlayers && allReady;

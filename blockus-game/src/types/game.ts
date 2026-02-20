@@ -93,6 +93,9 @@ export interface RoomPlayer {
   aiDifficulty?: 'easy' | 'medium' | 'hard';
   isReady: boolean;
   color?: PlayerColor;
+  /** 断线离线，保留位置待重连 */
+  isOffline?: boolean;
+  disconnectedAt?: number;
 }
 
 export type GameMode = 'classic' | 'creative';
@@ -110,6 +113,7 @@ export interface GameRoom {
   gameSettings: GameSettings;
   createdAt: number;
   lastActivityAt: number;
+  lastActiveHumanAt?: number;
 }
 
 export interface RoomMessage {

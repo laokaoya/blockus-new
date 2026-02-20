@@ -62,10 +62,13 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
   useEffect(() => {
     const unsubscribers: (() => void)[] = [];
 
-    // 连接状态
+    // 连接状态：重连时主动拉取房间列表，确保单机房等可见
     unsubscribers.push(
       socketService.on('connectionChange', (connected: boolean) => {
         setIsOnline(connected);
+        if (connected) {
+          socketService.getRooms().then(setRooms).catch(() => {});
+        }
       })
     );
 
@@ -88,12 +91,13 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     unsubscribers.push(
       socketService.on('room:deleted', (roomId: string) => {
         setRooms(prev => prev.filter(r => r.id !== roomId));
-        if (currentRoom?.id === roomId) {
-          setChatMessages([]); // 清空聊天记录
-          setCurrentRoom(null);
-        } else {
-          setCurrentRoom(prev => prev?.id === roomId ? null : prev);
-        }
+        setCurrentRoom(prev => {
+          if (prev?.id === roomId) {
+            setChatMessages([]);
+            return null;
+          }
+          return prev;
+        });
       })
     );
 
@@ -112,6 +116,34 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
           }
           return prev;
         });
+      })
+    );
+
+    // 玩家离线（断线保留位置）
+    unsubscribers.push(
+      socketService.on('room:playerOffline', (data: { roomId: string; playerId: string }) => {
+        const updatePlayerOffline = (players: RoomPlayer[], offline: boolean) =>
+          players.map(p => p.id === data.playerId ? { ...p, isOffline: offline } : p);
+        setRooms(prev => prev.map(r =>
+          r.id === data.roomId ? { ...r, players: updatePlayerOffline(r.players, true) } : r
+        ));
+        setCurrentRoom(prev =>
+          prev?.id === data.roomId ? { ...prev, players: updatePlayerOffline(prev.players, true) } : prev
+        );
+      })
+    );
+
+    // 玩家上线（重连）
+    unsubscribers.push(
+      socketService.on('room:playerOnline', (data: { roomId: string; playerId: string }) => {
+        const updatePlayerOffline = (players: RoomPlayer[], offline: boolean) =>
+          players.map(p => p.id === data.playerId ? { ...p, isOffline: offline } : p);
+        setRooms(prev => prev.map(r =>
+          r.id === data.roomId ? { ...r, players: updatePlayerOffline(r.players, false) } : r
+        ));
+        setCurrentRoom(prev =>
+          prev?.id === data.roomId ? { ...prev, players: updatePlayerOffline(prev.players, false) } : prev
+        );
       })
     );
 

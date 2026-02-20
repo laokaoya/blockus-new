@@ -941,6 +941,7 @@ const RoomList: React.FC = () => {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<GameRoom | null>(null);
   const [joinPassword, setJoinPassword] = useState('');
+  const [rejoiningRoomId, setRejoiningRoomId] = useState<string | null>(null);
 
   // 自动定时刷新房间列表（每 5 秒）
   React.useEffect(() => {
@@ -1035,13 +1036,36 @@ const RoomList: React.FC = () => {
     try {
       const success = await spectateGame(room.id);
       if (success) {
-        navigate(`/game?roomId=${room.id}&spectate=true`);
+        const path = room.gameMode === 'creative' ? '/creative' : '/game';
+        navigate(`${path}?roomId=${room.id}&spectate=true`);
       } else {
         alert('无法观战，请重试');
       }
     } catch (error) {
       console.error('观战失败:', error);
       alert('观战失败，请重试');
+    }
+  };
+
+  // 回到游戏：先重连 socket 房间，再直接进入游戏（不经过房间页）
+  const handleRejoinGame = async (room: GameRoom) => {
+    soundManager.buttonClick();
+    if (rejoiningRoomId) return;
+    setRejoiningRoomId(room.id);
+    try {
+      const success = await joinRoom(room.id);
+      if (success) {
+        const mode = room.gameMode || 'classic';
+        const path = mode === 'creative' ? '/creative' : '/game';
+        navigate(`${path}?roomId=${room.id}`, { state: { showTransition: true } });
+      } else {
+        alert(t('game.resumeFailed') || '回到游戏失败，请重试');
+      }
+    } catch (error) {
+      console.error('回到游戏失败:', error);
+      alert(t('game.resumeFailed') || '回到游戏失败，请重试');
+    } finally {
+      setRejoiningRoomId(null);
     }
   };
 
@@ -1077,16 +1101,24 @@ const RoomList: React.FC = () => {
 
   const getActionButton = (room: GameRoom) => {
     if (canRejoinRoom(room)) {
+      const isPlaying = room.status === 'playing';
       return (
         <JoinButton
           onClick={(e) => {
             e.stopPropagation();
-            soundManager.buttonClick();
-            navigate(`/room/${room.id}`);
+            if (isPlaying) {
+              handleRejoinGame(room);
+            } else {
+              soundManager.buttonClick();
+              navigate(`/room/${room.id}`);
+            }
           }}
           onMouseEnter={() => soundManager.buttonHover()}
+          disabled={isPlaying && !!rejoiningRoomId}
         >
-          {room.status === 'playing' ? (t('game.resume') || '回到游戏') : (t('room.join') || '进入房间')}
+          {isPlaying
+            ? (rejoiningRoomId === room.id ? (t('common.loading') || '加载中...') : (t('game.resume') || '回到游戏'))
+            : (t('room.join') || '进入房间')}
         </JoinButton>
       );
     }
@@ -1268,7 +1300,12 @@ const RoomList: React.FC = () => {
             onMouseEnter={() => soundManager.buttonHover()}
             onClick={() => {
               if (canRejoinRoom(room)) {
-                navigate(`/room/${room.id}`);
+                if (room.status === 'playing') {
+                  handleRejoinGame(room);
+                } else {
+                  soundManager.buttonClick();
+                  navigate(`/room/${room.id}`);
+                }
               } else if (canJoinRoom(room)) {
                 handleJoinRoom(room);
               } else if (canSpectateRoom(room)) {
