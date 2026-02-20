@@ -58,40 +58,18 @@ const Subtitle = styled.p`
 
 const ContentContainer = styled.div`
   display: flex;
-  gap: 30px;
-  max-width: 1200px;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 600px;
   width: 100%;
-  
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    gap: 20px;
-  }
-  
-  @media (max-width: 768px) {
-    gap: 15px;
-  }
 `;
 
 const LeftPanel = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  
-  @media (max-width: 1024px) {
-    order: 1;
-  }
+  display: none;
 `;
 
 const RightPanel = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  
-  @media (max-width: 1024px) {
-    order: 2;
-  }
+  display: none;
 `;
 
 const SettingsCard = styled.div`
@@ -410,93 +388,88 @@ const Settings: React.FC = () => {
       </Header>
 
       <ContentContainer>
-        <LeftPanel>
-          <SettingsCard>
-            <SectionTitle>{t('settings.sound')}</SectionTitle>
-            
-            <SettingItem>
-              <SettingLabel>{t('settings.sound')}</SettingLabel>
-              <ToggleSwitch>
-                <ToggleInput
-                  type="checkbox"
-                  checked={settings.soundEnabled}
-                  onChange={() => handleToggleChange('soundEnabled')}
-                />
-                <ToggleSlider />
-              </ToggleSwitch>
-            </SettingItem>
+        <SettingsCard>
+          <SectionTitle>{t('settings.sound')}</SectionTitle>
+          
+          <SettingItem>
+            <SettingLabel>{t('settings.sound')}: {settings.soundEnabled ? t('settings.on') : t('settings.off')}</SettingLabel>
+            <ToggleSwitch>
+              <ToggleInput
+                type="checkbox"
+                checked={settings.soundEnabled}
+                onChange={() => handleToggleChange('soundEnabled')}
+              />
+              <ToggleSlider />
+            </ToggleSwitch>
+          </SettingItem>
 
-            <SettingItem>
-              <SettingLabel>{t('settings.music')}</SettingLabel>
-              <ToggleSwitch>
-                <ToggleInput
-                  type="checkbox"
-                  checked={settings.musicEnabled}
-                  onChange={() => handleToggleChange('musicEnabled')}
-                />
-                <ToggleSlider />
-              </ToggleSwitch>
-            </SettingItem>
-          </SettingsCard>
-        </LeftPanel>
+          <SettingItem>
+            <SettingLabel>{t('settings.music')}: {settings.musicEnabled ? t('settings.on') : t('settings.off')}</SettingLabel>
+            <ToggleSwitch>
+              <ToggleInput
+                type="checkbox"
+                checked={settings.musicEnabled}
+                onChange={() => handleToggleChange('musicEnabled')}
+              />
+              <ToggleSlider />
+            </ToggleSwitch>
+          </SettingItem>
+        </SettingsCard>
 
-        <RightPanel>
-          <SettingsCard>
-            <SectionTitle>{t('settings.interface')}</SectionTitle>
-            
-            <SettingItem>
-              <SettingLabel>{t('settings.language')}</SettingLabel>
-              <Select
-                value={settings.language}
-                onChange={(e) => handleLanguageChange(e.target.value as 'zh' | 'en')}
+        <SettingsCard>
+          <SectionTitle>{t('settings.interface')}</SectionTitle>
+          
+          <SettingItem>
+            <SettingLabel>{t('settings.language')}</SettingLabel>
+            <Select
+              value={settings.language}
+              onChange={(e) => handleLanguageChange(e.target.value as 'zh' | 'en')}
+            >
+              <option value="zh">{t('settings.chinese')}</option>
+              <option value="en">{t('settings.english')}</option>
+            </Select>
+          </SettingItem>
+
+          <SettingItem>
+            <SettingLabel>{t('settings.theme')}</SettingLabel>
+            <OptionGroup>
+              <OptionButton
+                isSelected={theme === 'light'}
+                onClick={() => handleThemeChange('light')}
               >
-                <option value="zh">{t('settings.chinese')}</option>
-                <option value="en">{t('settings.english')}</option>
-              </Select>
-            </SettingItem>
+                {t('settings.light')}
+              </OptionButton>
+              <OptionButton
+                isSelected={theme === 'dark'}
+                onClick={() => handleThemeChange('dark')}
+              >
+                {t('settings.dark')}
+              </OptionButton>
+              <OptionButton
+                isSelected={theme === 'auto'}
+                onClick={() => handleThemeChange('auto')}
+              >
+                {t('settings.auto')}
+              </OptionButton>
+            </OptionGroup>
+          </SettingItem>
+        </SettingsCard>
 
-            <SettingItem>
-              <SettingLabel>{t('settings.theme')}</SettingLabel>
-              <OptionGroup>
-                <OptionButton
-                  isSelected={theme === 'light'}
-                  onClick={() => handleThemeChange('light')}
-                >
-                  {t('settings.light')}
-                </OptionButton>
-                <OptionButton
-                  isSelected={theme === 'dark'}
-                  onClick={() => handleThemeChange('dark')}
-                >
-                  {t('settings.dark')}
-                </OptionButton>
-                <OptionButton
-                  isSelected={theme === 'auto'}
-                  onClick={() => handleThemeChange('auto')}
-                >
-                  {t('settings.auto')}
-                </OptionButton>
-              </OptionGroup>
-            </SettingItem>
-
-          </SettingsCard>
-
-          <SettingsCard>
-            <SectionTitle>{t('settings.notifications')}</SectionTitle>
-            
-            <SettingItem>
-              <SettingLabel>{t('settings.gameNotifications')}</SettingLabel>
-              <ToggleSwitch>
-                <ToggleInput
-                  type="checkbox"
-                  checked={settings.notifications}
-                  onChange={() => handleToggleChange('notifications')}
-                />
-                <ToggleSlider />
-              </ToggleSwitch>
-            </SettingItem>
-          </SettingsCard>
-        </RightPanel>
+        <SettingsCard>
+          <SectionTitle>{t('settings.notifications')}</SectionTitle>
+          
+          <SettingItem>
+            <SettingLabel>{t('settings.gameNotifications')}</SettingLabel>
+            <ToggleSwitch>
+              <ToggleInput
+                type="checkbox"
+                checked={settings.notifications}
+                onChange={() => handleToggleChange('notifications')}
+              />
+              <ToggleSlider />
+            </ToggleSwitch>
+          </SettingItem>
+        </SettingsCard>
       </ContentContainer>
 
       <ActionButtons>

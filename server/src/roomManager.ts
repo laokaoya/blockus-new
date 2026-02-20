@@ -17,11 +17,16 @@ const DEFAULT_SETTINGS: GameSettings = {
 export class RoomManager {
   private rooms: Map<string, GameRoom> = new Map();
   private cleanupInterval: NodeJS.Timeout;
+  private hostReadyCheckInterval: NodeJS.Timeout;
+  private hostUnreadySince: Map<string, number> = new Map();
   onRoomDeleted?: (roomId: string) => void;
+  onRoomUpdated?: (roomId: string) => void;
 
   constructor() {
     // 每 5 分钟清理过期房间（超过 2 小时无活动的）
     this.cleanupInterval = setInterval(() => this.cleanupOldRooms(), 5 * 60 * 1000);
+    // 每 3 秒检查等待房间中房主是否超过 30 秒未准备
+    this.hostReadyCheckInterval = setInterval(() => this.checkHostReadyTimeout(), 3 * 1000);
   }
 
   // 获取所有公开房间列表
@@ -73,7 +78,7 @@ export class RoomManager {
       nickname: hostNickname,
       isHost: true,
       isAI: false,
-      isReady: true,
+      isReady: false,
       color: PLAYER_COLORS[0],
     };
 
@@ -93,6 +98,7 @@ export class RoomManager {
     };
 
     this.rooms.set(roomId, room);
+    this.updateHostReadyTracking(room);
     return this.sanitizeRoom(room);
   }
 
@@ -137,6 +143,7 @@ export class RoomManager {
 
     room.players.push(newPlayer);
     room.lastActivityAt = Date.now();
+    this.updateHostReadyTracking(room);
 
     return { success: true, room: this.sanitizeRoom(room) };
   }
@@ -163,6 +170,7 @@ export class RoomManager {
 
     room.players = room.players.filter(p => p.id !== userId);
     room.lastActivityAt = Date.now();
+    this.hostUnreadySince.delete(roomId);
 
     // 所有真人玩家都走了，自动销毁房间（不管是否还有 AI）
     if (room.players.filter(p => !p.isAI).length === 0) {
@@ -176,6 +184,7 @@ export class RoomManager {
       if (newHost) {
         newHost.isHost = true;
         room.hostId = newHost.id;
+        this.updateHostReadyTracking(room);
         return { success: true, deleted: false, newHostId: newHost.id };
       }
     }
@@ -232,6 +241,7 @@ export class RoomManager {
 
     room.players.push(aiPlayer);
     room.lastActivityAt = Date.now();
+    this.updateHostReadyTracking(room);
 
     return { success: true, room: this.sanitizeRoom(room) };
   }
@@ -245,6 +255,7 @@ export class RoomManager {
 
     room.players = room.players.filter(p => p.id !== targetPlayerId);
     room.lastActivityAt = Date.now();
+    this.updateHostReadyTracking(room);
 
     return { success: true };
   }
@@ -275,6 +286,7 @@ export class RoomManager {
 
     player.isReady = isReady;
     room.lastActivityAt = Date.now();
+    this.updateHostReadyTracking(room);
 
     return { success: true };
   }
@@ -326,12 +338,83 @@ export class RoomManager {
     if (room) {
       room.status = 'waiting';
       room.players.forEach(p => {
-        if (!p.isAI && !p.isHost) p.isReady = false;
+        if (!p.isAI) p.isReady = false;
       });
       room.lastActivityAt = Date.now();
+      this.updateHostReadyTracking(room);
       return this.sanitizeRoom(room);
     }
     return undefined;
+  }
+
+  // 房主超过 30 秒未准备：转移给顺位真人玩家；无人类则解散房间
+  private checkHostReadyTimeout(): void {
+    for (const [roomId, room] of this.rooms.entries()) {
+      if (room.status !== 'waiting') {
+        this.hostUnreadySince.delete(roomId);
+        continue;
+      }
+
+      const hostPlayer = room.players.find(p => p.id === room.hostId && !p.isAI);
+      // 没有有效真人房主：直接转移到顺位真人
+      if (!hostPlayer) {
+        const nextHuman = room.players.find(p => !p.isAI);
+        if (!nextHuman) {
+          this.rooms.delete(roomId);
+          this.hostUnreadySince.delete(roomId);
+          if (this.onRoomDeleted) this.onRoomDeleted(roomId);
+          continue;
+        }
+        room.players.forEach(p => { p.isHost = p.id === nextHuman.id; });
+        room.hostId = nextHuman.id;
+        this.updateHostReadyTracking(room);
+        if (this.onRoomUpdated) this.onRoomUpdated(roomId);
+        continue;
+      }
+
+      if (hostPlayer.isReady) {
+        this.hostUnreadySince.delete(roomId);
+        continue;
+      }
+
+      const startedAt = this.hostUnreadySince.get(roomId) ?? Date.now();
+      if (!this.hostUnreadySince.has(roomId)) {
+        this.hostUnreadySince.set(roomId, startedAt);
+        continue;
+      }
+
+      if (Date.now() - startedAt < 30_000) continue;
+
+      const nextHuman = room.players.find(p => !p.isAI && p.id !== hostPlayer.id);
+      if (!nextHuman) {
+        this.rooms.delete(roomId);
+        this.hostUnreadySince.delete(roomId);
+        if (this.onRoomDeleted) this.onRoomDeleted(roomId);
+        continue;
+      }
+
+      hostPlayer.isHost = false;
+      nextHuman.isHost = true;
+      room.hostId = nextHuman.id;
+      room.lastActivityAt = Date.now();
+      this.updateHostReadyTracking(room);
+      if (this.onRoomUpdated) this.onRoomUpdated(roomId);
+    }
+  }
+
+  private updateHostReadyTracking(room: GameRoom): void {
+    if (room.status !== 'waiting') {
+      this.hostUnreadySince.delete(room.id);
+      return;
+    }
+    const host = room.players.find(p => p.id === room.hostId && !p.isAI);
+    if (!host || host.isReady) {
+      this.hostUnreadySince.delete(room.id);
+      return;
+    }
+    if (!this.hostUnreadySince.has(room.id)) {
+      this.hostUnreadySince.set(room.id, Date.now());
+    }
   }
 
   // 清理过期房间
@@ -370,5 +453,6 @@ export class RoomManager {
 
   destroy(): void {
     clearInterval(this.cleanupInterval);
+    clearInterval(this.hostReadyCheckInterval);
   }
 }

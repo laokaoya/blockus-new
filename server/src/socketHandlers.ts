@@ -27,6 +27,13 @@ export function setupSocketHandlers(
     io.emit('room:list', roomManager.getPublicRooms());
     gameManager.removeGame(roomId);
   };
+  roomManager.onRoomUpdated = (roomId: string) => {
+    const room = roomManager.getRoomSafe(roomId);
+    if (room) {
+      io.to(roomId).emit('room:updated', room);
+    }
+    io.emit('room:list', roomManager.getPublicRooms());
+  };
 
   // Socket.io 中间件：认证（支持 local JWT 和 Firebase ID token）
   io.use(async (socket: AuthenticatedSocket, next) => {

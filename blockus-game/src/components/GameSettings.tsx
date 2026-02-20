@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useRoom } from '../contexts/RoomContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface GameSettings {
   aiDifficulty: 'easy' | 'medium' | 'hard';
@@ -328,6 +330,9 @@ const Button = styled.button<{ variant: 'primary' | 'secondary' }>`
 const GameSettings: React.FC = () => {
   const navigate = useNavigate();
   const { t, tArray } = useLanguage();
+  const { createRoom, addAI } = useRoom();
+  const { user } = useAuth();
+  const [isStarting, setIsStarting] = useState(false);
   
   const [settings, setSettings] = useState<GameSettings>({
     aiDifficulty: 'medium',
@@ -348,10 +353,40 @@ const GameSettings: React.FC = () => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleStartGame = () => {
-    // 保存设置到localStorage
-    localStorage.setItem('gameSettings', JSON.stringify(settings));
-    navigate('/game');
+  const handleStartGame = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setIsStarting(true);
+    try {
+      localStorage.setItem('gameSettings', JSON.stringify(settings));
+
+      const room = await createRoom(
+        `${user.profile.nickname} · 单机房`,
+        undefined,
+        {
+          turnTimeLimit: settings.timeLimit,
+          aiDifficulty: settings.aiDifficulty,
+          showHints: settings.showHints,
+          soundEnabled: settings.soundEnabled,
+          privateRoom: false,
+        },
+        'classic'
+      );
+
+      // 单机模式：自动补齐为 1 人类 + 3 AI（会显示在房间列表）
+      await addAI(room.id, settings.aiDifficulty);
+      await addAI(room.id, settings.aiDifficulty);
+      await addAI(room.id, settings.aiDifficulty);
+
+      navigate(`/room/${room.id}`, { state: { showTransition: true } });
+    } catch (error) {
+      console.error('创建单机房失败:', error);
+      alert('创建单机房失败，请重试');
+    } finally {
+      setIsStarting(false);
+    }
   };
 
   const handleBackToLobby = () => {
@@ -456,8 +491,8 @@ const GameSettings: React.FC = () => {
         <Button variant="secondary" onClick={handleBackToLobby}>
           {t('common.back')}
         </Button>
-        <Button variant="primary" onClick={handleStartGame}>
-          {t('game.start')}
+        <Button variant="primary" onClick={handleStartGame} disabled={isStarting}>
+          {isStarting ? (t('common.loading') || '加载中...') : t('game.start')}
         </Button>
       </ActionButtons>
     </SettingsContainer>

@@ -33,18 +33,25 @@ const CreateRoomOverlay = styled.div<{ isOpen: boolean }>`
   opacity: ${props => props.isOpen ? 1 : 0};
   pointer-events: ${props => props.isOpen ? 'all' : 'none'};
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @media (max-width: 768px) {
+    padding: 10px;
+    align-items: flex-start;
+    overflow-y: auto;
+  }
 `;
 
 const ConsoleContainer = styled.div`
-  width: 800px;
-  max-width: 90%;
+  width: min(800px, calc(100vw - 24px));
   background: var(--surface-color);
   backdrop-filter: blur(16px);
   border: 1px solid var(--surface-border);
   border-radius: 24px;
-  padding: 40px;
+  padding: 28px;
   position: relative;
   box-shadow: 0 0 100px rgba(99, 102, 241, 0.1);
+  max-height: min(92vh, 860px);
+  overflow-y: auto;
   
   &::before {
     content: '';
@@ -55,13 +62,20 @@ const ConsoleContainer = styled.div`
     height: 1px;
     background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
   }
+
+  @media (max-width: 768px) {
+    border-radius: 16px;
+    padding: 18px 14px 16px;
+    max-height: calc(100vh - 20px);
+    margin: 8px auto;
+  }
 `;
 
 const ConsoleHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
+  margin-bottom: 24px;
 `;
 
 const ConsoleTitle = styled.h2`
@@ -70,10 +84,15 @@ const ConsoleTitle = styled.h2`
   color: var(--text-primary);
   margin: 0;
   text-transform: uppercase;
-  letter-spacing: 4px;
-  background: linear-gradient(to right, var(--text-primary), #a5b4fc);
+  letter-spacing: 2px;
+  background: linear-gradient(to right, var(--text-primary), var(--primary-color));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+
+  @media (max-width: 768px) {
+    font-size: 1.4rem;
+    letter-spacing: 1px;
+  }
 `;
 
 const CloseButton = styled.button`
@@ -99,10 +118,11 @@ const CloseButton = styled.button`
 const ConsoleGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 30px;
+  gap: 16px;
   
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 `;
 
@@ -114,7 +134,7 @@ const ConsoleSection = styled.div`
 
 const ConsoleLabel = styled.label`
   font-family: 'Rajdhani', sans-serif;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -227,11 +247,24 @@ const DeployButton = styled.button`
     cursor: not-allowed;
     transform: none;
   }
+
+  @media (max-width: 768px) {
+    padding: 14px;
+    font-size: 1rem;
+    letter-spacing: 1px;
+    margin-top: 8px;
+  }
 `;
 
 const TimeOptionRow = styled.div`
   display: flex;
   gap: 12px;
+
+  @media (max-width: 768px) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
 `;
 
 const TimeOption = styled.div<{ $active: boolean }>`
@@ -244,14 +277,25 @@ const TimeOption = styled.div<{ $active: boolean }>`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: ${props => props.$active ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.03)'};
-  border: 1px solid ${props => props.$active ? 'rgba(99, 102, 241, 0.5)' : 'rgba(255, 255, 255, 0.1)'};
-  color: ${props => props.$active ? '#a5b4fc' : 'rgba(255, 255, 255, 0.5)'};
+  background: ${props => props.$active ? 'rgba(99, 102, 241, 0.18)' : 'var(--surface-highlight)'};
+  border: 1px solid ${props => props.$active ? 'var(--primary-color)' : 'var(--surface-border)'};
+  color: ${props => props.$active ? 'var(--primary-color)' : 'var(--text-secondary)'};
 
   &:hover {
     background: rgba(99, 102, 241, 0.1);
-    border-color: rgba(99, 102, 241, 0.3);
-    color: #a5b4fc;
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+  }
+`;
+
+const ModeGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 `;
 
@@ -1158,7 +1202,7 @@ const RoomList: React.FC = () => {
 
             <ConsoleSection style={{ gridColumn: '1 / -1' }}>
               <ConsoleLabel>{t('room.gameMode')}</ConsoleLabel>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <ModeGrid>
                 <ModeCard 
                   $active={newRoomGameMode === 'classic'} 
                   $color="99, 102, 241"
@@ -1182,7 +1226,7 @@ const RoomList: React.FC = () => {
                     <ModeDesc>{t('room.creativeRules')}</ModeDesc>
                   </ModeInfo>
                 </ModeCard>
-              </div>
+              </ModeGrid>
             </ConsoleSection>
 
             <ConsoleSection style={{ gridColumn: '1 / -1' }}>

@@ -486,9 +486,9 @@ const GameRoom: React.FC = () => {
   const canStart = isHost && hasFourPlayers && allReady;
   const canAddAI = targetRoom.players.length < 4;
 
-  const handleLeaveRoom = () => {
+  const handleLeaveRoom = async () => {
     soundManager.buttonClick();
-    leaveRoom();
+    await leaveRoom();
     navigate('/');
   };
 
@@ -589,10 +589,10 @@ const GameRoom: React.FC = () => {
                   $isHost={player.isHost}
                 >
                   {player.isHost && <HostBadge>{t('gameRoom.host')}</HostBadge>}
-                  {isHost && player.isAI && (
+                  {isHost && player.id !== user.profile.id && (
                     <RemoveButton 
                       onClick={() => handleRemovePlayer(player.id)}
-                      title={t('gameRoom.removeAI') || '移除AI'}
+                      title={t('gameRoom.removePlayer') || t('gameRoom.removeAI') || '移除玩家'}
                     >
                       ×
                     </RemoveButton>
@@ -641,7 +641,7 @@ const GameRoom: React.FC = () => {
               </ControlPanel>
             )}
 
-            {myPlayer && !myPlayer.isHost && (
+            {myPlayer && targetRoom.status === 'waiting' && (
               <ReadyButton 
                 $isReady={myPlayer.isReady}
                 onClick={handleToggleReady}

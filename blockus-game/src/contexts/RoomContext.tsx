@@ -210,24 +210,54 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     if (!user || !socketService.isConnected) return false;
 
     const result = await socketService.joinRoom(roomId, password);
-      if (result.success && result.room) {
-        setChatMessages([]); // 清空聊天记录
-        setCurrentRoom(result.room);
-        return true;
+    if (result.success && result.room) {
+      setChatMessages([]); // 清空聊天记录
+      setCurrentRoom(result.room);
+      return true;
+    }
+
+    // 兜底恢复：如果服务端认为玩家仍在旧房间，先离开旧房间再重试一次
+    if (result.error && result.error.startsWith('ALREADY_IN_ROOM')) {
+      const staleRoomId = result.error.split(':')[1];
+      if (staleRoomId) {
+        try {
+          await socketService.leaveRoom(staleRoomId);
+          const retry = await socketService.joinRoom(roomId, password);
+          if (retry.success && retry.room) {
+            setChatMessages([]);
+            setCurrentRoom(retry.room);
+            return true;
+          }
+        } catch (error) {
+          console.warn('Retry join room failed:', error);
+        }
       }
+    }
     return false;
   }, [user]);
 
   const leaveRoom = useCallback(async (): Promise<void> => {
-    if (currentRoom) {
-      if (socketService.isConnected) {
-        await socketService.leaveRoom(currentRoom.id);
+    const roomToLeave = currentRoom || (user ? rooms.find(r => r.players.some(p => p.id === user.profile.id)) || null : null);
+
+    // 先清本地状态，避免 UI 卡在加载态
+    setCurrentRoom(null);
+    setChatMessages([]);
+    setIsSpectating(false);
+
+    if (roomToLeave && socketService.isConnected) {
+      try {
+        await socketService.leaveRoom(roomToLeave.id);
+      } catch (error) {
+        console.warn('leaveRoom failed:', error);
       }
-      setCurrentRoom(null);
-      setChatMessages([]); // 清空聊天记录
-      setIsSpectating(false);
+      try {
+        const roomList = await socketService.getRooms();
+        setRooms(roomList);
+      } catch {
+        // ignore refresh error
+      }
     }
-  }, [currentRoom]);
+  }, [currentRoom, rooms, user]);
 
   const updateRoom = useCallback(async (roomId: string, updates: Partial<GameRoom>): Promise<boolean> => {
     if (socketService.isConnected) {
