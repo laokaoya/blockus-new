@@ -793,6 +793,9 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
               <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()}>
                 ← {t('common.back')}
               </BackButton>
+              <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()} style={{ marginLeft: 8 }}>
+                {t('game.endGame') || '结束游戏'}
+              </BackButton>
             </HeaderLeft>
             <HeaderRight>
               <RulesButton onClick={handleShowRules} onMouseEnter={() => soundManager.buttonHover()} title={t('help.title')}>

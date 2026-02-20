@@ -681,21 +681,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     return () => clearTimeout(timer);
   }, [isMyTurn, gameState.gamePhase, gameState.board, gameState.players, myUserId, myColor, settlePlayer]);
 
-  // 超时兜底：如果本地看到自己时间已到但服务端未及时切人，主动结算避免卡死
-  useEffect(() => {
-    if (gameState.gamePhase !== 'playing') return;
-    if (!isMyTurn) return;
-    if (gameState.timeLeft > 0) return;
-
-    const myPlayer = gameState.players.find(p => p.id === myUserId);
-    if (!myPlayer || myPlayer.isSettled) return;
-
-    const timer = setTimeout(() => {
-      settlePlayer();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [gameState.gamePhase, gameState.timeLeft, gameState.players, isMyTurn, myUserId, settlePlayer]);
+  // 超时由服务端处理（skip/settle），客户端不主动结算，避免 60 秒首次超时即被错误结算
 
   // 监听当前玩家变化，设置 AI 思考状态
   useEffect(() => {

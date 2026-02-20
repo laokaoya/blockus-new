@@ -130,9 +130,11 @@ export class GameManager {
 
     this.games.set(roomId, game);
 
-    // 启动第一个玩家的回合
+    // 启动第一个玩家的回合（仅人类回合启动计时器，与 advanceTurn 一致）
     this.checkAndProcessAITurn(roomId);
-    this.startTurnTimer(roomId);
+    const firstPlayer = game.players[game.state.currentPlayerIndex];
+    const firstIsHuman = !firstPlayer.isAI;
+    if (firstIsHuman) this.startTurnTimer(roomId);
 
     return { gameState, playerColors: playerColorMap };
   }
@@ -640,15 +642,18 @@ export class GameManager {
     }
   }
 
-  // 启动回合计时器（恢复时使用暂停前保留的 timeLeft，避免闪回）
+  // 启动回合计时器（恢复时使用暂停前保留的 timeLeft，否则每回合满额重置）
   private startTurnTimer(roomId: string): void {
     const game = this.games.get(roomId);
     if (!game) return;
+    this.clearTurnTimer(roomId); // 先清除旧计时器，避免多计时器叠加
     const safeTurnTimeLimit =
       Number.isFinite(game.turnTimeLimit) && game.turnTimeLimit > 0 ? game.turnTimeLimit : 60;
 
-    // 恢复时使用暂停前保留的 timeLeft，否则用满额时间
-    const startTime = (game.timeLeft !== undefined && game.timeLeft > 0) ? game.timeLeft : safeTurnTimeLimit;
+    // 仅恢复时使用暂停前保留的 timeLeft，新回合一律用满额时间（显式重置避免后台时钟连续不重置）
+    const isResuming = game.timeLeft !== undefined && game.timeLeft > 0;
+    const startTime = isResuming ? game.timeLeft : safeTurnTimeLimit;
+    if (!isResuming) game.timeLeft = 0; // 新回合先置零，确保下一轮 advanceTurn 时逻辑正确
     let timeLeft = startTime;
     game.onTimeUpdate(roomId, timeLeft); // 立即同步，避免恢复后闪回
 
