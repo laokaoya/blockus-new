@@ -266,6 +266,7 @@ const Login: React.FC = () => {
       }
       navigate('/', { state: { showTransition: true } });
     } catch (err: any) {
+      console.error('[Login] Auth error:', err?.code, err?.message, err);
       const code = err?.code || '';
       setError(mapFirebaseError(code, t));
     } finally {
