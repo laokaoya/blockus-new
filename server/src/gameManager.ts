@@ -24,10 +24,12 @@ interface ActiveGame {
   hostedAIPlayers: Map<string, AIPlayer>;
   turnTimer: NodeJS.Timeout | null;
   turnTimeLimit: number;
+  /** 当前回合剩余秒数，暂停时保留用于恢复 */
+  timeLeft: number;
   isPaused: boolean;
   onTurnTimeout: (roomId: string) => void;
   onTimeUpdate: (roomId: string, timeLeft: number) => void;
-  onAIMove: (roomId: string, move: GameMove, gameState: GameState) => void;
+  onAIMove: (roomId: string, move: GameMove, gameState: GameState, triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>) => void;
   onAISettle: (roomId: string, playerId: string) => void;
   timeoutCounts: Record<string, number>;
   gameMode: GameMode;
@@ -43,7 +45,7 @@ export class GameManager {
     turnTimeLimit: number,
     onTurnTimeout: (roomId: string) => void,
     onTimeUpdate: (roomId: string, timeLeft: number) => void,
-    onAIMove: (roomId: string, move: GameMove, gameState: GameState) => void,
+    onAIMove: (roomId: string, move: GameMove, gameState: GameState, triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>) => void,
     onAISettle: (roomId: string, playerId: string) => void,
     gameMode: GameMode = 'classic',
   ): { gameState: GameState; playerColors: Record<string, PlayerColor> } {
@@ -116,6 +118,7 @@ export class GameManager {
       hostedAIPlayers: new Map(),
       turnTimer: null,
       turnTimeLimit: normalizedTurnTimeLimit,
+      timeLeft: 0,
       isPaused: false,
       onTurnTimeout,
       onTimeUpdate,
@@ -156,7 +159,12 @@ export class GameManager {
   }
 
   // 处理玩家落子
-  processMove(roomId: string, playerId: string, move: GameMove): { success: boolean; error?: string; gameState?: GameState } {
+  processMove(roomId: string, playerId: string, move: GameMove): {
+    success: boolean;
+    error?: string;
+    gameState?: GameState;
+    triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>;
+  } {
     const game = this.games.get(roomId);
     if (!game) return { success: false, error: 'GAME_NOT_FOUND' };
     if (game.state.gamePhase !== 'playing') return { success: false, error: 'GAME_NOT_PLAYING' };
@@ -205,6 +213,7 @@ export class GameManager {
 
     // 创意模式：处理触发格效果
     let extraTurn = false;
+    const triggeredEffects: Array<{ effectId: string; effectName: string; tileType: string; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }> = [];
     if (cs) {
       const triggered = findTriggeredTiles(piece.shape, move.position, cs.specialTiles);
       const allPlayers: { id: string; color: PlayerColor; score: number }[] = game.players.map(p => ({
@@ -222,11 +231,27 @@ export class GameManager {
           : tile.type === 'red' ? rollRedEffect() : null;
         if (!effect) continue;
 
+        triggeredEffects.push({
+          effectId: effect.id,
+          effectName: effect.name,
+          tileType: tile.type,
+          scoreChange: 0, // 下面 resolve 后会更新
+          grantItemCard: false,
+          extraTurn: false,
+        });
+
         const result = resolveEffect(effect.id, {
           id: playerId,
           color: currentPlayer.color!,
           score: game.state.playerScores[playerId] || 0,
         }, allPlayers, curCp);
+
+        const lastTriggered = triggeredEffects[triggeredEffects.length - 1];
+        if (lastTriggered) {
+          lastTriggered.scoreChange = result.scoreChange ?? 0;
+          lastTriggered.grantItemCard = result.grantItemCard ?? false;
+          lastTriggered.extraTurn = result.extraTurn ?? false;
+        }
 
         if (result.scoreChange) {
           const newScore = Math.max(0, (game.state.playerScores[playerId] || 0) + result.scoreChange);
@@ -296,7 +321,7 @@ export class GameManager {
       this.advanceTurn(roomId);
     }
 
-    return { success: true, gameState: game.state };
+    return { success: true, gameState: game.state, triggeredEffects: triggeredEffects.length > 0 ? triggeredEffects : undefined };
   }
 
 
@@ -446,6 +471,7 @@ export class GameManager {
     if (!game) return;
 
     this.clearTurnTimer(roomId);
+    game.timeLeft = 0; // 新回合使用满额时间
 
     let nextIndex = (game.state.currentPlayerIndex + 1) % game.players.length;
     let attempts = 0;
@@ -553,10 +579,10 @@ export class GameManager {
             };
 
             // 应用移动
-            this.processMove(roomId, currentPlayer.id, move);
+            const procResult = this.processMove(roomId, currentPlayer.id, move);
             
             // 通知外部
-            game.onAIMove(roomId, move, game.state);
+            game.onAIMove(roomId, move, game.state, procResult.triggeredEffects);
           } else {
             // AI 无法移动，结算
             this.settlePlayer(roomId, currentPlayer.id);
@@ -567,17 +593,21 @@ export class GameManager {
     }
   }
 
-  // 启动回合计时器
+  // 启动回合计时器（恢复时使用暂停前保留的 timeLeft，避免闪回）
   private startTurnTimer(roomId: string): void {
     const game = this.games.get(roomId);
     if (!game) return;
     const safeTurnTimeLimit =
       Number.isFinite(game.turnTimeLimit) && game.turnTimeLimit > 0 ? game.turnTimeLimit : 60;
 
-    let timeLeft = safeTurnTimeLimit;
-    
+    // 恢复时使用暂停前保留的 timeLeft，否则用满额时间
+    const startTime = (game.timeLeft !== undefined && game.timeLeft > 0) ? game.timeLeft : safeTurnTimeLimit;
+    let timeLeft = startTime;
+    game.onTimeUpdate(roomId, timeLeft); // 立即同步，避免恢复后闪回
+
     game.turnTimer = setInterval(() => {
       timeLeft--;
+      game.timeLeft = timeLeft;
       game.onTimeUpdate(roomId, timeLeft);
 
       if (timeLeft <= 0) {

@@ -10,6 +10,9 @@ import { rotatePiece, flipPiece } from '../utils/pieceTransformations';
 import socketService, { ServerGameState, GameRanking } from '../services/socketService';
 import soundManager from '../utils/soundManager';
 import { useRoom } from '../contexts/RoomContext';
+import { GOLD_EFFECTS, PURPLE_EFFECTS, RED_EFFECTS } from '../types/creative';
+import type { TileEffect } from '../types/creative';
+import type { EffectResult } from '../utils/creativeModeEngine';
 
 const BOARD_SIZE = 20;
 const COLOR_ORDER: PlayerColor[] = ['red', 'yellow', 'blue', 'green'];
@@ -46,6 +49,8 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [effectQueue, setEffectQueue] = useState<Array<{ effect: TileEffect; result: EffectResult }>>([]);
+  const [showingEffect, setShowingEffect] = useState<{ effect: TileEffect; result: EffectResult } | null>(null);
 
   // 根据服务端 playerColors 创建本地 Player 数组
   const createPlayersFromServerData = useCallback((
@@ -178,10 +183,29 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       unsubscribers.push(socketService.on('connectionChange', connectHandler));
     }
 
+    // 根据 effectId 查找 TileEffect
+    const findEffectById = (effectId: string): TileEffect | null => {
+      const all = [...GOLD_EFFECTS, ...PURPLE_EFFECTS, ...RED_EFFECTS];
+      return all.find(e => e.id === effectId) ?? null;
+    };
+
     // 其他玩家落子
     unsubscribers.push(
-      socketService.on('game:move', (data: { roomId: string; move: GameMove; gameState: ServerGameState }) => {
+      socketService.on('game:move', (data: { roomId: string; move: GameMove; gameState: ServerGameState; triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }> }) => {
         if (data.roomId !== roomId) return;
+
+        // 创意模式：将服务端下发的触发效果加入展示队列
+        if (data.triggeredEffects?.length) {
+          data.triggeredEffects.forEach(t => {
+            const effect = findEffectById(t.effectId);
+            if (effect) {
+              setEffectQueue(prev => [...prev, {
+                effect,
+                result: { scoreChange: t.scoreChange, grantItemCard: t.grantItemCard, extraTurn: t.extraTurn },
+              }]);
+            }
+          });
+        }
 
         // 应用落子到棋盘
         setGameState(prev => {
@@ -401,6 +425,16 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       unsubscribers.forEach(unsub => unsub());
     };
   }, [roomId, myUserId, myNickname, myColor, isSpectating, joinRoom, spectateGame, createPlayersFromServerData]);
+
+  // 创意模式：效果展示队列（与本地创意模式一致）
+  useEffect(() => {
+    if (effectQueue.length > 0 && !showingEffect) {
+      const next = effectQueue[0];
+      setShowingEffect(next);
+      setEffectQueue(prev => prev.slice(1));
+      setTimeout(() => setShowingEffect(null), 2500);
+    }
+  }, [effectQueue, showingEffect]);
 
   // 选择拼图（本地操作）
   const selectPiece = useCallback((piece: Piece | null) => {
@@ -646,5 +680,6 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     myColor,
     playerColorMap,
     currentTurnTime: gameState.timeLeft,
+    showingEffect,
   };
 }

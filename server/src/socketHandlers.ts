@@ -434,12 +434,13 @@ export function setupSocketHandlers(
           io.to(roomId).emit('game:timeUpdate', { roomId, timeLeft });
         },
         // AI 移动回调
-        (roomId, move, gameState) => {
-          // 广播 AI 移动
+        (roomId, move, gameState, triggeredEffects) => {
+          // 广播 AI 移动（创意模式附带触发效果）
           io.to(roomId).emit('game:move', {
             roomId,
             move,
             gameState,
+            ...(triggeredEffects && triggeredEffects.length > 0 ? { triggeredEffects } : {}),
           });
 
           // 广播回合切换
@@ -586,11 +587,12 @@ export function setupSocketHandlers(
 
       callback({ success: true });
 
-      // 广播落子给房间内所有人
+      // 广播落子给房间内所有人（创意模式附带触发效果供客户端展示）
       io.to(data.roomId).emit('game:move', {
         roomId: data.roomId,
         move: data.move,
         gameState: result.gameState!,
+        ...(result.triggeredEffects && result.triggeredEffects.length > 0 ? { triggeredEffects: result.triggeredEffects } : {}),
       });
 
       // 广播回合切换

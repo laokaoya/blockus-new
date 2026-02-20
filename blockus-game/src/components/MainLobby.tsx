@@ -340,7 +340,7 @@ const MainLobby: React.FC = () => {
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
-    if (currentRoom && currentRoom.id) {
+    if (currentRoom && currentRoom.id && !isQuickStarting) {
       if (currentRoom.status === 'playing') {
         const path = currentRoom.gameMode === 'creative' ? '/creative' : '/game';
         navigate(`${path}?roomId=${currentRoom.id}`);
@@ -348,7 +348,7 @@ const MainLobby: React.FC = () => {
         navigate(`/room/${currentRoom.id}`);
       }
     }
-  }, [currentRoom, navigate]);
+  }, [currentRoom, navigate, isQuickStarting]);
 
   const handleQuickClassic = async () => {
     soundManager.buttonClick();

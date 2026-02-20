@@ -21,6 +21,7 @@ import soundManager from '../utils/soundManager';
 import socketService from '../services/socketService';
 import { BookIcon, SettingsIcon, RotateIcon, FlipIcon, EyeIcon } from './Icons';
 import ItemCardBar from './creative/ItemCardBar';
+import EffectPopup from './creative/EffectPopup';
 import type { ItemCard, CreativePlayerState } from '../types/creative';
 
 // --- Responsive Layout Components ---
@@ -596,7 +597,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   const { 
     gameState, selectPiece, placePieceOnBoard, settlePlayer, doUseItemCard,
     rotateSelectedPiece, flipSelectedPiece, thinkingAI, lastAIMove,
-    canPlayerContinue, isMyTurn, isPaused, myColor
+    canPlayerContinue, isMyTurn, isPaused, myColor, showingEffect
   } = mp;
 
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
@@ -861,6 +862,9 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
             />
           )}
 
+          {showingEffect && (
+            <EffectPopup effect={showingEffect.effect} result={showingEffect.result} />
+          )}
           {isSpectateMode && (
             <SpectatorBadge><EyeIcon /> {t('room.spectate') || '观战模式'}</SpectatorBadge>
           )}
