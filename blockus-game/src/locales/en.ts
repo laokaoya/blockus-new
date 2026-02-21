@@ -31,7 +31,6 @@ export const en = {
     restart: 'Restart',
     quit: 'Quit Game',
     endGame: 'End Game',
-    leaveRoomHint: 'Leave room, you can rejoin later',
     gameOver: 'Game Over',
     winner: 'Winner',
     tie: 'Tie',

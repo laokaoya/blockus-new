@@ -544,8 +544,9 @@ const GameRoom: React.FC = () => {
       <BackButton 
         onClick={handleLeaveRoom}
         onMouseEnter={() => soundManager.buttonHover()}
+        title={t('gameRoom.leaveRoom')}
       >
-        ← {t('gameRoom.leaveRoom')}
+        ← {t('common.back')}
       </BackButton>
       
       <RoomCard>

@@ -444,9 +444,9 @@ const GameOver: React.FC<GameOverProps> = ({
     hasProcessed.current = true;
     
     const humanPlayer = players.find(p => p.id === user?.profile.id) || players.find(p => !p.isAI) || players[0];
-    const playerScore = humanPlayer.score;
-    const maxScore = Math.max(...players.map(p => p.score));
-    const isWinner = playerScore === maxScore;
+    const playerScore = humanPlayer?.score ?? 0;
+    const maxScore = players.length > 0 ? Math.max(...players.map(p => p.score)) : 0;
+    const isWinner = players.length > 0 && playerScore === maxScore;
 
     // 同步更新到 AuthContext（会自动持久化到 localStorage）
     if (user) {
@@ -471,12 +471,12 @@ const GameOver: React.FC<GameOverProps> = ({
         totalGames: 0, totalWins: 0, totalScore: 0, winRate: 0, bestScore: 0, totalPlayTime: 0
       };
       const newStats = {
-        totalGames: currentStats.totalGames + 1,
-        totalWins: currentStats.totalWins + (isWinner ? 1 : 0),
-        totalScore: currentStats.totalScore + playerScore,
-        winRate: ((currentStats.totalWins + (isWinner ? 1 : 0)) / (currentStats.totalGames + 1)) * 100,
-        bestScore: Math.max(currentStats.bestScore, playerScore),
-        totalPlayTime: currentStats.totalPlayTime + 300,
+        totalGames: (currentStats.totalGames ?? 0) + 1,
+        totalWins: (currentStats.totalWins ?? 0) + (isWinner ? 1 : 0),
+        totalScore: (currentStats.totalScore ?? 0) + playerScore,
+        winRate: (((currentStats.totalWins ?? 0) + (isWinner ? 1 : 0)) / ((currentStats.totalGames ?? 0) + 1)) * 100,
+        bestScore: Math.max(currentStats.bestScore ?? 0, playerScore),
+        totalPlayTime: (currentStats.totalPlayTime ?? 0) + 300,
       };
       localStorage.setItem('userStats', JSON.stringify(newStats));
 

@@ -253,11 +253,11 @@ const GameControls: React.FC<GameControlsProps> = ({
   const { t } = useLanguage();
   
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-  const isMyTurn = currentPlayer.color === myColor;
+  const isMyTurn = currentPlayer?.color === myColor;
   const isGameOver = gameState.gamePhase === 'finished';
   
-  const canSettle = isMyTurn && !currentPlayer.isSettled;
-  const shouldShowSettleHint = canSettle && !canPlayerContinue(currentPlayer);
+  const canSettle = isMyTurn && currentPlayer && !currentPlayer.isSettled;
+  const shouldShowSettleHint = canSettle && currentPlayer && !canPlayerContinue(currentPlayer);
 
   const handleResetClick = () => {
     soundManager.buttonClick();
@@ -270,7 +270,7 @@ const GameControls: React.FC<GameControlsProps> = ({
         <StatusSection>
           <StatusTitle>{t('game.status')}</StatusTitle>
           <StatusText isCurrentTurn={isMyTurn}>
-            {isMyTurn ? t('game.yourTurn') : `${currentPlayer.name} ${t('game.turn')}`}
+            {isMyTurn ? t('game.yourTurn') : `${currentPlayer?.name ?? '—'} ${t('game.turn')}`}
           </StatusText>
         </StatusSection>
         

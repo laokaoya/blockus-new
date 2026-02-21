@@ -195,23 +195,23 @@ const SpecialTileOverlay = styled.div<{ tileType: SpecialTileType }>`
   }
 `;
 
-/** 已被覆盖的特殊格子：保留边缘发光，体现该格曾为特殊格 */
-const UsedSpecialTileGlow = styled.div<{ tileType: SpecialTileType }>`
+const COVERED_GLOW: Record<SpecialTileType, string> = {
+  gold: 'rgba(251,191,36,0.4)',
+  purple: 'rgba(139,92,246,0.4)',
+  red: 'rgba(248,113,113,0.4)',
+  barrier: 'rgba(107,114,128,0.3)',
+};
+
+/** 已覆盖的特殊格子：仅保留边缘发光，体现曾为特殊格 */
+const CoveredSpecialTileGlow = styled.div<{ tileType: SpecialTileType }>`
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  border-radius: 2px;
   pointer-events: none;
   z-index: 1;
-  border: 1px solid ${props => {
-    if (props.tileType === 'barrier') return 'transparent';
-    return SPECIAL_TILE_STYLES[props.tileType].border;
-  }};
-  box-shadow: ${props => {
-    if (props.tileType === 'barrier') return 'none';
-    const c = SPECIAL_TILE_STYLES[props.tileType].border;
-    return `inset 0 0 8px ${c}, 0 0 6px ${c}`;
-  }};
-  opacity: 0.7;
+  border-radius: 2px;
+  border: 2px solid ${props => SPECIAL_TILE_STYLES[props.tileType].border};
+  box-shadow: inset 0 0 8px ${props => COVERED_GLOW[props.tileType]}, 0 0 6px ${props => SPECIAL_TILE_STYLES[props.tileType].border};
+  background: transparent;
 `;
 
 const CellWrapper = styled.div`
@@ -564,8 +564,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
       >
         {board.map((row, y) =>
           row.map((cell, x) => {
-            const specialTile = specialTiles?.find(t => t.x === x && t.y === y && !t.used);
-            const usedSpecialTile = specialTiles?.find(t => t.x === x && t.y === y && t.used);
+            const specialTile = specialTiles?.find(t => t.x === x && t.y === y);
+            const unusedTile = specialTile && !specialTile.used;
+            const coveredTile = specialTile && specialTile.used && cell !== 0;
             return (
               <CellWrapper key={`${x}-${y}`}>
                 <Cell
@@ -575,18 +576,18 @@ const GameBoard: React.FC<GameBoardProps> = ({
                   isInvalid={shouldShowInvalid(x, y)}
                   isPreview={isInHoverPreview(x, y)}
                   isPreviewValid={isHoverPositionValid()}
-                  isCurrentTurn={currentPlayer.isCurrentTurn}
+                  isCurrentTurn={currentPlayer?.isCurrentTurn ?? false}
                   startingPlayerColor={getStartingPlayerColor(x, y)}
                   isRecentAIMove={lastAIMove.some(m => m.x === x && m.y === y)}
                   onClick={() => handleBoardClick(x, y)}
                   onMouseEnter={() => handleCellHover(x, y)}
                   onMouseDown={(e) => startDrag(x, y, e)}
                 />
-                {specialTile && cell === 0 && (
+                {unusedTile && cell === 0 && (
                   <SpecialTileOverlay tileType={specialTile.type} />
                 )}
-                {usedSpecialTile && cell !== 0 && usedSpecialTile.type !== 'barrier' && (
-                  <UsedSpecialTileGlow tileType={usedSpecialTile.type} />
+                {coveredTile && specialTile.type !== 'barrier' && (
+                  <CoveredSpecialTileGlow tileType={specialTile.type} />
                 )}
               </CellWrapper>
             );

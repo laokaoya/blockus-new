@@ -221,16 +221,19 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       socketService.on('game:move', (data: { roomId: string; move: GameMove; gameState: ServerGameState; triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }> }) => {
         if (data.roomId !== roomId) return;
 
-        // 创意模式：将服务端下发的触发效果加入展示队列
+        // 创意模式：将服务端下发的触发效果加入展示队列（兜底：找不到时用服务端数据构造）
         if (data.triggeredEffects?.length) {
           data.triggeredEffects.forEach(t => {
-            const effect = findEffectById(t.effectId);
-            if (effect) {
-              setEffectQueue(prev => [...prev, {
-                effect,
-                result: { scoreChange: t.scoreChange, grantItemCard: t.grantItemCard, extraTurn: t.extraTurn },
-              }]);
-            }
+            const effect = findEffectById(t.effectId) ?? {
+              id: t.effectId,
+              name: t.effectName,
+              description: '',
+              type: t.tileType as 'gold' | 'purple' | 'red',
+            };
+            setEffectQueue(prev => [...prev, {
+              effect,
+              result: { scoreChange: t.scoreChange, grantItemCard: t.grantItemCard, extraTurn: t.extraTurn },
+            }]);
           });
         }
 
