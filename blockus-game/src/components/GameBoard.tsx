@@ -195,6 +195,25 @@ const SpecialTileOverlay = styled.div<{ tileType: SpecialTileType }>`
   }
 `;
 
+/** 已被覆盖的特殊格子：保留边缘发光，体现该格曾为特殊格 */
+const UsedSpecialTileGlow = styled.div<{ tileType: SpecialTileType }>`
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 1;
+  border: 1px solid ${props => {
+    if (props.tileType === 'barrier') return 'transparent';
+    return SPECIAL_TILE_STYLES[props.tileType].border;
+  }};
+  box-shadow: ${props => {
+    if (props.tileType === 'barrier') return 'none';
+    const c = SPECIAL_TILE_STYLES[props.tileType].border;
+    return `inset 0 0 8px ${c}, 0 0 6px ${c}`;
+  }};
+  opacity: 0.7;
+`;
+
 const CellWrapper = styled.div`
   position: relative;
   width: 100%;
@@ -546,6 +565,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
         {board.map((row, y) =>
           row.map((cell, x) => {
             const specialTile = specialTiles?.find(t => t.x === x && t.y === y && !t.used);
+            const usedSpecialTile = specialTiles?.find(t => t.x === x && t.y === y && t.used);
             return (
               <CellWrapper key={`${x}-${y}`}>
                 <Cell
@@ -564,6 +584,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
                 />
                 {specialTile && cell === 0 && (
                   <SpecialTileOverlay tileType={specialTile.type} />
+                )}
+                {usedSpecialTile && cell !== 0 && usedSpecialTile.type !== 'barrier' && (
+                  <UsedSpecialTileGlow tileType={usedSpecialTile.type} />
                 )}
               </CellWrapper>
             );

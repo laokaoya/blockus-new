@@ -29,7 +29,7 @@ interface ActiveGame {
   isPaused: boolean;
   onTurnTimeout: (roomId: string) => void;
   onTimeUpdate: (roomId: string, timeLeft: number) => void;
-  onAIMove: (roomId: string, move: GameMove, gameState: GameState, triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>) => void;
+  onAIMove: (roomId: string, move: GameMove, gameState: GameState, triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>) => void;
   onAISettle: (roomId: string, playerId: string) => void;
   onAIItemUsed?: (roomId: string, result: { gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string }) => void;
   timeoutCounts: Record<string, number>;
@@ -46,7 +46,7 @@ export class GameManager {
     turnTimeLimit: number,
     onTurnTimeout: (roomId: string) => void,
     onTimeUpdate: (roomId: string, timeLeft: number) => void,
-    onAIMove: (roomId: string, move: GameMove, gameState: GameState, triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>) => void,
+    onAIMove: (roomId: string, move: GameMove, gameState: GameState, triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>) => void,
     onAISettle: (roomId: string, playerId: string) => void,
     gameMode: GameMode = 'classic',
     onAIItemUsed?: (roomId: string, result: { gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string }) => void,
@@ -168,7 +168,7 @@ export class GameManager {
     success: boolean;
     error?: string;
     gameState?: GameState;
-    triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>;
+    triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>;
   } {
     const game = this.games.get(roomId);
     if (!game) return { success: false, error: 'GAME_NOT_FOUND' };
@@ -220,7 +220,7 @@ export class GameManager {
 
     // 创意模式：处理触发格效果
     let extraTurn = false;
-    const triggeredEffects: Array<{ effectId: string; effectName: string; tileType: string; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }> = [];
+    const triggeredEffects: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }> = [];
     if (cs) {
       const triggered = findTriggeredTiles(piece.shape, move.position, cs.specialTiles);
       const allPlayers: { id: string; color: PlayerColor; score: number }[] = game.players.map(p => ({
@@ -242,6 +242,8 @@ export class GameManager {
           effectId: effect.id,
           effectName: effect.name,
           tileType: tile.type,
+          tileX: tile.x,
+          tileY: tile.y,
           scoreChange: 0, // 下面 resolve 后会更新
           grantItemCard: false,
           extraTurn: false,
@@ -276,7 +278,7 @@ export class GameManager {
           game.state.playerScores[playerId] = (game.state.playerScores[playerId] || 0) - baseScore;
           if (pieceIndex !== -1) pieces![pieceIndex].isUsed = false;
           game.state.moves.pop();
-          return { success: true, gameState: game.state };
+          return { success: true, gameState: game.state, triggeredEffects: triggeredEffects.length > 0 ? triggeredEffects : undefined };
         }
         if (result.territoryExpand) {
           const colorIdx = PLAYER_COLORS.indexOf(currentPlayer.color!) + 1;

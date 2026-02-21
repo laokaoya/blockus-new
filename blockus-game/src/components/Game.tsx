@@ -521,8 +521,8 @@ const SinglePlayerGame: React.FC = () => {
               <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()}>
                 ← {t('common.back')}
               </BackButton>
-              <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()} style={{ marginLeft: 8 }}>
-                {t('game.endGame') || '结束游戏'}
+              <BackButton onClick={() => { handleReset(); handleBackToLobby(); }} onMouseEnter={() => soundManager.buttonHover()} style={{ marginLeft: 8 }}>
+                {t('game.quit') || '退出游戏'}
               </BackButton>
             </HeaderLeft>
             <HeaderRight>
@@ -816,11 +816,8 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
         <GameContainer>
           <Header>
             <HeaderLeft>
-              <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()}>
+              <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()} title={t('game.leaveRoomHint') || '离开房间，可重新加入'}>
                 ← {t('common.back')}
-              </BackButton>
-              <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()} style={{ marginLeft: 8 }}>
-                {t('game.endGame') || '结束游戏'}
               </BackButton>
             </HeaderLeft>
             <HeaderRight>

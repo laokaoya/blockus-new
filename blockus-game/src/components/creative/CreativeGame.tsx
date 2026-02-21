@@ -364,8 +364,8 @@ const LocalCreativeGame: React.FC = () => {
               <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()}>
                 ← {t('common.back')}
               </BackButton>
-              <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()} style={{ marginLeft: 8 }}>
-                {t('game.endGame') || '结束游戏'}
+              <BackButton onClick={() => { handleReset(); handleBackToLobby(); }} onMouseEnter={() => soundManager.buttonHover()} style={{ marginLeft: 8 }}>
+                {t('game.quit') || '退出游戏'}
               </BackButton>
               <ModeBadge>CREATIVE</ModeBadge>
             </HeaderLeft>

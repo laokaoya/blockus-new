@@ -218,7 +218,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
 
     // 其他玩家落子
     unsubscribers.push(
-      socketService.on('game:move', (data: { roomId: string; move: GameMove; gameState: ServerGameState; triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }> }) => {
+      socketService.on('game:move', (data: { roomId: string; move: GameMove; gameState: ServerGameState; triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }> }) => {
         if (data.roomId !== roomId) return;
 
         // 创意模式：将服务端下发的触发效果加入展示队列
@@ -265,15 +265,22 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
           });
 
           // 历史记录：落子
-          const mover = prev.players.find(p => p.color === data.move.playerColor);
+            const mover = prev.players.find(p => p.color === data.move.playerColor);
           if (mover) {
             addEvent('place', mover.color, mover.name,
               `放置了 ${data.move.boardChanges.length} 格拼图`,
               { icon: '🧩' });
             data.triggeredEffects?.forEach(t => {
+              const posStr = t.tileX != null && t.tileY != null ? `(${t.tileX},${t.tileY})` : '';
+              const tileName = t.tileType === 'gold' ? '金色' : t.tileType === 'purple' ? '紫色' : '红色';
+              const extra: string[] = [];
+              if (t.scoreChange !== 0) extra.push(`${t.scoreChange > 0 ? '+' : ''}${t.scoreChange}分`);
+              if (t.grantItemCard) extra.push('获得道具卡');
+              if (t.extraTurn) extra.push('额外回合');
+              const detailStr = [t.effectName, ...extra].filter(Boolean).join('，');
               addEvent('tile_effect', mover.color, mover.name,
-                `触发了${t.tileType === 'gold' ? '金色' : t.tileType === 'purple' ? '紫色' : '红色'}方格`,
-                { detail: t.effectName, scoreChange: t.scoreChange, icon: t.tileType === 'gold' ? '★' : t.tileType === 'purple' ? '?' : '!' });
+                `踩到${tileName}方格${posStr}`,
+                { detail: detailStr, scoreChange: t.scoreChange, icon: t.tileType === 'gold' ? '★' : t.tileType === 'purple' ? '?' : '!' });
             });
           }
 
@@ -439,9 +446,10 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
           const user = prev.players.find(p => p.id === usedBy);
           const target = data.targetPlayerId ? prev.players.find(p => p.id === data.targetPlayerId) : null;
           if (user) {
+            const cardDesc = cardDef?.description ? `（${cardDef.description}）` : '';
             addEvent('item_use', user.color, user.name,
-              target ? `对 ${target.name} 使用了「${cardName}」` : `使用了「${cardName}」`,
-              { icon: '🃏' });
+              target ? `对 ${target.name} 使用道具「${cardName}」` : `使用道具「${cardName}」`,
+              { detail: cardDesc || undefined, icon: '🃏' });
             setItemUseBroadcast({ playerName: user.name, playerColor: user.color, cardName, targetName: target?.name });
           }
 

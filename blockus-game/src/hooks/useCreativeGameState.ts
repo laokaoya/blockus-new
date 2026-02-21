@@ -585,13 +585,15 @@ export function useCreativeGameState() {
       );
 
       const tileIcon = tile.type === 'gold' ? '★' : tile.type === 'purple' ? '?' : '!';
+      const posStr = `(${tile.x},${tile.y})`;
+      const tileName = tile.type === 'gold' ? '金色' : tile.type === 'purple' ? '紫色' : '红色';
+      const extra: string[] = [effect.name];
+      if (effectResult.scoreChange !== 0) extra.push(`${effectResult.scoreChange > 0 ? '+' : ''}${effectResult.scoreChange}分`);
+      if (effectResult.grantItemCard) extra.push('获得道具卡');
+      if (effectResult.extraTurn) extra.push('额外回合');
       addEvent('tile_effect', currentPlayer.color, currentPlayer.name,
-        `触发了${tile.type === 'gold' ? '金色' : tile.type === 'purple' ? '紫色' : '红色'}方格`,
-        {
-          detail: effect.name,
-          scoreChange: effectResult.scoreChange || undefined,
-          icon: tileIcon,
-        }
+        `踩到${tileName}方格${posStr}`,
+        { detail: extra.join('，'), scoreChange: effectResult.scoreChange || undefined, icon: tileIcon }
       );
 
       // 应用即时分数变化，同步写入 bonusScore 保证累计
@@ -974,9 +976,15 @@ export function useCreativeGameState() {
             const effectResult = resolveEffect(effect.id, currentPlayer, gameState.players, cp);
 
             const aiTileIcon = tile.type === 'gold' ? '★' : tile.type === 'purple' ? '?' : '!';
+            const aiPosStr = `(${tile.x},${tile.y})`;
+            const aiTileName = tile.type === 'gold' ? '金色' : tile.type === 'purple' ? '紫色' : '红色';
+            const aiExtra: string[] = [effect.name];
+            if (effectResult.scoreChange) aiExtra.push(`${effectResult.scoreChange > 0 ? '+' : ''}${effectResult.scoreChange}分`);
+            if (effectResult.grantItemCard) aiExtra.push('获得道具卡');
+            if (effectResult.extraTurn) aiExtra.push('额外回合');
             addEvent('tile_effect', currentPlayer.color, currentPlayer.name,
-              `触发了${tile.type === 'gold' ? '金色' : tile.type === 'purple' ? '紫色' : '红色'}方格`,
-              { detail: effect.name, scoreChange: effectResult.scoreChange || undefined, icon: aiTileIcon }
+              `踩到${aiTileName}方格${aiPosStr}`,
+              { detail: aiExtra.join('，'), scoreChange: effectResult.scoreChange || undefined, icon: aiTileIcon }
             );
 
             // 分数 + bonusScore
@@ -1208,8 +1216,9 @@ export function useCreativeGameState() {
     } else {
       const result = resolveItemCard(card.cardType, currentPlayer, null, playerCreative, null);
       applyItemResult(result, currentPlayer.id, null, cardIndex);
+      const cardDesc = card.description ? `（${card.description}）` : '';
       addEvent('item_use', currentPlayer.color, currentPlayer.name,
-        `使用了道具「${card.name}」`, { icon: '🃏' });
+        `使用道具「${card.name}」`, { detail: cardDesc || undefined, icon: '🃏' });
       setItemUseBroadcast({ playerName: currentPlayer.name, playerColor: currentPlayer.color, cardName: card.name });
       setCreativeState(prev => ({ ...prev, itemPhase: false, itemPhaseTimeLeft: 0 }));
     }
@@ -1229,9 +1238,10 @@ export function useCreativeGameState() {
     );
     applyItemResult(result, currentPlayer.id, targetPlayerId, itemTargetSelection.cardIndex);
     const targetName = targetPlayer?.name || '?';
+    const cardDesc = itemTargetSelection.card.description ? `（${itemTargetSelection.card.description}）` : '';
     addEvent('item_use', currentPlayer.color, currentPlayer.name,
-      `对 ${targetName} 使用了道具「${itemTargetSelection.card.name}」`,
-      { icon: '🃏' });
+      `对 ${targetName} 使用道具「${itemTargetSelection.card.name}」`,
+      { detail: cardDesc || undefined, icon: '🃏' });
     setItemUseBroadcast({ playerName: currentPlayer.name, playerColor: currentPlayer.color, cardName: itemTargetSelection.card.name, targetName });
     setItemTargetSelection(null);
     setCreativeState(prev => ({ ...prev, itemPhase: false, itemPhaseTimeLeft: 0 }));

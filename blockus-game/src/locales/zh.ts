@@ -31,6 +31,7 @@ export const zh = {
     restart: '重新开始',
     quit: '退出游戏',
     endGame: '结束游戏',
+    leaveRoomHint: '离开房间，可重新加入',
     gameOver: '游戏结束',
     winner: '获胜者',
     tie: '平局',
