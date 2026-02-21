@@ -253,18 +253,26 @@ const GameBoard: React.FC<GameBoardProps> = ({
   
   // 全局鼠标事件监听
   useEffect(() => {
+    const clientToCell = (cx: number, cy: number, rect: DOMRect): { x: number; y: number } | null => {
+      const pad = 2;
+      const gap = 1;
+      const innerW = rect.width - pad * 2;
+      const innerH = rect.height - pad * 2;
+      const cellW = (innerW - gap * 19) / 20;
+      const cellH = (innerH - gap * 19) / 20;
+      if (cellW <= 0 || cellH <= 0) return null;
+      const x = Math.floor((cx - rect.left - pad) / cellW);
+      const y = Math.floor((cy - rect.top - pad) / cellH);
+      if (x >= 0 && x < 20 && y >= 0 && y < 20) return { x, y };
+      return null;
+    };
+
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (dragMode === 'dragging' && selectedPiece) {
-        // 计算棋盘上的位置
         const boardElement = document.querySelector('[data-board-grid]');
         if (boardElement) {
-          const rect = boardElement.getBoundingClientRect();
-          const x = Math.floor((e.clientX - rect.left) / (rect.width / 20));
-          const y = Math.floor((e.clientY - rect.top) / (rect.height / 20));
-          
-          if (x >= 0 && x < 20 && y >= 0 && y < 20) {
-            setMousePosition({ x, y });
-          }
+          const pos = clientToCell(e.clientX, e.clientY, boardElement.getBoundingClientRect());
+          if (pos) setMousePosition(pos);
         }
       }
     };
@@ -274,13 +282,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
       setIsDragging(true);
       setDragMode('dragging');
       
-      // 计算棋盘上的初始位置
       const boardElement = document.querySelector('[data-board-grid]');
       if (boardElement) {
-        const rect = boardElement.getBoundingClientRect();
-        const x = Math.floor((clientX - rect.left) / (rect.width / 20));
-        const y = Math.floor((clientY - rect.top) / (rect.height / 20));
-        setMousePosition({ x, y });
+        const pos = clientToCell(clientX, clientY, boardElement.getBoundingClientRect());
+        if (pos) setMousePosition(pos);
       }
     };
     
@@ -345,14 +350,20 @@ const GameBoard: React.FC<GameBoardProps> = ({
     setMousePosition({ x, y });
   };
   
-  // 拖拽中
+  // 拖拽中（与 clientToCell 逻辑一致，保证影子完整）
   const handleDrag = (e: React.MouseEvent) => {
     if (dragMode !== 'dragging') return;
     
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / (rect.width / 20));
-    const y = Math.floor((e.clientY - rect.top) / (rect.height / 20));
-    
+    const pad = 2;
+    const gap = 1;
+    const innerW = rect.width - pad * 2;
+    const innerH = rect.height - pad * 2;
+    const cellW = (innerW - gap * 19) / 20;
+    const cellH = (innerH - gap * 19) / 20;
+    if (cellW <= 0 || cellH <= 0) return;
+    const x = Math.max(0, Math.min(19, Math.floor((e.clientX - rect.left - pad) / cellW)));
+    const y = Math.max(0, Math.min(19, Math.floor((e.clientY - rect.top - pad) / cellH)));
     setMousePosition({ x, y });
   };
   
@@ -381,8 +392,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
         setDragMode('none');
       }
     } else if (!isDragging && selectedPiece) {
-      if (canPlaceAt(x, y)) {
-        onPiecePlace({ x, y });
+      const placePos = (hoverPosition && isInHoverPreview(x, y)) ? hoverPosition : { x, y };
+      if (canPlaceAt(placePos.x, placePos.y)) {
+        onPiecePlace(placePos);
         setHoverPosition(null);
       }
     } else if (!isDragging) {
@@ -467,7 +479,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
     }
   };
   
-  // 检查位置是否在拼图范围内
+  // 检查位置是否在拼图范围内（支持不规则形状，每行长度可能不同）
   const isPositionInPiece = (x: number, y: number, pieceX: number, pieceY: number): boolean => {
     if (!selectedPiece) return false;
     
@@ -475,9 +487,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const relativeX = x - pieceX;
     const relativeY = y - pieceY;
     
+    const row = shape[relativeY];
     return relativeY >= 0 && relativeY < shape.length && 
-           relativeX >= 0 && relativeX < shape[0]?.length && 
-           shape[relativeY][relativeX] === 1;
+           relativeX >= 0 && relativeX < (row?.length ?? 0) && 
+           row[relativeX] === 1;
   };
   
   // 检查位置是否应该高亮（可放置）

@@ -316,8 +316,10 @@ export class GameManager {
           }
         }
         if (result.globalBonus) {
-          const placedCount = game.state.board.flat().filter(c => c === PLAYER_COLORS.indexOf(currentPlayer.color!) + 1).length;
-          game.state.playerScores[playerId] = (game.state.playerScores[playerId] || 0) + placedCount;
+          const usedPiecesCount = pieces!.filter(p => p.isUsed).length;
+          game.state.playerScores[playerId] = (game.state.playerScores[playerId] || 0) + usedPiecesCount;
+          const lastT = triggeredEffects[triggeredEffects.length - 1];
+          if (lastT) lastT.scoreChange = usedPiecesCount;
         }
       }
 

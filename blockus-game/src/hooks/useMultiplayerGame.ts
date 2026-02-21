@@ -290,6 +290,10 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
             });
           }
 
+          const serverCreative = data.gameState.creativeState;
+          const nextCreative = serverCreative
+            ? { ...serverCreative, specialTiles: serverCreative.specialTiles ?? prev.creativeState?.specialTiles ?? [] }
+            : prev.creativeState;
           return {
             ...prev,
             board: newBoard,
@@ -297,7 +301,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
             currentPlayerIndex: data.gameState.currentPlayerIndex,
             moves: [...prev.moves, data.move],
             turnCount: data.gameState.turnCount,
-            creativeState: (data.gameState.creativeState ?? prev.creativeState) as GameState['creativeState'],
+            creativeState: nextCreative as GameState['creativeState'],
           };
         });
 
