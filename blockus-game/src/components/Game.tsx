@@ -10,7 +10,7 @@ import GameControls from './GameControls';
 import GameOver from './GameOver';
 import GameRulesModal from './GameRulesModal';
 import ChatBox from './ChatBox';
-import { Position, Piece } from '../types/game';
+import { Position, Piece, Player } from '../types/game';
 import type { SpecialTile } from '../types/creative';
 import { canPlacePiece } from '../utils/gameEngine';
 import { overlapsBarrier } from '../utils/creativeModeEngine';
@@ -26,7 +26,7 @@ import EffectPopup from './creative/EffectPopup';
 import EventLog from './creative/EventLog';
 import Toast from './Toast';
 import ItemUseBroadcast from './ItemUseBroadcast';
-import type { ItemCard, CreativePlayerState } from '../types/creative';
+import type { ItemCard, CreativePlayerState, StatusEffect } from '../types/creative';
 
 // --- Responsive Layout Components ---
 
@@ -187,8 +187,8 @@ const PieceActions = styled.div<{ $visible: boolean }>`
   margin-right: 12px;
   height: 70%;
   justify-content: center;
-  opacity: ${props => props.$visible ? 1 : 0.3};
-  pointer-events: ${props => props.$visible ? 'auto' : 'none'};
+  opacity: ${(props: { $visible: boolean }) => props.$visible ? 1 : 0.3};
+  pointer-events: ${(props: { $visible: boolean }) => props.$visible ? 'auto' : 'none'};
   transition: opacity 0.2s ease;
   flex-shrink: 0;
 
@@ -410,7 +410,7 @@ const SinglePlayerGame: React.FC = () => {
   const player = gameState.players[0];
   const aiPlayers = gameState.players.slice(1);
   const selectedPieceRef = useRef(gameState.selectedPiece);
-  const isHumanTurnRef = useRef(currentPlayer.color === 'red');
+  const isHumanTurnRef = useRef(currentPlayer?.color === 'red');
 
   const handleBackToLobby = () => {
     soundManager.buttonClick();
@@ -430,14 +430,14 @@ const SinglePlayerGame: React.FC = () => {
   };
   
   const handlePieceSelect = (piece: Piece) => {
-    if (currentPlayer.color === 'red' && !piece.isUsed) {
+    if (currentPlayer?.color === 'red' && !piece.isUsed) {
       soundManager.selectPiece();
       selectPiece(piece);
     }
   };
   
   const handleStartDrag = (piece: Piece, e: React.MouseEvent) => {
-    if (currentPlayer.color === 'red' && !piece.isUsed) {
+    if (currentPlayer?.color === 'red' && !piece.isUsed) {
       soundManager.selectPiece();
       selectPiece(piece);
       const gameBoard = document.querySelector('[data-board-grid]');
@@ -452,7 +452,7 @@ const SinglePlayerGame: React.FC = () => {
   const handlePieceCancel = () => selectPiece(null);
   
   const handleBoardClick = (position: Position) => {
-    if (currentPlayer.color === 'red' && gameState.selectedPiece) {
+    if (currentPlayer?.color === 'red' && gameState.selectedPiece) {
       if (canPlacePiece(gameState.board, gameState.selectedPiece, position, getPlayerColorIndex(currentPlayer.color))) {
         soundManager.placePiece();
       } else {
@@ -463,7 +463,7 @@ const SinglePlayerGame: React.FC = () => {
   };
   
   const handlePiecePlace = (position: Position) => {
-    if (currentPlayer.color === 'red' && gameState.selectedPiece) {
+    if (currentPlayer?.color === 'red' && gameState.selectedPiece) {
       if (canPlacePiece(gameState.board, gameState.selectedPiece, position, getPlayerColorIndex(currentPlayer.color))) {
         soundManager.placePiece();
       } else {
@@ -485,8 +485,8 @@ const SinglePlayerGame: React.FC = () => {
 
   useEffect(() => {
     selectedPieceRef.current = gameState.selectedPiece;
-    isHumanTurnRef.current = currentPlayer.color === 'red';
-  }, [gameState.selectedPiece, currentPlayer.color]);
+    isHumanTurnRef.current = currentPlayer?.color === 'red';
+  }, [gameState.selectedPiece, currentPlayer?.color]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -543,6 +543,7 @@ const SinglePlayerGame: React.FC = () => {
                 onCellClick={handleBoardClick}
                 onCellHover={handleBoardHover}
                 onPiecePlace={handlePiecePlace}
+                onPieceCancel={handlePieceCancel}
                 onRotate={rotateSelectedPiece}
                 onFlip={flipSelectedPiece}
                 lastAIMove={lastAIMove}
@@ -590,7 +591,10 @@ const SinglePlayerGame: React.FC = () => {
 };
 
 // ============= 多人游戏组件 =============
-const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
+interface MultiplayerGameViewProps {
+  roomId: string;
+}
+const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: MultiplayerGameViewProps) => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -619,11 +623,11 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
 
   const [toast, setToast] = useState<{ message: string; type?: 'error' | 'info' | 'success' } | null>(null);
 
-  const myCreative = gameState.creativeState?.creativePlayers.find(c => c.playerId === user?.profile.id);
+  const myCreative = gameState.creativeState?.creativePlayers.find((c: { playerId: string }) => c.playerId === user?.profile.id);
   
   // 找到自己的 player 对象
-  const myPlayer = gameState.players.find(p => p.id === user?.profile.id);
-  const otherPlayers = gameState.players.filter(p => p.id !== user?.profile.id);
+  const myPlayer = gameState.players.find((p: Player) => p.id === user?.profile.id);
+  const otherPlayers = gameState.players.filter((p: Player) => p.id !== user?.profile.id);
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const selectedPieceRef = useRef(gameState.selectedPiece);
   const isMyTurnRef = useRef(isMyTurn);
@@ -688,7 +692,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
   
   const canPlaceAt = (position: Position) => {
     if (!gameState.selectedPiece) return false;
-    const ok = canPlacePiece(gameState.board, gameState.selectedPiece, position, getPlayerColorIndex(myColor));
+    const ok = canPlacePiece(gameState.board, gameState.selectedPiece, position, getPlayerColorIndex(myColor || 'red'));
     if (!ok) return false;
     const specialTiles = gameState.creativeState?.specialTiles;
     if (specialTiles?.length && overlapsBarrier(gameState.selectedPiece.shape, position, specialTiles)) return false;
@@ -783,17 +787,18 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
 
   // Add loading check
   if (!gameState.players || gameState.players.length === 0) {
+    const loadingStyle: React.CSSProperties = {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100%',
+      color: 'var(--text-primary)',
+      fontSize: '1.2rem',
+      fontFamily: '"Orbitron", sans-serif',
+    };
     return (
       <GameContainer>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: '100%', 
-          color: 'var(--text-primary)',
-          fontSize: '1.2rem',
-          fontFamily: "'Orbitron', sans-serif"
-        }}>
+        <div style={loadingStyle}>
           {t('common.loading') || 'Loading game data...'}
         </div>
       </GameContainer>
@@ -842,6 +847,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
                 onCellClick={handleBoardClick}
                 onCellHover={handleBoardHover}
                 onPiecePlace={handlePiecePlace}
+                onPieceCancel={handlePieceCancel}
                 onRotate={rotateSelectedPiece}
                 onFlip={flipSelectedPiece}
                 lastAIMove={lastAIMove}
@@ -881,7 +887,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
                   onPieceSelect={handlePieceSelect}
                   selectedPiece={gameState.selectedPiece}
                   onStartDrag={handleStartDrag}
-                  hasSteel={!!myCreative?.statusEffects.some(e => e.type === 'steel' && e.remainingTurns > 0)}
+                  hasSteel={!!myCreative?.statusEffects.some((e: StatusEffect) => e.type === 'steel' && e.remainingTurns > 0)}
                 />
               )}
             </PieceLibraryWrapper>

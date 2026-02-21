@@ -11,7 +11,7 @@ import socketService, { ServerGameState, GameRanking } from '../services/socketS
 import soundManager from '../utils/soundManager';
 import { useRoom } from '../contexts/RoomContext';
 import { GOLD_EFFECTS, PURPLE_EFFECTS, RED_EFFECTS, ITEM_CARD_DEFS } from '../types/creative';
-import type { TileEffect } from '../types/creative';
+import type { TileEffect, TileEffectId } from '../types/creative';
 import type { GameEvent } from '../types/creative';
 import type { EffectResult } from '../utils/creativeModeEngine';
 
@@ -167,6 +167,11 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
 
       setIsMyTurn(players[data.gameState.currentPlayerIndex]?.id === myUserId);
       setIsPaused(!!data.isPaused);
+      if (data.gameState.creativeState?.itemPhase) {
+        setItemPhaseTimeLeft(data.gameState.creativeState.itemPhaseTimeLeft ?? 30);
+      } else {
+        setItemPhaseTimeLeft(0);
+      }
       if (isStart) {
         setIsGameOver(false);
         soundManager.yourTurn();
@@ -224,16 +229,14 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         // 创意模式：将服务端下发的触发效果加入展示队列（兜底：找不到时用服务端数据构造）
         if (data.triggeredEffects?.length) {
           data.triggeredEffects.forEach(t => {
-            const effect = findEffectById(t.effectId) ?? {
-              id: t.effectId,
+            const effect: TileEffect = findEffectById(t.effectId) ?? {
+              id: t.effectId as TileEffectId,
               name: t.effectName,
               description: '',
               type: t.tileType as 'gold' | 'purple' | 'red',
             };
-            setEffectQueue(prev => [...prev, {
-              effect,
-              result: { scoreChange: t.scoreChange, grantItemCard: t.grantItemCard, extraTurn: t.extraTurn },
-            }]);
+            const result: EffectResult = { scoreChange: t.scoreChange, grantItemCard: t.grantItemCard, extraTurn: t.extraTurn };
+            setEffectQueue(prev => [...prev, { effect, result }]);
           });
         }
 
@@ -297,6 +300,11 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
             creativeState: (data.gameState.creativeState ?? prev.creativeState) as GameState['creativeState'],
           };
         });
+
+        // 创意模式：落子触发道具阶段时同步倒计时（避免从 0 开始导致立即 skip）
+        if (data.gameState.creativeState?.itemPhase) {
+          setItemPhaseTimeLeft(data.gameState.creativeState.itemPhaseTimeLeft ?? 30);
+        }
 
         // 如果不是自己的落子，播放其他玩家落子音效并显示高亮
         const moveColorIndex = data.move.boardChanges[0]?.color;
