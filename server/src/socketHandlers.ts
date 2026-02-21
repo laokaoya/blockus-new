@@ -521,7 +521,7 @@ export function setupSocketHandlers(
         room.gameMode || 'classic',
         // AI 使用道具卡回调
         (roomId, result) => {
-          io.to(roomId).emit('game:itemUsed', {
+          const itemUsedPayload: any = {
             roomId,
             gameState: result.gameState,
             pieceIdUnused: result.pieceIdUnused,
@@ -529,7 +529,11 @@ export function setupSocketHandlers(
             targetPlayerId: result.targetPlayerId,
             cardType: result.cardType,
             usedByPlayerId: result.usedByPlayerId,
-          });
+          };
+          if (result.pieceIdRemoved) {
+            itemUsedPayload.playerPieces = gameManager.getPlayerPieces(roomId);
+          }
+          io.to(roomId).emit('game:itemUsed', itemUsedPayload);
           const r = roomManager.getRoom(roomId);
           const payload: any = {
             roomId,
@@ -713,7 +717,7 @@ export function setupSocketHandlers(
       }
 
       callback({ success: true });
-      io.to(data.roomId).emit('game:itemUsed', {
+      const itemUsedPayload: any = {
         roomId: data.roomId,
         gameState: result.gameState!,
         pieceIdUnused: result.pieceIdUnused,
@@ -721,7 +725,11 @@ export function setupSocketHandlers(
         targetPlayerId: result.targetPlayerId,
         cardType: result.cardType,
         usedByPlayerId: result.usedByPlayerId,
-      });
+      };
+      if (result.pieceIdRemoved) {
+        itemUsedPayload.playerPieces = gameManager.getPlayerPieces(data.roomId);
+      }
+      io.to(data.roomId).emit('game:itemUsed', itemUsedPayload);
       // 道具阶段结束、主计时器启动，广播 turnChanged 确保客户端同步 timeLeft 与 creativeState
       const room = roomManager.getRoom(data.roomId);
         const payload: any = {

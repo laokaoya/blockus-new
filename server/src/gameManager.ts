@@ -613,45 +613,51 @@ export class GameManager {
         // 模拟 AI 思考时间
         const thinkingTime = Math.random() * 1000 + 1000; // 1-2秒
         setTimeout(() => {
-          // 再次检查游戏状态（防止思考期间游戏结束或玩家断线）
-          if (game.state.gamePhase !== 'playing' || game.players[game.state.currentPlayerIndex].id !== currentPlayer.id) return;
+          try {
+            // 再次检查游戏状态（防止思考期间游戏结束或玩家断线）
+            if (game.state.gamePhase !== 'playing' || game.players[game.state.currentPlayerIndex].id !== currentPlayer.id) return;
 
-          // 创意模式：AI 有道具卡则先尝试使用
-          const cs = game.state.creativeState;
-          const aiCp = cs?.creativePlayers.find(p => p.playerId === currentPlayer.id);
-          if (cs && aiCp?.itemCards?.length) {
-            cs.itemPhase = true;
-            const allPlayers = game.players
-              .filter(p => !game.state.settledPlayers.includes(p.id))
-              .map(p => ({
-                id: p.id,
-                color: game.playerColorMap[p.id]!,
-                score: game.state.playerScores[p.id] || 0,
-              }));
-            const decision = aiDecideItemCard(aiCp, allPlayers, cs.creativePlayers, currentPlayer.aiDifficulty || 'medium', cs.specialTiles);
-            if (decision) {
-              const itemResult = this.useItemCard(roomId, currentPlayer.id, decision.cardIndex, decision.targetPlayerId ?? undefined);
-              if (itemResult.success && game.onAIItemUsed) {
-                game.onAIItemUsed(roomId, {
-                  gameState: itemResult.gameState!,
-                  pieceIdUnused: itemResult.pieceIdUnused,
-                  pieceIdRemoved: itemResult.pieceIdRemoved,
-                  targetPlayerId: itemResult.targetPlayerId,
-                  cardType: itemResult.cardType,
-                  usedByPlayerId: itemResult.usedByPlayerId,
-                });
-              } else if (!itemResult.success) {
-                // 道具使用失败（如目标有护盾）时，结束道具阶段以便继续落子
+            const cs = game.state.creativeState;
+            // 创意模式：AI 有道具卡则先尝试使用
+            const aiCp = cs?.creativePlayers.find(p => p.playerId === currentPlayer.id);
+            if (cs && aiCp?.itemCards?.length) {
+              cs.itemPhase = true;
+              const allPlayers = game.players
+                .filter(p => !game.state.settledPlayers.includes(p.id))
+                .map(p => ({
+                  id: p.id,
+                  color: game.playerColorMap[p.id]!,
+                  score: game.state.playerScores[p.id] || 0,
+                }));
+              const decision = aiDecideItemCard(aiCp, allPlayers, cs.creativePlayers, currentPlayer.aiDifficulty || 'medium', cs.specialTiles);
+              if (decision) {
+                const itemResult = this.useItemCard(roomId, currentPlayer.id, decision.cardIndex, decision.targetPlayerId ?? undefined);
+                if (itemResult.success && game.onAIItemUsed) {
+                  game.onAIItemUsed(roomId, {
+                    gameState: itemResult.gameState!,
+                    pieceIdUnused: itemResult.pieceIdUnused,
+                    pieceIdRemoved: itemResult.pieceIdRemoved,
+                    targetPlayerId: itemResult.targetPlayerId,
+                    cardType: itemResult.cardType,
+                    usedByPlayerId: itemResult.usedByPlayerId,
+                  });
+                } else if (!itemResult.success) {
+                  // 道具使用失败（如目标有护盾）时，结束道具阶段以便继续落子
+                  cs.itemPhase = false;
+                  cs.itemPhaseTimeLeft = 0;
+                }
+              } else {
                 cs.itemPhase = false;
                 cs.itemPhaseTimeLeft = 0;
               }
-            } else {
+            }
+            // 确保落子前道具阶段已结束（useItemCard 成功时会设置，但需兜底）
+            if (cs?.itemPhase) {
               cs.itemPhase = false;
               cs.itemPhaseTimeLeft = 0;
             }
-          }
 
-          const pieces = game.playerPieces[currentPlayer.id];
+            const pieces = game.playerPieces[currentPlayer.id];
           const moveResult = game.gameMode === 'creative' && game.state.creativeState
             ? aiPlayer.makeMoveCreative(
                 game.state.board,
@@ -699,6 +705,19 @@ export class GameManager {
             // AI 无法移动，结算
             this.settlePlayer(roomId, currentPlayer.id);
             game.onAISettle(roomId, currentPlayer.id);
+          }
+          } catch (err) {
+            console.error('[AI] checkAndProcessAITurn error:', err);
+            const errCs = this.games.get(roomId)?.state.creativeState;
+            if (errCs?.itemPhase) {
+              errCs.itemPhase = false;
+              errCs.itemPhaseTimeLeft = 0;
+            }
+            const proc = this.games.get(roomId);
+            if (proc?.state.gamePhase === 'playing' && proc.players[proc.state.currentPlayerIndex]?.id === currentPlayer.id) {
+              this.settlePlayer(roomId, currentPlayer.id);
+              game.onAISettle(roomId, currentPlayer.id);
+            }
           }
         }, thinkingTime);
       }

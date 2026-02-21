@@ -458,6 +458,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         roomId: string; gameState: ServerGameState;
         pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string;
         cardType?: string; usedByPlayerId?: string;
+        playerPieces?: Record<string, Array<{ id: string; isUsed: boolean }>>;
       }) => {
         if (data.roomId !== roomId) return;
         const newCreativeState = data.gameState.creativeState;
@@ -492,8 +493,20 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
             );
           }
           // 同步 targetRemovePiece：目标玩家的棋子标记为已使用（缩减卡等）
-          // 优先用 targetPlayerId 匹配，若无则用 pieceId 中的颜色匹配（兼容 ID 格式差异）
-          if (data.pieceIdRemoved) {
+          // 优先用服务端 playerPieces 同步（最可靠），否则用 pieceIdRemoved + targetPlayerId 匹配
+          if (data.playerPieces) {
+            newPlayers = newPlayers.map(p => {
+              const serverPieces = data.playerPieces![p.id];
+              if (!serverPieces) return p;
+              return {
+                ...p,
+                pieces: p.pieces.map(pc => {
+                  const sp = serverPieces.find(s => s.id === pc.id);
+                  return sp ? { ...pc, isUsed: sp.isUsed } : pc;
+                }),
+              };
+            });
+          } else if (data.pieceIdRemoved) {
             const pieceColor = data.pieceIdRemoved.split('_')[0] as PlayerColor;
             newPlayers = newPlayers.map(p => {
               const isTarget = p.id === data.targetPlayerId || (pieceColor && p.color === pieceColor);
