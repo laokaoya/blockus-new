@@ -139,8 +139,11 @@ const TransitionOverlay: React.FC = () => {
   const [message, setMessage] = useState(LOADING_MESSAGES[0]);
 
   useEffect(() => {
-    const state = location.state as { showTransition?: boolean } | null;
-    if (!state?.showTransition) return;
+    const state = location.state as { showTransition?: boolean; fromGameReturn?: boolean } | null;
+    if (!state?.showTransition) {
+      setIsActive(false);
+      return;
+    }
 
     const randomMsg = LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
     setMessage(randomMsg);
@@ -148,8 +151,9 @@ const TransitionOverlay: React.FC = () => {
     setIsActive(true);
     soundManager.pageTransition();
 
-    // Clear state to prevent re-trigger on re-render
-    window.history.replaceState({}, '');
+    // Clear showTransition to prevent re-trigger, preserve fromGameReturn for MainLobby
+    const preserved = state?.fromGameReturn ? { fromGameReturn: true } : {};
+    window.history.replaceState(preserved, '');
 
     const timer = setTimeout(() => {
       setIsActive(false);

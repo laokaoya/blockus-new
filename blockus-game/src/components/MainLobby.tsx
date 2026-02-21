@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -314,6 +314,7 @@ const RoomListWrapper = styled.div`
 
 const MainLobby: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
   const { user, isAuthenticated } = useAuth();
   const { currentRoom, createRoom, addAI, setReady, startGame, isOnline } = useRoom();
@@ -342,6 +343,8 @@ const MainLobby: React.FC = () => {
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
+    const state = location.state as { fromGameReturn?: boolean } | null;
+    if (state?.fromGameReturn) return;
     if (currentRoom && currentRoom.id && !isQuickStarting) {
       if (currentRoom.status === 'playing') {
         const path = currentRoom.gameMode === 'creative' ? '/creative' : '/game';
@@ -350,7 +353,7 @@ const MainLobby: React.FC = () => {
         navigate(`/room/${currentRoom.id}`);
       }
     }
-  }, [currentRoom, navigate, isQuickStarting]);
+  }, [currentRoom, navigate, isQuickStarting, location.state]);
 
   const handleQuickClassic = async () => {
     soundManager.buttonClick();

@@ -645,7 +645,7 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
   // 返回：仅离开界面，房间保留，可重连
   const handleBackToLobby = () => {
     soundManager.buttonClick();
-    navigate('/', { state: { showTransition: true } });
+    navigate('/', { state: { showTransition: true, fromGameReturn: true } });
   };
 
   // 退出游戏：销毁房间后返回
