@@ -105,7 +105,7 @@ export interface ServerToClientEvents {
   'room:chat': (data: { roomId: string; senderId: string; senderName: string; content: string; timestamp: number; type: 'chat' | 'system' }) => void;
 
   // 游戏事件
-  'game:started': (data: { roomId: string; gameState: GameState; playerColors: Record<string, PlayerColor>; playerNames: Record<string, string> }) => void;
+  'game:started': (data: { roomId: string; gameState: GameState; playerColors: Record<string, PlayerColor>; playerNames: Record<string, string>; playerPieces?: Record<string, Array<{ id: string; isUsed: boolean }>> }) => void;
   'game:state': (data: { roomId: string; gameState: GameState; playerColors: Record<string, PlayerColor>; playerNames: Record<string, string>; playerPieces?: Record<string, Array<{ id: string; isUsed: boolean }>>; isPaused?: boolean }) => void;
   'game:move': (data: { roomId: string; move: GameMove; gameState: GameState }) => void;
   'game:itemUsed': (data: { roomId: string; gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string }) => void;

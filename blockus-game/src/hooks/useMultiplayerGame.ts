@@ -457,13 +457,22 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
                 : p
             );
           }
-          // 同步 targetRemovePiece：目标玩家的棋子标记为已使用
-          if (data.pieceIdRemoved && data.targetPlayerId) {
-            newPlayers = newPlayers.map(p =>
-              p.id === data.targetPlayerId
-                ? { ...p, pieces: p.pieces.map(pc => pc.id === data.pieceIdRemoved ? { ...pc, isUsed: true } : pc) }
-                : p
-            );
+          // 同步 targetRemovePiece：目标玩家的棋子标记为已使用（缩减卡等）
+          // 优先用 targetPlayerId 匹配，若无则用 pieceId 中的颜色匹配（兼容 ID 格式差异）
+          if (data.pieceIdRemoved) {
+            const pieceColor = data.pieceIdRemoved.split('_')[0] as PlayerColor;
+            newPlayers = newPlayers.map(p => {
+              const isTarget = p.id === data.targetPlayerId || (pieceColor && p.color === pieceColor);
+              if (!isTarget) return p;
+              const hasMatch = p.pieces.some(pc => pc.id === data.pieceIdRemoved);
+              if (!hasMatch) return p;
+              return {
+                ...p,
+                pieces: p.pieces.map(pc =>
+                  pc.id === data.pieceIdRemoved ? { ...pc, isUsed: true } : pc
+                ),
+              };
+            });
           }
           return {
             ...prev,

@@ -545,13 +545,15 @@ export function setupSocketHandlers(
 
       callback({ success: true });
 
-      // 广播游戏开始
+      // 广播游戏开始（含 playerPieces 供客户端正确同步棋子状态，包括缩减卡等道具效果）
       const playerNames = gameManager.getPlayerNameMap(data.roomId);
+      const playerPieces = gameManager.getPlayerPieces(data.roomId);
       io.to(data.roomId).emit('game:started', {
         roomId: data.roomId,
         gameState,
         playerColors,
         playerNames: playerNames || {},
+        playerPieces: playerPieces || {},
       });
 
       io.emit('room:list', roomManager.getPublicRooms());

@@ -636,6 +636,10 @@ export class GameManager {
                   cardType: itemResult.cardType,
                   usedByPlayerId: itemResult.usedByPlayerId,
                 });
+              } else if (!itemResult.success) {
+                // 道具使用失败（如目标有护盾）时，结束道具阶段以便继续落子
+                cs.itemPhase = false;
+                cs.itemPhaseTimeLeft = 0;
               }
             } else {
               cs.itemPhase = false;
