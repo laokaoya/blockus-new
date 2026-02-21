@@ -447,6 +447,8 @@ export const zh = {
     itemUseFailed: '道具使用失败，请重试',
     itemBlameNoDebuff: '嫁祸卡需要自身有负面状态才能使用',
     targetImmune: '目标有钢铁护盾，道具无效',
+    targetNotFound: '目标玩家不存在',
+    invalidTarget: '无效目标，请选择其他玩家',
     steelActive: '钢铁护盾',
   },
 };

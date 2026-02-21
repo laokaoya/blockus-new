@@ -405,6 +405,8 @@ export const en = {
     itemUseFailed: 'Failed to use item. Please try again.',
     itemBlameNoDebuff: 'Blame card requires a debuff on yourself to use.',
     targetImmune: 'Target has steel shield, item has no effect.',
+    targetNotFound: 'Target player not found.',
+    invalidTarget: 'Invalid target. Please select another player.',
     steelActive: 'Steel Shield',
   },
 };

@@ -684,17 +684,19 @@ export function setupSocketHandlers(
       callback({ success: true });
       const state = gameManager.getGameState(data.roomId);
       const room = roomManager.getRoom(data.roomId);
+      const payload: any = {
+        roomId: data.roomId,
+        currentPlayerIndex: state!.currentPlayerIndex,
+        timeLeft: gameManager.getEffectiveTurnTimeLimit(data.roomId, room?.gameSettings.turnTimeLimit || 60),
+      };
       if (state?.creativeState) {
         io.to(data.roomId).emit('game:creativeState', {
           roomId: data.roomId,
           creativeState: state.creativeState,
         });
+        payload.creativeState = state.creativeState;
       }
-      io.to(data.roomId).emit('game:turnChanged', {
-        roomId: data.roomId,
-        currentPlayerIndex: state!.currentPlayerIndex,
-        timeLeft: gameManager.getEffectiveTurnTimeLimit(data.roomId, room?.gameSettings.turnTimeLimit || 60),
-      });
+      io.to(data.roomId).emit('game:turnChanged', payload);
     });
 
     // 创意模式：使用道具卡

@@ -733,8 +733,28 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
   }, [roomId]);
 
   const skipItemPhase = useCallback(async () => {
-    const result = await socketService.skipItemPhase(roomId);
-    return result.success;
+    setGameState(prev => prev.creativeState ? {
+      ...prev,
+      creativeState: { ...prev.creativeState, itemPhase: false, itemPhaseTimeLeft: 0 },
+    } : prev);
+    try {
+      const result = await socketService.skipItemPhase(roomId);
+      if (!result.success) {
+        setGameState(prev => prev.creativeState ? {
+          ...prev,
+          creativeState: { ...prev.creativeState, itemPhase: true, itemPhaseTimeLeft: prev.creativeState.itemPhaseTimeLeft || 30 },
+        } : prev);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      // 网络错误、超时、未连接等：回滚乐观更新
+      setGameState(prev => prev.creativeState ? {
+        ...prev,
+        creativeState: { ...prev.creativeState, itemPhase: true, itemPhaseTimeLeft: prev.creativeState.itemPhaseTimeLeft || 30 },
+      } : prev);
+      return false;
+    }
   }, [roomId]);
 
   // 判断当前玩家是否可以继续

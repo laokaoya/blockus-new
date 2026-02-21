@@ -423,7 +423,12 @@ export class GameManager {
 
     const result = resolveItemCard(card.cardType, selfPlayerLike, targetPlayerLike, selfCp, targetCp ?? null);
 
-    // 目标有钢铁护盾时：消耗卡牌但不产生效果（不返回错误）
+    // 目标有钢铁护盾时：不消耗卡牌，返回错误让用户重选
+    const targetHasSteel = targetCp?.statusEffects.some(e => e.type === 'steel' && e.remainingTurns > 0);
+    if (card.needsTarget && targetPlayerId && targetHasSteel) {
+      return { success: false, error: 'TARGET_IMMUNE' };
+    }
+
     // 移除使用的道具卡
     selfCp.itemCards = selfCp.itemCards.filter((_, i) => i !== cardIndex);
 
@@ -668,8 +673,15 @@ export class GameManager {
               : aiPlayer.makeMove(game.state.board, pieces);
 
             if (!moveResult) {
-              this.settlePlayer(roomId, currentPlayer.id);
-              game.onAISettle(roomId, currentPlayer.id);
+              // 首轮（每玩家至少一次落子机会）若 AI 返回无步，优先跳过而非结算，避免屏障/布局导致误判
+              const isFirstRound = game.state.turnCount <= game.players.length;
+              if (isFirstRound) {
+                this.skipCurrentTurn(roomId);
+                game.onTurnTimeout(roomId);
+              } else {
+                this.settlePlayer(roomId, currentPlayer.id);
+                game.onAISettle(roomId, currentPlayer.id);
+              }
             } else {
               let placed = false;
               const excludedMoves: Array<{ pieceId: string; position: Position }> = [];

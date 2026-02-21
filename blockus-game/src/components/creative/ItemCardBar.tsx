@@ -17,6 +17,7 @@ interface ItemCardBarProps {
   // 目标选择
   targetSelection: { cardIndex: number; card: ItemCard } | null;
   onConfirmTarget: (targetId: string) => void;
+  onCancelTarget?: () => void;
   /** 创意模式：用于显示目标钢铁护盾特效 */
   creativePlayers?: CreativePlayerState[];
 }
@@ -37,7 +38,7 @@ const Container = styled.div<{ $isPhase: boolean }>`
   bottom: ${props => props.$isPhase ? '120px' : '110px'};
   left: 50%;
   transform: translateX(-50%);
-  z-index: 9999;
+  z-index: 10002;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
@@ -79,7 +80,7 @@ const PhaseTimer = styled.span`
   text-align: center;
 `;
 
-const SkipButton = styled.button`
+const SkipButton = styled.button.attrs({ type: 'button' })`
   background: var(--surface-highlight);
   border: 1px solid var(--surface-border);
   border-radius: 8px;
@@ -265,6 +266,7 @@ const ItemCardBar: React.FC<ItemCardBarProps> = ({
   onSkipPhase,
   targetSelection,
   onConfirmTarget,
+  onCancelTarget,
   creativePlayers,
 }) => {
   if (!creativePlayer) return null;
@@ -282,7 +284,7 @@ const ItemCardBar: React.FC<ItemCardBarProps> = ({
         <TargetPanel>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
             <TargetTitle>选择目标 — {targetSelection.card.name}</TargetTitle>
-            <SkipButton onClick={onSkipPhase}>取消</SkipButton>
+            <SkipButton onClick={onCancelTarget || onSkipPhase}>取消</SkipButton>
           </div>
           <TargetList>
             {opponents.map(p => (

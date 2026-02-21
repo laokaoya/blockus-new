@@ -768,6 +768,10 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
         ? (t('creative.itemBlameNoDebuff') || '嫁祸卡需要自身有负面状态才能使用')
         : result.error === 'TARGET_IMMUNE'
         ? (t('creative.targetImmune') || '目标有钢铁护盾，道具无效')
+        : result.error === 'TARGET_NOT_FOUND'
+        ? (t('creative.targetNotFound') || '目标玩家不存在')
+        : result.error === 'INVALID_TARGET'
+        ? (t('creative.invalidTarget') || '无效目标，请选择其他玩家')
         : (t('creative.itemUseFailed') || `使用失败：${result.error}`);
       setToast({ message: msg, type: 'error' });
     }
@@ -925,13 +929,18 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
               creativePlayers={gameState.creativeState?.creativePlayers as CreativePlayerState[] | undefined}
               onUseCard={handleUseItemCard}
               onSkipPhase={async () => {
-                soundManager.buttonClick();
-                setItemTargetSelection(null);
-                const ok = await skipItemPhase();
-                if (!ok) setToast({ message: t('creative.itemUseFailed') || '跳过失败，请重试', type: 'error' });
+                try {
+                  soundManager.buttonClick();
+                  setItemTargetSelection(null);
+                  const ok = await skipItemPhase();
+                  if (!ok) setToast({ message: t('creative.itemUseFailed') || '跳过失败，请重试', type: 'error' });
+                } catch {
+                  setToast({ message: t('creative.itemUseFailed') || '跳过失败，请重试', type: 'error' });
+                }
               }}
               targetSelection={itemTargetSelection}
               onConfirmTarget={handleConfirmItemTarget}
+              onCancelTarget={() => { soundManager.buttonClick(); setItemTargetSelection(null); }}
             />,
             document.body
           )}
