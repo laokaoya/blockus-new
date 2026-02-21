@@ -196,9 +196,9 @@ const SpecialTileOverlay = styled.div<{ tileType: SpecialTileType }>`
 `;
 
 const COVERED_GLOW: Record<SpecialTileType, string> = {
-  gold: 'rgba(251,191,36,0.4)',
-  purple: 'rgba(139,92,246,0.4)',
-  red: 'rgba(248,113,113,0.4)',
+  gold: 'rgba(251,191,36,0.6)',
+  purple: 'rgba(139,92,246,0.6)',
+  red: 'rgba(248,113,113,0.6)',
   barrier: 'rgba(107,114,128,0.3)',
 };
 
@@ -207,10 +207,10 @@ const CoveredSpecialTileGlow = styled.div<{ tileType: SpecialTileType }>`
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   pointer-events: none;
-  z-index: 1;
+  z-index: 3;
   border-radius: 2px;
   border: 2px solid ${props => SPECIAL_TILE_STYLES[props.tileType].border};
-  box-shadow: inset 0 0 8px ${props => COVERED_GLOW[props.tileType]}, 0 0 6px ${props => SPECIAL_TILE_STYLES[props.tileType].border};
+  box-shadow: inset 0 0 12px ${props => COVERED_GLOW[props.tileType]}, 0 0 12px ${props => COVERED_GLOW[props.tileType]}, 0 0 8px ${props => SPECIAL_TILE_STYLES[props.tileType].border};
   background: transparent;
 `;
 

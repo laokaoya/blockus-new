@@ -280,6 +280,12 @@ const LocalCreativeGame: React.FC = () => {
     navigate('/', { state: { showTransition: true } });
   };
 
+  const handleQuitGame = () => {
+    soundManager.buttonClick();
+    resetGame();
+    navigate('/', { state: { showTransition: true } });
+  };
+
   const handleSettings = () => {
     soundManager.buttonClick();
     setPaused(true);
@@ -361,8 +367,11 @@ const LocalCreativeGame: React.FC = () => {
         <GameContainer>
           <Header>
             <HeaderLeft>
-              <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()}>
-                ← {t('game.quit') || '退出游戏'}
+              <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()} title={t('common.back')}>
+                ← {t('common.back')}
+              </BackButton>
+              <BackButton onClick={handleQuitGame} onMouseEnter={() => soundManager.buttonHover()} title={t('game.quit')}>
+                {t('game.quit')}
               </BackButton>
               <ModeBadge>CREATIVE</ModeBadge>
             </HeaderLeft>

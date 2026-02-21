@@ -417,6 +417,12 @@ const SinglePlayerGame: React.FC = () => {
     navigate('/', { state: { showTransition: true } });
   };
 
+  // 单机离线无房间，退出游戏 = 返回大厅
+  const handleQuitGame = () => {
+    soundManager.buttonClick();
+    navigate('/', { state: { showTransition: true } });
+  };
+
   const handleSettings = () => {
     soundManager.buttonClick();
     setPaused(true);
@@ -518,8 +524,11 @@ const SinglePlayerGame: React.FC = () => {
         <GameContainer>
           <Header>
             <HeaderLeft>
-              <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()}>
+              <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()} title={t('common.back')}>
                 ← {t('common.back')}
+              </BackButton>
+              <BackButton onClick={handleQuitGame} onMouseEnter={() => soundManager.buttonHover()} title={t('game.quit')}>
+                {t('game.quit')}
               </BackButton>
             </HeaderLeft>
             <HeaderRight>
@@ -633,9 +642,16 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
   const isMyTurnRef = useRef(isMyTurn);
   const isSpectateRef = useRef(isSpectateMode);
 
-  const handleBackToLobby = async () => {
+  // 返回：仅离开界面，房间保留，可重连
+  const handleBackToLobby = () => {
     soundManager.buttonClick();
-    await leaveRoom();
+    navigate('/', { state: { showTransition: true } });
+  };
+
+  // 退出游戏：销毁房间后返回
+  const handleQuitGame = async () => {
+    soundManager.buttonClick();
+    await leaveRoom(roomId);
     navigate('/', { state: { showTransition: true } });
   };
 
@@ -811,16 +827,21 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
         <GameOver 
           players={gameState.players} 
           gameState={gameState} 
-          onPlayAgain={handleBackToLobby}
+          onPlayAgain={handleQuitGame}
           onBackToMenu={handleBackToLobby}
         />
       ) : (
         <GameContainer>
           <Header>
             <HeaderLeft>
-              <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()}>
+              <BackButton onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()} title={t('common.back')}>
                 ← {t('common.back')}
               </BackButton>
+              {!isSpectateMode && (
+                <BackButton onClick={handleQuitGame} onMouseEnter={() => soundManager.buttonHover()} title={t('game.quit')}>
+                  {t('game.quit')}
+                </BackButton>
+              )}
             </HeaderLeft>
             <HeaderRight>
               <RulesButton onClick={handleShowRules} onMouseEnter={() => soundManager.buttonHover()} title={t('help.title')}>
@@ -860,7 +881,7 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
                 <GameControls 
                   gameState={gameState} 
                   onSettle={handleSettle} 
-                  onReset={handleBackToLobby} 
+                  onReset={handleQuitGame} 
                   canPlayerContinue={canPlayerContinue}
                   myScore={myPlayer?.score}
                   myColor={myPlayer?.color}

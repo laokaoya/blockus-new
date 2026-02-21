@@ -11,7 +11,7 @@ interface RoomContextType {
   isSpectating: boolean;
   createRoom: (name: string, password?: string, settings?: Partial<GameSettings>, gameMode?: GameMode, options?: { skipSetCurrentRoom?: boolean }) => Promise<GameRoom>;
   joinRoom: (roomId: string, password?: string) => Promise<boolean>;
-  leaveRoom: () => Promise<void>;
+  leaveRoom: (roomId?: string) => Promise<void>;
   updateRoom: (roomId: string, updates: Partial<GameRoom>) => Promise<boolean>;
   addAI: (roomId: string, aiDifficulty: 'easy' | 'medium' | 'hard') => Promise<boolean>;
   removePlayer: (roomId: string, playerId: string) => Promise<boolean>;
@@ -269,17 +269,20 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     return false;
   }, [user]);
 
-  const leaveRoom = useCallback(async (): Promise<void> => {
-    const roomToLeave = currentRoom || (user ? rooms.find(r => r.players.some(p => p.id === user.profile.id)) || null : null);
+  const leaveRoom = useCallback(async (explicitRoomId?: string): Promise<void> => {
+    const roomToLeave = explicitRoomId
+      ? (currentRoom?.id === explicitRoomId ? currentRoom : rooms.find(r => r.id === explicitRoomId) ?? { id: explicitRoomId } as GameRoom)
+      : currentRoom || (user ? rooms.find(r => r.players.some(p => p.id === user.profile.id)) || null : null);
 
     // 先清本地状态，避免 UI 卡在加载态
     setCurrentRoom(null);
     setChatMessages([]);
     setIsSpectating(false);
 
-    if (roomToLeave && socketService.isConnected) {
+    const roomIdToLeave = typeof roomToLeave === 'object' ? roomToLeave?.id : null;
+    if (roomIdToLeave && socketService.isConnected) {
       try {
-        await socketService.leaveRoom(roomToLeave.id);
+        await socketService.leaveRoom(roomIdToLeave);
       } catch (error) {
         console.warn('leaveRoom failed:', error);
       }

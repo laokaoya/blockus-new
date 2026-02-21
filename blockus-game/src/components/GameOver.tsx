@@ -510,7 +510,8 @@ const GameOver: React.FC<GameOverProps> = ({
   
   const handleBackToLobby = () => {
     soundManager.buttonClick();
-    navigate('/', { state: { showTransition: true } });
+    if (onBackToMenu) onBackToMenu();
+    else navigate('/', { state: { showTransition: true } });
   };
   
   const handlePlayAgain = () => {

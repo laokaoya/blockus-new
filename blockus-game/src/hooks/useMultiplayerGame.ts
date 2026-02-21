@@ -337,7 +337,12 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
             timeLeft: safeTimeLeft,
           };
           if (data.creativeState) {
-            next.creativeState = { ...prev.creativeState, ...data.creativeState };
+            // 深合并：保留 specialTiles（含 used 状态），避免被不完整 payload 覆盖导致发光失效
+            next.creativeState = {
+              ...prev.creativeState,
+              ...data.creativeState,
+              specialTiles: data.creativeState.specialTiles ?? prev.creativeState?.specialTiles ?? [],
+            };
           }
           return next;
         });
@@ -364,7 +369,13 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         if (data.roomId !== roomId) return;
         setGameState(prev => ({
           ...prev,
-          creativeState: prev.creativeState ? { ...prev.creativeState, ...data.creativeState } : data.creativeState,
+          creativeState: prev.creativeState
+            ? {
+                ...prev.creativeState,
+                ...data.creativeState,
+                specialTiles: data.creativeState.specialTiles ?? prev.creativeState.specialTiles ?? [],
+              }
+            : data.creativeState,
         }));
         if (data.creativeState?.itemPhase) {
           setItemPhaseTimeLeft(data.creativeState.itemPhaseTimeLeft ?? 30);
