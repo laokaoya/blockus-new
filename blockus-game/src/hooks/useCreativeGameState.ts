@@ -96,6 +96,14 @@ export function useCreativeGameState() {
   const [eventLog, setEventLog] = useState<GameEvent[]>([]);
   const eventIdRef = useRef(0);
 
+  // 道具使用广播特效（本地单机用）
+  const [itemUseBroadcast, setItemUseBroadcast] = useState<{
+    playerName: string;
+    playerColor: PlayerColor;
+    cardName: string;
+    targetName?: string;
+  } | null>(null);
+
   // 暂停控制
   const isPausedRef = useRef(false);
   const setPaused = useCallback((paused: boolean) => { isPausedRef.current = paused; }, []);
@@ -256,6 +264,7 @@ export function useCreativeGameState() {
         ? `对 ${targetName} 使用了道具「${card.name}」`
         : `使用了道具「${card.name}」`,
       { icon: '🃏' });
+    setItemUseBroadcast({ playerName: player.name, playerColor: player.color, cardName: card.name, targetName: targetName || undefined });
   }, [gameState.players, creativeState.creativePlayers, addEvent]);
 
   // ==================== 应用道具卡效果 ====================
@@ -312,10 +321,10 @@ export function useCreativeGameState() {
         ...prev,
         players: prev.players.map(p => {
           if (p.id === selfId && result.selfScoreChange) {
-            return { ...p, score: Math.max(0, p.score + result.selfScoreChange) };
+            return { ...p, score: p.score + result.selfScoreChange };
           }
           if (targetId && p.id === targetId && result.targetScoreChange) {
-            return { ...p, score: Math.max(0, p.score + result.targetScoreChange) };
+            return { ...p, score: p.score + result.targetScoreChange };
           }
           return p;
         }),
@@ -349,16 +358,15 @@ export function useCreativeGameState() {
 
   const undoLastMoveForPlayer = useCallback((playerId: string) => {
     setGameState(prev => {
-      const playerMoves = prev.moves.filter(m => {
-        const colorMap: Record<string, PlayerColor> = {
-          red: 'red', yellow: 'yellow', blue: 'blue', green: 'green'
-        };
-        const player = prev.players.find(p => p.id === playerId);
-        return player && m.playerColor === player.color;
-      });
+      const player = prev.players.find(p => p.id === playerId);
+      if (!player) return prev;
+      const playerMoves = prev.moves.filter(m => m.playerColor === player.color);
       if (playerMoves.length === 0) return prev;
 
       const lastMove = playerMoves[playerMoves.length - 1];
+      const lastMoveIndex = prev.moves.lastIndexOf(lastMove);
+      if (lastMoveIndex === -1) return prev;
+
       const newBoard = prev.board.map(row => [...row]);
       let removedCount = 0;
       lastMove.boardChanges.forEach(c => {
@@ -368,14 +376,27 @@ export function useCreativeGameState() {
         }
       });
 
+      const pieceId = lastMove.pieceId;
+      const newMoves = prev.moves.filter((_, i) => i !== lastMoveIndex);
+
+      const restorePiece = (p: typeof prev.players[0]) => {
+        if (p.id !== playerId) return p;
+        const newScore = p.score - removedCount;
+        if (pieceId) {
+          return { ...p, score: newScore, pieces: p.pieces.map(pc => pc.id === pieceId ? { ...pc, isUsed: false } : pc) };
+        }
+        const usedWithSize = p.pieces.find(pc => pc.isUsed && pc.shape.flat().filter(c => c === 1).length === removedCount);
+        if (usedWithSize) {
+          return { ...p, score: newScore, pieces: p.pieces.map(pc => pc.id === usedWithSize.id ? { ...pc, isUsed: false } : pc) };
+        }
+        return { ...p, score: newScore };
+      };
+
       return {
         ...prev,
         board: newBoard,
-        players: prev.players.map(p =>
-          p.id === playerId
-            ? { ...p, score: Math.max(0, p.score - removedCount) }
-            : p
-        ),
+        moves: newMoves,
+        players: prev.players.map(restorePiece),
       };
     });
   }, []);
@@ -688,7 +709,7 @@ export function useCreativeGameState() {
             }
           });
           const me = updatedPlayers.find(p => p.id === currentPlayer.id);
-          if (me) me.score = Math.max(0, me.score - lastMove.boardChanges.length);
+          if (me) me.score = me.score - lastMove.boardChanges.length;
           setCreativeState(prev => ({
             ...prev,
             creativePlayers: prev.creativePlayers.map(cp =>
@@ -753,6 +774,7 @@ export function useCreativeGameState() {
       turnCount: prev.turnCount + 1,
       moves: [...prev.moves, {
         playerColor: currentPlayer.color,
+        pieceId: gameState.selectedPiece!.id,
         boardChanges,
         timestamp: Date.now(),
       }],
@@ -960,7 +982,7 @@ export function useCreativeGameState() {
             // 分数 + bonusScore
             const me = newPlayers.find(p => p.id === currentPlayer.id);
             if (me && effectResult.scoreChange) {
-              me.score = Math.max(0, me.score + effectResult.scoreChange);
+              me.score = me.score + effectResult.scoreChange;
               setCreativeState(prev => ({
                 ...prev,
                 creativePlayers: prev.creativePlayers.map(c =>
@@ -1040,7 +1062,7 @@ export function useCreativeGameState() {
                     newBoard[c.y][c.x] = 0;
                   }
                 });
-                if (me) me.score = Math.max(0, me.score - last.boardChanges.length);
+                if (me) me.score = me.score - last.boardChanges.length;
               }
             }
 
@@ -1087,7 +1109,7 @@ export function useCreativeGameState() {
           currentPlayerIndex: nextIdx,
           timeLeft: gameSettings.timeLimit,
           turnCount: prev.turnCount + 1,
-          moves: [...prev.moves, { playerColor: currentPlayer.color, boardChanges, timestamp: Date.now() }],
+          moves: [...prev.moves, { playerColor: currentPlayer.color, pieceId: move.piece.id, boardChanges, timestamp: Date.now() }],
         }));
       } else {
         addEvent('settle', currentPlayer.color, currentPlayer.name, '无法放置，自动结算', { icon: '🏁' });
@@ -1188,6 +1210,7 @@ export function useCreativeGameState() {
       applyItemResult(result, currentPlayer.id, null, cardIndex);
       addEvent('item_use', currentPlayer.color, currentPlayer.name,
         `使用了道具「${card.name}」`, { icon: '🃏' });
+      setItemUseBroadcast({ playerName: currentPlayer.name, playerColor: currentPlayer.color, cardName: card.name });
       setCreativeState(prev => ({ ...prev, itemPhase: false, itemPhaseTimeLeft: 0 }));
     }
   }, [gameState, creativeState, applyItemResult, addEvent]);
@@ -1205,9 +1228,11 @@ export function useCreativeGameState() {
       itemTargetSelection.card.cardType, currentPlayer, targetPlayer, playerCreative, targetCreative,
     );
     applyItemResult(result, currentPlayer.id, targetPlayerId, itemTargetSelection.cardIndex);
+    const targetName = targetPlayer?.name || '?';
     addEvent('item_use', currentPlayer.color, currentPlayer.name,
-      `对 ${targetPlayer?.name || '?'} 使用了道具「${itemTargetSelection.card.name}」`,
+      `对 ${targetName} 使用了道具「${itemTargetSelection.card.name}」`,
       { icon: '🃏' });
+    setItemUseBroadcast({ playerName: currentPlayer.name, playerColor: currentPlayer.color, cardName: itemTargetSelection.card.name, targetName });
     setItemTargetSelection(null);
     setCreativeState(prev => ({ ...prev, itemPhase: false, itemPhaseTimeLeft: 0 }));
   }, [itemTargetSelection, gameState, creativeState, applyItemResult, addEvent]);
@@ -1426,6 +1451,10 @@ export function useCreativeGameState() {
 
     // 事件日志
     eventLog,
+
+    // 道具使用广播
+    itemUseBroadcast,
+    setItemUseBroadcast,
 
     // 暂停
     setPaused,

@@ -251,8 +251,8 @@ export function resolveItemCard(
       break;
     case 'item_plunder':
       if (!targetHasSteel && targetPlayer) {
-        const stealAmount = Math.min(3, targetPlayer.score);
-        result.targetScoreChange = -stealAmount;
+        const stealAmount = Math.min(3, Math.max(0, targetPlayer.score)); // 偷取最多3分（目标可为负）
+        result.targetScoreChange = -3; // 目标固定扣3分，可扣到负数
         result.selfScoreChange = stealAmount;
       }
       break;
@@ -367,6 +367,7 @@ export function aiDecideItemCard(
     ['skip_turn', 'time_pressure', 'half_score', 'big_piece_ban'].includes(e.type)
   );
   const hasSteel = aiCreative.statusEffects.some(e => e.type === 'steel' && e.remainingTurns > 0);
+  const unusedRedCount = specialTiles.filter(t => t.type === 'red' && !t.used).length;
 
   if (difficulty === 'easy') {
     if (Math.random() < 0.5) return null;
@@ -394,7 +395,7 @@ export function aiDecideItemCard(
     switch (card.cardType) {
       case 'item_steel':
         if (hasSteel) cardScore = -1;
-        else cardScore = 10 + (hasDebuff ? 20 : 0);
+        else cardScore = 10 + (hasDebuff ? 20 : 0) + unusedRedCount * 4; // 踩红格前预用钢铁
         targetId = null;
         break;
       case 'item_blame':

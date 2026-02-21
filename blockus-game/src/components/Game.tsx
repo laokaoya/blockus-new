@@ -23,6 +23,9 @@ import socketService from '../services/socketService';
 import { BookIcon, SettingsIcon, RotateIcon, FlipIcon, EyeIcon } from './Icons';
 import ItemCardBar from './creative/ItemCardBar';
 import EffectPopup from './creative/EffectPopup';
+import EventLog from './creative/EventLog';
+import Toast from './Toast';
+import ItemUseBroadcast from './ItemUseBroadcast';
 import type { ItemCard, CreativePlayerState } from '../types/creative';
 
 // --- Responsive Layout Components ---
@@ -614,8 +617,10 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
     gameState, selectPiece, placePieceOnBoard, settlePlayer, doUseItemCard, skipItemPhase,
     rotateSelectedPiece, flipSelectedPiece, thinkingAI, lastAIMove,
     canPlayerContinue, isMyTurn, isPaused, myColor, showingEffect,
-    isItemPhase, itemPhaseTimeLeft,
+    isItemPhase, itemPhaseTimeLeft, eventLog, itemUseBroadcast, setItemUseBroadcast,
   } = mp;
+
+  const [toast, setToast] = useState<{ message: string; type?: 'error' | 'info' | 'success' } | null>(null);
 
   const myCreative = gameState.creativeState?.creativePlayers.find(c => c.playerId === user?.profile.id);
   
@@ -742,8 +747,12 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
     } else if (result.error) {
       const msg = result.error === 'NOT_IN_ITEM_PHASE'
         ? (t('creative.itemUseExpired') || '道具阶段已结束，请下次回合再试')
+        : result.error === 'NO_DEBUFF_TO_TRANSFER'
+        ? (t('creative.itemBlameNoDebuff') || '嫁祸卡需要自身有负面状态才能使用')
+        : result.error === 'TARGET_IMMUNE'
+        ? (t('creative.targetImmune') || '目标有钢铁护盾，道具无效')
         : (t('creative.itemUseFailed') || `使用失败：${result.error}`);
-      alert(msg);
+      setToast({ message: msg, type: 'error' });
     }
   };
 
@@ -818,6 +827,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
               <RulesButton onClick={handleShowRules} onMouseEnter={() => soundManager.buttonHover()} title={t('help.title')}>
                 <BookIcon />
               </RulesButton>
+              {gameState.creativeState && <EventLog events={eventLog} />}
               <SettingsButton onClick={handleSettings} onMouseEnter={() => soundManager.buttonHover()} title={t('menu.settings')}>
                 <SettingsIcon />
               </SettingsButton>
@@ -826,9 +836,12 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
 
           <GameContent>
             <LeftPanel>
-              <AIPlayersInfo aiPlayers={otherPlayers} thinkingAI={thinkingAI} />
+              <AIPlayersInfo 
+                aiPlayers={otherPlayers} 
+                thinkingAI={thinkingAI} 
+                creativePlayers={gameState.creativeState?.creativePlayers}
+              />
             </LeftPanel>
-            
             <BoardArea>
               <GameBoard 
                 gameState={gameState}
@@ -874,6 +887,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
                   onPieceSelect={handlePieceSelect}
                   selectedPiece={gameState.selectedPiece}
                   onStartDrag={handleStartDrag}
+                  hasSteel={!!myCreative?.statusEffects.some(e => e.type === 'steel' && e.remainingTurns > 0)}
                 />
               )}
             </PieceLibraryWrapper>
@@ -887,12 +901,13 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
               itemPhaseTimeLeft={itemPhaseTimeLeft}
               players={gameState.players}
               currentPlayerId={myPlayer?.id ?? ''}
+              creativePlayers={gameState.creativeState?.creativePlayers}
               onUseCard={handleUseItemCard}
               onSkipPhase={async () => {
                 soundManager.buttonClick();
                 setItemTargetSelection(null);
                 const ok = await skipItemPhase();
-                if (!ok) alert(t('creative.itemUseFailed') || '跳过失败，请重试');
+                if (!ok) setToast({ message: t('creative.itemUseFailed') || '跳过失败，请重试', type: 'error' });
               }}
               targetSelection={itemTargetSelection}
               onConfirmTarget={handleConfirmItemTarget}
@@ -905,6 +920,22 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
 
           {showingEffect && (
             <EffectPopup effect={showingEffect.effect} result={showingEffect.result} />
+          )}
+          {itemUseBroadcast && (
+            <ItemUseBroadcast
+              playerName={itemUseBroadcast.playerName}
+              playerColor={itemUseBroadcast.playerColor}
+              cardName={itemUseBroadcast.cardName}
+              targetName={itemUseBroadcast.targetName}
+              onDone={() => setItemUseBroadcast(null)}
+            />
+          )}
+          {toast && (
+            <Toast
+              message={toast.message}
+              type={toast.type}
+              onClose={() => setToast(null)}
+            />
           )}
           {isSpectateMode && (
             <SpectatorBadge><EyeIcon /> {t('room.spectate') || '观战模式'}</SpectatorBadge>

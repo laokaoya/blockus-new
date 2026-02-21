@@ -6,11 +6,14 @@ import { Player } from '../types/game';
 import { PLAYER_COLORS } from '../constants/pieces';
 import { useLanguage } from '../contexts/LanguageContext';
 import GameRulesModal from './GameRulesModal';
+import type { CreativePlayerState } from '../types/creative';
 
 interface AIPlayersInfoProps {
   aiPlayers: Player[];
   thinkingAI: string | null;
-  aiDifficulty?: string; // 新增属性
+  aiDifficulty?: string;
+  /** 创意模式：用于显示钢铁护盾特效 */
+  creativePlayers?: CreativePlayerState[];
 }
 
 // 获取AI难度显示文本
@@ -100,7 +103,21 @@ const PlayerHeader = styled.div`
   flex: 1;
 `;
 
-const PlayerAvatar = styled.div<{ color: string }>`
+const steelShine = keyframes`
+  0%, 100% { box-shadow: 0 0 8px #94a3b8, 0 0 12px #64748b; }
+  50% { box-shadow: 0 0 12px #cbd5e1, 0 0 18px #94a3b8; }
+`;
+
+const SteelBadge = styled.span`
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  font-size: 14px;
+  filter: drop-shadow(0 0 4px #64748b);
+  line-height: 1;
+`;
+
+const PlayerAvatar = styled.div<{ color: string; $hasSteel?: boolean }>`
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -113,6 +130,11 @@ const PlayerAvatar = styled.div<{ color: string }>`
   font-size: 18px;
   box-shadow: 0 0 8px ${props => PLAYER_COLORS[props.color]};
   flex-shrink: 0;
+  position: relative;
+  ${props => props.$hasSteel && css`
+    border: 2px solid #94a3b8;
+    animation: ${steelShine} 2s ease-in-out infinite;
+  `}
 
   @media (max-width: 768px) {
     width: 32px;
@@ -237,15 +259,16 @@ const PiecesGrid = styled.div`
   gap: 15px;
 `;
 
-const PieceItem = styled.div<{ color: string; isUsed: boolean }>`
+const PieceItem = styled.div<{ color: string; isUsed: boolean; $hasSteel?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
   height: 80px;
   background: ${props => props.isUsed ? 'var(--surface-highlight)' : 'var(--surface-color)'};
-  border: 1px solid var(--surface-border);
+  border: 1px solid ${props => props.$hasSteel ? '#94a3b8' : 'var(--surface-border)'};
   border-radius: 8px;
   opacity: ${props => props.isUsed ? 0.3 : 1};
+  ${props => props.$hasSteel && !props.isUsed && 'box-shadow: 0 0 8px rgba(148, 163, 184, 0.5);'}
 `;
 
 const ShapeCell = styled.div<{ isFilled: boolean; color: string }>`
@@ -274,10 +297,14 @@ const PieceGrid = styled.div<{ rows: number; cols: number }>`
 const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({ 
   aiPlayers, 
   thinkingAI, 
-  aiDifficulty = 'medium' 
+  aiDifficulty = 'medium',
+  creativePlayers,
 }) => {
   const { t } = useLanguage();
   const [viewingPlayer, setViewingPlayer] = useState<Player | null>(null);
+
+  const hasSteel = (playerId: string) =>
+    creativePlayers?.some(cp => cp.playerId === playerId && cp.statusEffects.some(e => e.type === 'steel' && e.remainingTurns > 0));
 
   const getStatusText = (player: Player): string => {
     if (player.isOffline) return t('game.offlineHosted') || '离线，托管 AI 代打中';
@@ -307,8 +334,9 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({
             title={t('game.viewPieces') || 'Click to view pieces'}
           >
             <PlayerHeader>
-              <PlayerAvatar color={player.color}>
+              <PlayerAvatar color={player.color} $hasSteel={hasSteel(player.id)} title={hasSteel(player.id) ? (t('creative.steelActive') || '钢铁护盾') : undefined}>
                 {player.name.charAt(0)}
+                {hasSteel(player.id) && <SteelBadge>🛡</SteelBadge>}
               </PlayerAvatar>
               <PlayerInfo>
                 <PlayerName>{player.name}</PlayerName>
@@ -335,8 +363,9 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({
           <ModalContent onClick={e => e.stopPropagation()}>
             <ModalHeader>
               <ModalTitle>
-                <PlayerAvatar color={viewingPlayer.color} style={{ width: 30, height: 30, fontSize: 14 }}>
+                <PlayerAvatar color={viewingPlayer.color} $hasSteel={hasSteel(viewingPlayer.id)} style={{ width: 30, height: 30, fontSize: 14 }}>
                   {viewingPlayer.name.charAt(0)}
+                  {hasSteel(viewingPlayer.id) && <SteelBadge style={{ fontSize: 10 }}>🛡</SteelBadge>}
                 </PlayerAvatar>
                 {viewingPlayer.name} - {t('game.viewPieces') || 'Pieces'}
               </ModalTitle>
@@ -344,7 +373,7 @@ const AIPlayersInfo: React.FC<AIPlayersInfoProps> = ({
             </ModalHeader>
             <PiecesGrid>
               {viewingPlayer.pieces.sort((a, b) => b.type - a.type).map(piece => (
-                <PieceItem key={piece.id} color={viewingPlayer.color} isUsed={piece.isUsed}>
+                <PieceItem key={piece.id} color={viewingPlayer.color} isUsed={piece.isUsed} $hasSteel={hasSteel(viewingPlayer.id)}>
                   <PieceShape rows={piece.shape.length} cols={piece.shape[0]?.length || 1}>
                     <PieceGrid rows={piece.shape.length} cols={piece.shape[0]?.length || 1}>
                       {piece.shape.map((row, rowIndex) =>

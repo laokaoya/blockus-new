@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRoom } from '../contexts/RoomContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import { GameRoom, GameMode } from '../types/game';
 import soundManager from '../utils/soundManager';
 
@@ -928,6 +929,7 @@ const RoomList: React.FC = () => {
   const { rooms, isLoading, refreshRooms, createRoom, joinRoom, spectateGame, isOnline } = useRoom();
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   
   // Create Room State
@@ -982,9 +984,9 @@ const RoomList: React.FC = () => {
       console.error('创建房间失败:', error);
       if (error && typeof error === 'string' && error.startsWith('ALREADY_IN_ROOM')) {
         const roomId = error.split(':')[1];
-        alert(t('room.alreadyInRoom') || `您已在房间 ${roomId} 中，请先退出该房间`);
+        showToast(t('room.alreadyInRoom') || `您已在房间 ${roomId} 中，请先退出该房间`);
       } else {
-        alert(t('gameRoom.startFailed') || '创建房间失败，请重试');
+        showToast(t('gameRoom.startFailed') || '创建房间失败，请重试');
       }
     }
   };
@@ -1007,15 +1009,15 @@ const RoomList: React.FC = () => {
       if (success) {
         navigate(`/room/${room.id}`);
       } else {
-        alert(password ? '密码错误或加入失败，请重试' : '加入房间失败，请重试');
+        showToast(password ? '密码错误或加入失败，请重试' : '加入房间失败，请重试');
       }
     } catch (error: any) {
       console.error('加入房间失败:', error);
       if (error && typeof error === 'string' && error.startsWith('ALREADY_IN_ROOM')) {
         const roomId = error.split(':')[1];
-        alert(t('room.alreadyInRoom') || `您已在房间 ${roomId} 中，请先退出该房间`);
+        showToast(t('room.alreadyInRoom') || `您已在房间 ${roomId} 中，请先退出该房间`);
       } else {
-        alert(password ? '密码错误或加入失败，请重试' : '加入房间失败，请重试');
+        showToast(password ? '密码错误或加入失败，请重试' : '加入房间失败，请重试');
       }
     }
   };
@@ -1039,11 +1041,11 @@ const RoomList: React.FC = () => {
         const path = room.gameMode === 'creative' ? '/creative' : '/game';
         navigate(`${path}?roomId=${room.id}&spectate=true`);
       } else {
-        alert('无法观战，请重试');
+        showToast('无法观战，请重试');
       }
     } catch (error) {
       console.error('观战失败:', error);
-      alert('观战失败，请重试');
+      showToast('观战失败，请重试');
     }
   };
 
@@ -1058,11 +1060,11 @@ const RoomList: React.FC = () => {
         const path = room.gameMode === 'creative' ? '/creative' : '/game';
         navigate(`${path}?roomId=${room.id}`, { state: { showTransition: true } });
       } else {
-        alert(t('game.resumeFailed') || '回到游戏失败，请重试');
+        showToast(t('game.resumeFailed') || '回到游戏失败，请重试');
       }
     } catch (error) {
       console.error('回到游戏失败:', error);
-      alert(t('game.resumeFailed') || '回到游戏失败，请重试');
+      showToast(t('game.resumeFailed') || '回到游戏失败，请重试');
     } finally {
       setRejoiningRoomId(null);
     }

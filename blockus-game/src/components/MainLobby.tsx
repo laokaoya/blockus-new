@@ -4,6 +4,7 @@ import styled, { keyframes } from 'styled-components';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useRoom } from '../contexts/RoomContext';
+import { useToast } from '../contexts/ToastContext';
 import GameRulesModal from './GameRulesModal';
 import RoomList from './RoomList';
 import soundManager from '../utils/soundManager';
@@ -316,6 +317,7 @@ const MainLobby: React.FC = () => {
   const { t } = useLanguage();
   const { user, isAuthenticated } = useAuth();
   const { currentRoom, createRoom, addAI, setReady, startGame, isOnline } = useRoom();
+  const { showToast } = useToast();
   
   const [userStats, setUserStats] = useState<UserStats>({
     totalGames: 0, totalWins: 0, totalScore: 0, winRate: 0, bestScore: 0,
@@ -381,7 +383,7 @@ const MainLobby: React.FC = () => {
       }
     } catch (e) {
       console.error('快捷开始失败:', e);
-      alert(t('gameRoom.startFailed') || '开始游戏失败，请重试');
+      showToast(t('gameRoom.startFailed') || '开始游戏失败，请重试');
     } finally {
       setIsQuickStarting(false);
     }
@@ -418,7 +420,7 @@ const MainLobby: React.FC = () => {
       }
     } catch (e) {
       console.error('快捷开始失败:', e);
-      alert(t('gameRoom.startFailed') || '开始游戏失败，请重试');
+      showToast(t('gameRoom.startFailed') || '开始游戏失败，请重试');
     } finally {
       setIsQuickStarting(false);
     }

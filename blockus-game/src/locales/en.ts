@@ -5,6 +5,7 @@ export const en = {
     confirm: 'Confirm',
     cancel: 'Cancel',
     save: 'Save',
+    saveFailed: 'Save failed, please try again',
     reset: 'Reset',
     close: 'Close',
     loading: 'Loading...',
@@ -402,5 +403,8 @@ export const en = {
     noEvents: 'No events yet',
     itemUseExpired: 'Item phase ended. Please try again next turn.',
     itemUseFailed: 'Failed to use item. Please try again.',
+    itemBlameNoDebuff: 'Blame card requires a debuff on yourself to use.',
+    targetImmune: 'Target has steel shield, item has no effect.',
+    steelActive: 'Steel Shield',
   },
 };

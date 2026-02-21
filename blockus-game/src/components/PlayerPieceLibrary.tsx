@@ -11,6 +11,8 @@ interface PlayerPieceLibraryProps {
   selectedPiece: Piece | null;
   onPieceSelect: (piece: Piece) => void;
   onStartDrag?: (piece: Piece, e: React.MouseEvent) => void;
+  /** 创意模式：钢铁护盾时拼图块显示特效 */
+  hasSteel?: boolean;
 }
 
 const LibraryContainer = styled.div`
@@ -44,10 +46,21 @@ const PiecesGrid = styled.div`
   padding: 8px 0;
 `;
 
+const SteelPieceBadge = styled.span`
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 12px;
+  filter: drop-shadow(0 0 2px #64748b);
+  line-height: 1;
+  opacity: 0.9;
+`;
+
 const PieceItem = styled.div<{ 
   isSelected: boolean; 
   isUsed: boolean; 
   color: string;
+  $hasSteel?: boolean;
 }>`
   display: flex;
   align-items: center;
@@ -55,16 +68,16 @@ const PieceItem = styled.div<{
   min-width: 64px;
   height: 64px;
   background: ${props => props.isUsed ? 'transparent' : 'var(--surface-highlight)'};
-  border: 1px solid ${props => props.isSelected ? 'var(--primary-color)' : 'var(--surface-border)'};
-  border-radius: 8px; /* Slightly sharper corners */
+  border: 1px solid ${props => props.isSelected ? 'var(--primary-color)' : props.$hasSteel && !props.isUsed ? '#94a3b8' : 'var(--surface-border)'};
+  border-radius: 8px;
   cursor: ${props => props.isUsed ? 'default' : 'grab'};
   opacity: ${props => props.isUsed ? 0.2 : 1};
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
   position: relative;
   
-  /* 选中态发光 */
-  box-shadow: ${props => props.isSelected ? `0 0 20px var(--player-${props.color}-glow), inset 0 0 10px var(--player-${props.color}-glow)` : 'none'};
+  /* 选中态发光 / 钢铁护盾发光 */
+  box-shadow: ${props => props.isSelected ? `0 0 20px var(--player-${props.color}-glow), inset 0 0 10px var(--player-${props.color}-glow)` : props.$hasSteel && !props.isUsed ? '0 0 10px rgba(148, 163, 184, 0.5), inset 0 0 4px rgba(148, 163, 184, 0.2)' : 'none'};
   transform: ${props => props.isSelected ? 'translateY(-10px)' : 'none'};
   
   &:hover {
@@ -110,7 +123,8 @@ const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({
   player,
   selectedPiece,
   onPieceSelect,
-  onStartDrag
+  onStartDrag,
+  hasSteel = false,
 }) => {
   const { t } = useLanguage();
   
@@ -132,6 +146,8 @@ const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({
               isSelected={isSelected}
               isUsed={piece.isUsed}
               color={player.color}
+              $hasSteel={hasSteel}
+              title={hasSteel && !piece.isUsed ? (t('creative.steelActive') || '钢铁护盾') : undefined}
               onClick={() => handlePieceClick(piece)}
               onMouseDown={(e) => {
                 if (!piece.isUsed && onStartDrag) {
@@ -142,6 +158,7 @@ const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({
                 }
               }}
             >
+              {hasSteel && !piece.isUsed && <SteelPieceBadge>🛡</SteelPieceBadge>}
               <PieceShape 
                 rows={displayShape.length} 
                 cols={displayShape[0]?.length || 1}

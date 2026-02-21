@@ -14,6 +14,7 @@ import GameRulesModal from '../GameRulesModal';
 import EffectPopup from './EffectPopup';
 import ItemCardBar from './ItemCardBar';
 import EventLog from './EventLog';
+import ItemUseBroadcast from '../ItemUseBroadcast';
 import { Position, Piece } from '../../types/game';
 import { canPlacePiece } from '../../utils/gameEngine';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -258,7 +259,8 @@ const LocalCreativeGame: React.FC = () => {
     canPlayerContinue, gameSettings,
     creativeState, showingEffect,
     itemTargetSelection, startUseItemCard, confirmItemTarget, skipItemPhase,
-    eventLog, setPaused,
+    eventLog, itemUseBroadcast, setItemUseBroadcast,
+    setPaused,
   } = useCreativeGameState();
 
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
@@ -368,10 +370,10 @@ const LocalCreativeGame: React.FC = () => {
               <ModeBadge>CREATIVE</ModeBadge>
             </HeaderLeft>
             <HeaderRight>
-              <EventLog events={eventLog} />
               <IconButton onClick={handleShowRules} onMouseEnter={() => soundManager.buttonHover()} title={t('help.title')}>
                 <BookIcon />
               </IconButton>
+              <EventLog events={eventLog} />
               <IconButton onClick={handleSettings} onMouseEnter={() => soundManager.buttonHover()} title={t('menu.settings')}>
                 <SettingsIcon />
               </IconButton>
@@ -380,7 +382,7 @@ const LocalCreativeGame: React.FC = () => {
 
           <GameContent>
             <LeftPanel>
-              <AIPlayersInfo aiPlayers={aiPlayers} thinkingAI={thinkingAI} />
+              <AIPlayersInfo aiPlayers={aiPlayers} thinkingAI={thinkingAI} creativePlayers={creativeState.creativePlayers} />
             </LeftPanel>
 
             <BoardArea>
@@ -423,6 +425,7 @@ const LocalCreativeGame: React.FC = () => {
                 onPieceSelect={handlePieceSelect}
                 selectedPiece={gameState.selectedPiece}
                 onStartDrag={handleStartDrag}
+                hasSteel={!!myCreative?.statusEffects.some(e => e.type === 'steel' && e.remainingTurns > 0)}
               />
             </PieceLibraryWrapper>
           </BottomDock>
@@ -446,6 +449,16 @@ const LocalCreativeGame: React.FC = () => {
           {/* 效果弹窗 */}
           {showingEffect && (
             <EffectPopup effect={showingEffect.effect} result={showingEffect.result} />
+          )}
+          {/* 道具使用广播 */}
+          {itemUseBroadcast && (
+            <ItemUseBroadcast
+              playerName={itemUseBroadcast.playerName}
+              playerColor={itemUseBroadcast.playerColor}
+              cardName={itemUseBroadcast.cardName}
+              targetName={itemUseBroadcast.targetName}
+              onDone={() => setItemUseBroadcast(null)}
+            />
           )}
         </GameContainer>
       )}

@@ -6,7 +6,7 @@ import {
   generateSpecialTiles, initCreativePlayerStates, findTriggeredTiles,
   resolveEffect, rollGoldEffect, rollPurpleEffect, rollRedEffect,
   rollItemCard, addItemCard, tickStatusEffects, overlapsBarrier, pieceCellCount,
-  findTerritoryExpansionCell, resolveItemCard,
+  findTerritoryExpansionCell, resolveItemCard, aiDecideItemCard,
 } from './utils/creativeModeEngine';
 import type { CreativeGameState, CreativePlayerState, SpecialTile } from './utils/creativeTypes';
 
@@ -31,6 +31,7 @@ interface ActiveGame {
   onTimeUpdate: (roomId: string, timeLeft: number) => void;
   onAIMove: (roomId: string, move: GameMove, gameState: GameState, triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>) => void;
   onAISettle: (roomId: string, playerId: string) => void;
+  onAIItemUsed?: (roomId: string, result: { gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string }) => void;
   timeoutCounts: Record<string, number>;
   gameMode: GameMode;
 }
@@ -48,6 +49,7 @@ export class GameManager {
     onAIMove: (roomId: string, move: GameMove, gameState: GameState, triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>) => void,
     onAISettle: (roomId: string, playerId: string) => void,
     gameMode: GameMode = 'classic',
+    onAIItemUsed?: (roomId: string, result: { gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string }) => void,
   ): { gameState: GameState; playerColors: Record<string, PlayerColor> } {
     const normalizedTurnTimeLimit =
       Number.isFinite(turnTimeLimit) && turnTimeLimit > 0 ? turnTimeLimit : 60;
@@ -124,6 +126,7 @@ export class GameManager {
       onTimeUpdate,
       onAIMove,
       onAISettle,
+      onAIItemUsed,
       timeoutCounts,
       gameMode,
     };
@@ -258,8 +261,7 @@ export class GameManager {
         }
 
         if (result.scoreChange) {
-          const newScore = Math.max(0, (game.state.playerScores[playerId] || 0) + result.scoreChange);
-          game.state.playerScores[playerId] = newScore;
+          game.state.playerScores[playerId] = (game.state.playerScores[playerId] || 0) + result.scoreChange;
         }
         if (result.grantItemCard) {
           const card = rollItemCard();
@@ -271,7 +273,7 @@ export class GameManager {
         }
         if (result.undoLastMove) {
           move.boardChanges.forEach(c => { game.state.board[c.y][c.x] = 0; });
-          game.state.playerScores[playerId] = Math.max(0, (game.state.playerScores[playerId] || 0) - baseScore);
+          game.state.playerScores[playerId] = (game.state.playerScores[playerId] || 0) - baseScore;
           if (pieceIndex !== -1) pieces![pieceIndex].isUsed = false;
           game.state.moves.pop();
           return { success: true, gameState: game.state };
@@ -282,6 +284,8 @@ export class GameManager {
           if (cell) {
             game.state.board[cell.y][cell.x] = colorIdx;
             game.state.playerScores[playerId] = (game.state.playerScores[playerId] || 0) + 1;
+            const lastT = triggeredEffects[triggeredEffects.length - 1];
+            if (lastT) lastT.scoreChange = (lastT.scoreChange || 0) + 1;
           }
         }
         if (result.removePiece === 'largest' || result.removePiece === 'random') {
@@ -315,10 +319,11 @@ export class GameManager {
         }
       }
 
-      // tick 状态效果
-      cs.creativePlayers.forEach(cp => {
-        cp.statusEffects = tickStatusEffects(cp.statusEffects);
-      });
+      // tick 状态效果：仅 tick 当前落子玩家（他人 time_pressure/steel 等应在自己回合时 tick）
+      const curCpForTick = cs.creativePlayers.find(p => p.playerId === playerId);
+      if (curCpForTick) {
+        curCpForTick.statusEffects = tickStatusEffects(curCpForTick.statusEffects);
+      }
 
       if (extraTurn) {
         // 额外回合：重置计时器，给满额时间
@@ -372,7 +377,7 @@ export class GameManager {
     playerId: string,
     cardIndex: number,
     targetPlayerId?: string
-  ): { success: boolean; error?: string; gameState?: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string } {
+  ): { success: boolean; error?: string; gameState?: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string } {
     const game = this.games.get(roomId);
     if (!game) return { success: false, error: 'GAME_NOT_FOUND' };
     if (game.state.gamePhase !== 'playing') return { success: false, error: 'GAME_NOT_PLAYING' };
@@ -392,6 +397,13 @@ export class GameManager {
     const card = selfCp.itemCards[cardIndex];
     if (!card) return { success: false, error: 'INVALID_CARD' };
 
+    if (card.cardType === 'item_blame') {
+      const hasDebuff = selfCp.statusEffects.some(e =>
+        ['skip_turn', 'time_pressure', 'half_score', 'big_piece_ban'].includes(e.type)
+      );
+      if (!hasDebuff) return { success: false, error: 'NO_DEBUFF_TO_TRANSFER' };
+    }
+
     if (card.needsTarget) {
       if (!targetPlayerId || targetPlayerId === playerId) return { success: false, error: 'INVALID_TARGET' };
       if (game.state.settledPlayers.includes(targetPlayerId)) return { success: false, error: 'TARGET_SETTLED' };
@@ -407,15 +419,16 @@ export class GameManager {
 
     const result = resolveItemCard(card.cardType, selfPlayerLike, targetPlayerLike, selfCp, targetCp ?? null);
 
+    // 目标有钢铁护盾时：消耗卡牌但不产生效果（不返回错误）
     // 移除使用的道具卡
     selfCp.itemCards = selfCp.itemCards.filter((_, i) => i !== cardIndex);
 
-    // 应用效果
+    // 应用效果（扣分允许到负数）
     if (result.selfScoreChange) {
-      game.state.playerScores[playerId] = Math.max(0, (game.state.playerScores[playerId] || 0) + result.selfScoreChange);
+      game.state.playerScores[playerId] = (game.state.playerScores[playerId] || 0) + result.selfScoreChange;
     }
     if (result.targetScoreChange && targetPlayerId) {
-      game.state.playerScores[targetPlayerId] = Math.max(0, (game.state.playerScores[targetPlayerId] || 0) + result.targetScoreChange);
+      game.state.playerScores[targetPlayerId] = (game.state.playerScores[targetPlayerId] || 0) + result.targetScoreChange;
     }
     if (result.selfStatusEffects?.length) {
       selfCp.statusEffects.push(...result.selfStatusEffects);
@@ -452,7 +465,7 @@ export class GameManager {
             const pieceIdx = game.playerPieces[targetPlayerId]!.findIndex(p => p.id === m.pieceId);
             if (pieceIdx !== -1) game.playerPieces[targetPlayerId]![pieceIdx].isUsed = false;
           }
-          game.state.playerScores[targetPlayerId] = Math.max(0, (game.state.playerScores[targetPlayerId] || 0) - m.boardChanges.length);
+          game.state.playerScores[targetPlayerId] = (game.state.playerScores[targetPlayerId] || 0) - m.boardChanges.length;
           game.state.moves.splice(i, 1);
           break;
         }
@@ -468,11 +481,13 @@ export class GameManager {
       }
     }
 
-    // 道具阶段结束，启动主计时器
+    // 道具阶段结束，启动主计时器（AI 不启动，由 checkAndProcessAITurn 继续落子）
     if (cs.itemPhase) {
       cs.itemPhase = false;
       cs.itemPhaseTimeLeft = 0;
-      this.startTurnTimer(roomId);
+      const stillCurrent = game.players[game.state.currentPlayerIndex];
+      const isAI = stillCurrent?.isAI || (stillCurrent && game.hostedAIPlayers.has(stillCurrent.id));
+      if (!isAI) this.startTurnTimer(roomId);
     }
 
     return {
@@ -481,6 +496,8 @@ export class GameManager {
       pieceIdUnused,
       pieceIdRemoved,
       targetPlayerId,
+      cardType: card.cardType,
+      usedByPlayerId: playerId,
     };
   }
 
@@ -565,7 +582,13 @@ export class GameManager {
     if (!game || game.state.gamePhase !== 'playing') {
       return { success: false };
     }
-
+    // 超时也消耗当前玩家状态效果（如 time_pressure）
+    const cs = game.state.creativeState;
+    const currentPlayer = game.players[game.state.currentPlayerIndex];
+    const curCp = cs?.creativePlayers.find(p => p.playerId === currentPlayer.id);
+    if (curCp) {
+      curCp.statusEffects = tickStatusEffects(curCp.statusEffects);
+    }
     this.advanceTurn(roomId);
     return { success: true, gameState: game.state };
   }
@@ -588,6 +611,37 @@ export class GameManager {
         setTimeout(() => {
           // 再次检查游戏状态（防止思考期间游戏结束或玩家断线）
           if (game.state.gamePhase !== 'playing' || game.players[game.state.currentPlayerIndex].id !== currentPlayer.id) return;
+
+          // 创意模式：AI 有道具卡则先尝试使用
+          const cs = game.state.creativeState;
+          const aiCp = cs?.creativePlayers.find(p => p.playerId === currentPlayer.id);
+          if (cs && aiCp?.itemCards?.length) {
+            cs.itemPhase = true;
+            const allPlayers = game.players
+              .filter(p => !game.state.settledPlayers.includes(p.id))
+              .map(p => ({
+                id: p.id,
+                color: game.playerColorMap[p.id]!,
+                score: game.state.playerScores[p.id] || 0,
+              }));
+            const decision = aiDecideItemCard(aiCp, allPlayers, cs.creativePlayers, currentPlayer.aiDifficulty || 'medium', cs.specialTiles);
+            if (decision) {
+              const itemResult = this.useItemCard(roomId, currentPlayer.id, decision.cardIndex, decision.targetPlayerId ?? undefined);
+              if (itemResult.success && game.onAIItemUsed) {
+                game.onAIItemUsed(roomId, {
+                  gameState: itemResult.gameState!,
+                  pieceIdUnused: itemResult.pieceIdUnused,
+                  pieceIdRemoved: itemResult.pieceIdRemoved,
+                  targetPlayerId: itemResult.targetPlayerId,
+                  cardType: itemResult.cardType,
+                  usedByPlayerId: itemResult.usedByPlayerId,
+                });
+              }
+            } else {
+              cs.itemPhase = false;
+              cs.itemPhaseTimeLeft = 0;
+            }
+          }
 
           const pieces = game.playerPieces[currentPlayer.id];
           const moveResult = game.gameMode === 'creative' && game.state.creativeState
@@ -643,13 +697,18 @@ export class GameManager {
     }
   }
 
-  // 启动回合计时器（恢复时使用暂停前保留的 timeLeft，否则每回合满额重置）
+  // 启动回合计时器（恢复时使用暂停前保留的 timeLeft，否则每回合满额重置；压迫效果仅5秒）
   private startTurnTimer(roomId: string): void {
     const game = this.games.get(roomId);
     if (!game) return;
     this.clearTurnTimer(roomId); // 先清除旧计时器，避免多计时器叠加
-    const safeTurnTimeLimit =
+    let safeTurnTimeLimit =
       Number.isFinite(game.turnTimeLimit) && game.turnTimeLimit > 0 ? game.turnTimeLimit : 60;
+    const currentPlayer = game.players[game.state.currentPlayerIndex];
+    const cp = game.state.creativeState?.creativePlayers.find(p => p.playerId === currentPlayer?.id);
+    if (cp?.statusEffects.some(e => e.type === 'time_pressure' && e.remainingTurns > 0)) {
+      safeTurnTimeLimit = 5;
+    }
 
     // 仅恢复时使用暂停前保留的 timeLeft，新回合一律用满额时间（显式重置避免后台时钟连续不重置）
     const isResuming = game.timeLeft !== undefined && game.timeLeft > 0;
@@ -700,6 +759,27 @@ export class GameManager {
   // 获取游戏状态
   getGameState(roomId: string): GameState | undefined {
     return this.games.get(roomId)?.state;
+  }
+
+  /** 获取各玩家棋子使用状态（用于重连时恢复） */
+  getPlayerPieces(roomId: string): Record<string, Array<{ id: string; isUsed: boolean }>> | undefined {
+    const game = this.games.get(roomId);
+    if (!game) return undefined;
+    const out: Record<string, Array<{ id: string; isUsed: boolean }>> = {};
+    for (const [playerId, pieces] of Object.entries(game.playerPieces)) {
+      out[playerId] = pieces.map(p => ({ id: p.id, isUsed: p.isUsed }));
+    }
+    return out;
+  }
+
+  /** 获取当前回合有效时间限制（压迫效果为5秒） */
+  getEffectiveTurnTimeLimit(roomId: string, fallback: number = 60): number {
+    const game = this.games.get(roomId);
+    if (!game) return fallback;
+    const cur = game.players[game.state.currentPlayerIndex];
+    const cp = game.state.creativeState?.creativePlayers.find(p => p.playerId === cur?.id);
+    if (cp?.statusEffects.some(e => e.type === 'time_pressure' && e.remainingTurns > 0)) return 5;
+    return Number.isFinite(game.turnTimeLimit) && game.turnTimeLimit > 0 ? game.turnTimeLimit : fallback;
   }
 
   // 获取当前回合玩家

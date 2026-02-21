@@ -335,8 +335,8 @@ export function resolveItemCard(
       break;
     case 'item_plunder':
       if (!targetHasSteel && targetPlayer) {
-        const stealAmount = Math.min(3, targetPlayer.score);
-        result.targetScoreChange = -stealAmount;
+        const stealAmount = Math.min(3, Math.max(0, targetPlayer.score));
+        result.targetScoreChange = -3;
         result.selfScoreChange = stealAmount;
       }
       break;

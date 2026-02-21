@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRoom } from '../contexts/RoomContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface GameSettings {
   aiDifficulty: 'easy' | 'medium' | 'hard';
@@ -332,6 +333,7 @@ const GameSettings: React.FC = () => {
   const { t, tArray } = useLanguage();
   const { createRoom, addAI } = useRoom();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [isStarting, setIsStarting] = useState(false);
   
   const [settings, setSettings] = useState<GameSettings>({
@@ -383,7 +385,7 @@ const GameSettings: React.FC = () => {
       navigate(`/room/${room.id}`, { state: { showTransition: true } });
     } catch (error) {
       console.error('创建单机房失败:', error);
-      alert('创建单机房失败，请重试');
+      showToast(t('gameRoom.startFailed') || '创建单机房失败，请重试');
     } finally {
       setIsStarting(false);
     }

@@ -1,7 +1,7 @@
 // 多人在线对战状态管理 Hook
 // 监听服务器广播的游戏事件，同步更新本地 UI 状态
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, Player, Piece, Position, PlayerColor, GameMove } from '../types/game';
 import { PIECE_SHAPES, PIECE_COUNTS } from '../constants/pieces';
 import { canPlacePiece } from '../utils/gameEngine';
@@ -10,8 +10,9 @@ import { rotatePiece, flipPiece } from '../utils/pieceTransformations';
 import socketService, { ServerGameState, GameRanking } from '../services/socketService';
 import soundManager from '../utils/soundManager';
 import { useRoom } from '../contexts/RoomContext';
-import { GOLD_EFFECTS, PURPLE_EFFECTS, RED_EFFECTS } from '../types/creative';
+import { GOLD_EFFECTS, PURPLE_EFFECTS, RED_EFFECTS, ITEM_CARD_DEFS } from '../types/creative';
 import type { TileEffect } from '../types/creative';
+import type { GameEvent } from '../types/creative';
 import type { EffectResult } from '../utils/creativeModeEngine';
 
 const BOARD_SIZE = 20;
@@ -54,12 +55,27 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
   const [effectQueue, setEffectQueue] = useState<Array<{ effect: TileEffect; result: EffectResult }>>([]);
   const [showingEffect, setShowingEffect] = useState<{ effect: TileEffect; result: EffectResult } | null>(null);
   const [itemPhaseTimeLeft, setItemPhaseTimeLeft] = useState(0);
+  const [eventLog, setEventLog] = useState<GameEvent[]>([]);
+  const [itemUseBroadcast, setItemUseBroadcast] = useState<{ playerName: string; playerColor: PlayerColor; cardName: string; targetName?: string } | null>(null);
+  const eventIdRef = useRef(0);
 
-  // 根据服务端 playerColors 创建本地 Player 数组
+  const addEvent = useCallback((
+    type: GameEvent['type'],
+    playerColor: PlayerColor,
+    playerName: string,
+    message: string,
+    extra?: Partial<Pick<GameEvent, 'detail' | 'scoreChange' | 'icon'>>
+  ) => {
+    const id = ++eventIdRef.current;
+    setEventLog(prev => [{ id, timestamp: Date.now(), type, playerColor, playerName, message, ...extra }, ...prev].slice(0, 100));
+  }, []);
+
+  // 根据服务端 playerColors 创建本地 Player 数组（重连时用 playerPieces 恢复 isUsed 状态）
   const createPlayersFromServerData = useCallback((
     serverState: ServerGameState,
     playerColors: Record<string, PlayerColor>,
-    playerNames: Record<string, string>
+    playerNames: Record<string, string>,
+    playerPieces?: Record<string, Array<{ id: string; isUsed: boolean }>>
   ): Player[] => {
     // 按颜色顺序排列玩家
     const sortedEntries = Object.entries(playerColors).sort(([, colorA], [, colorB]) => {
@@ -69,6 +85,14 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     return sortedEntries.map(([userId, color]) => {
       const colorIndex = COLOR_ORDER.indexOf(color);
       const pieces = createPiecesForColor(color);
+      // 重连时用服务端 playerPieces 恢复 isUsed 状态
+      if (playerPieces?.[userId]) {
+        const serverPieces = playerPieces[userId];
+        for (const p of pieces) {
+          const sp = serverPieces.find(s => s.id === p.id);
+          if (sp) p.isUsed = sp.isUsed;
+        }
+      }
       const score = serverState.playerScores[userId] || 0;
       const isSettled = serverState.settledPlayers.includes(userId);
       const isCurrentTurn = sortedEntries[serverState.currentPlayerIndex]?.[0] === userId;
@@ -114,7 +138,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     const unsubscribers: (() => void)[] = [];
 
     // 处理游戏状态初始化的通用函数
-    const handleGameStateInit = (data: { roomId: string; gameState: ServerGameState; playerColors: Record<string, PlayerColor>; playerNames?: Record<string, string>; isPaused?: boolean }, isStart: boolean) => {
+    const handleGameStateInit = (data: { roomId: string; gameState: ServerGameState; playerColors: Record<string, PlayerColor>; playerNames?: Record<string, string>; playerPieces?: Record<string, Array<{ id: string; isUsed: boolean }>>; isPaused?: boolean }, isStart: boolean) => {
       if (data.roomId !== roomId) return;
 
       const myPlayerColor = data.playerColors[myUserId];
@@ -126,7 +150,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         playerNames[uid] = data.playerNames?.[uid] || (uid === myUserId ? myNickname : `Player ${uid.slice(-4)}`);
       });
 
-      const players = createPlayersFromServerData(data.gameState, data.playerColors, playerNames);
+      const players = createPlayersFromServerData(data.gameState, data.playerColors, playerNames, data.playerPieces);
 
       setGameState(prev => ({
         ...prev,
@@ -210,14 +234,19 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
           });
         }
 
-        // 应用落子到棋盘
+        // 应用落子到棋盘（创意模式领地扩张等效果在服务端修改了棋盘，需用 gameState.board 同步）
         setGameState(prev => {
-          const newBoard = prev.board.map(row => [...row]);
-          data.move.boardChanges.forEach(change => {
-            if (change.x >= 0 && change.x < BOARD_SIZE && change.y >= 0 && change.y < BOARD_SIZE) {
-              newBoard[change.y][change.x] = change.color;
-            }
-          });
+          const newBoard = (data.gameState.board && data.gameState.board.length === BOARD_SIZE)
+            ? data.gameState.board.map(row => [...row])
+            : (() => {
+                const b = prev.board.map(row => [...row]);
+                data.move.boardChanges.forEach(change => {
+                  if (change.x >= 0 && change.x < BOARD_SIZE && change.y >= 0 && change.y < BOARD_SIZE) {
+                    b[change.y][change.x] = change.color;
+                  }
+                });
+                return b;
+              })();
 
           // 更新分数和棋子使用状态
           const newPlayers = prev.players.map(p => {
@@ -234,6 +263,19 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
             }
             return updated;
           });
+
+          // 历史记录：落子
+          const mover = prev.players.find(p => p.color === data.move.playerColor);
+          if (mover) {
+            addEvent('place', mover.color, mover.name,
+              `放置了 ${data.move.boardChanges.length} 格拼图`,
+              { icon: '🧩' });
+            data.triggeredEffects?.forEach(t => {
+              addEvent('tile_effect', mover.color, mover.name,
+                `触发了${t.tileType === 'gold' ? '金色' : t.tileType === 'purple' ? '紫色' : '红色'}方格`,
+                { detail: t.effectName, scoreChange: t.scoreChange, icon: t.tileType === 'gold' ? '★' : t.tileType === 'purple' ? '?' : '!' });
+            });
+          }
 
           return {
             ...prev,
@@ -332,15 +374,17 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     unsubscribers.push(
       socketService.on('game:playerSettled', (data: { roomId: string; playerId: string }) => {
         if (data.roomId !== roomId) return;
-        setGameState(prev => ({
-          ...prev,
-          players: prev.players.map(p =>
-            p.id === data.playerId ? { ...p, isSettled: true } : p
-          ),
-        }));
-        if (data.playerId !== myUserId) {
-          soundManager.settle();
-        }
+        setGameState(prev => {
+          const p = prev.players.find(pl => pl.id === data.playerId);
+          if (p) addEvent('settle', p.color, p.name, '选择结算', { icon: '🏁' });
+          return {
+            ...prev,
+            players: prev.players.map(p =>
+              p.id === data.playerId ? { ...p, isSettled: true } : p
+            ),
+          };
+        });
+        if (data.playerId !== myUserId) soundManager.settle();
       })
     );
 
@@ -380,11 +424,27 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       socketService.on('game:itemUsed', (data: {
         roomId: string; gameState: ServerGameState;
         pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string;
+        cardType?: string; usedByPlayerId?: string;
       }) => {
         if (data.roomId !== roomId) return;
         const newCreativeState = data.gameState.creativeState;
         if (newCreativeState && !newCreativeState.itemPhase) setItemPhaseTimeLeft(0);
+
+        // 道具使用广播特效与历史记录
+        const usedBy = data.usedByPlayerId;
+        const cardDef = data.cardType ? ITEM_CARD_DEFS.find(c => c.cardType === data.cardType) : null;
+        const cardName = cardDef?.name || '道具卡';
+
         setGameState(prev => {
+          const user = prev.players.find(p => p.id === usedBy);
+          const target = data.targetPlayerId ? prev.players.find(p => p.id === data.targetPlayerId) : null;
+          if (user) {
+            addEvent('item_use', user.color, user.name,
+              target ? `对 ${target.name} 使用了「${cardName}」` : `使用了「${cardName}」`,
+              { icon: '🃏' });
+            setItemUseBroadcast({ playerName: user.name, playerColor: user.color, cardName, targetName: target?.name });
+          }
+
           let newPlayers = prev.players.map(p => ({
             ...p,
             score: data.gameState.playerScores[p.id] ?? p.score,
@@ -454,7 +514,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
-  }, [roomId, myUserId, myNickname, myColor, isSpectating, joinRoom, spectateGame, createPlayersFromServerData]);
+  }, [roomId, myUserId, myNickname, myColor, isSpectating, joinRoom, spectateGame, createPlayersFromServerData, addEvent]);
 
   // 创意模式：效果展示队列（与本地创意模式一致）
   useEffect(() => {
@@ -726,5 +786,8 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     showingEffect,
     isItemPhase,
     itemPhaseTimeLeft,
+    eventLog,
+    itemUseBroadcast,
+    setItemUseBroadcast,
   };
 }

@@ -180,11 +180,13 @@ export function setupSocketHandlers(
         const playerColors = gameManager.getPlayerColorMap(data.roomId);
         const names = gameManager.getPlayerNameMap(data.roomId);
         if (state && playerColors) {
+          const playerPieces = gameManager.getPlayerPieces(data.roomId);
           socket.emit('game:state', {
             roomId: data.roomId,
             gameState: state,
             playerColors,
             playerNames: names || {},
+            playerPieces,
             isPaused: gameManager.isGamePaused(data.roomId),
           });
         }
@@ -218,11 +220,29 @@ export function setupSocketHandlers(
       const isPlaying = room?.status === 'playing';
       const isSpectator = roomManager.isSpectator(data.roomId, socket.data.userId);
 
-      // 游戏进行中且为玩家：视为临时离开，不结算、不移除，允许稍后回到游戏
+      // 游戏进行中且为玩家：单机直接离开并销毁房间；多人视为临时离开允许重连
       if (!isSpectator && isPlaying) {
         const isSingle = roomManager.isSinglePlayerRoom(data.roomId);
+        if (isSingle) {
+          // 单机：直接移除玩家并销毁房间
+          handleGameDisconnect(data.roomId, socket.data.userId);
+          const result = roomManager.leaveRoom(data.roomId, socket.data.userId, false);
+          if (!result.success) {
+            return callback({ success: false, error: 'LEAVE_FAILED' });
+          }
+          socket.leave(data.roomId);
+          socket.data.currentRoomId = undefined;
+          callback({ success: true });
+          if (result.deleted) {
+            gameManager.removeGame(data.roomId);
+            io.emit('room:deleted', data.roomId);
+            console.log(`[Room] Single-player room ${data.roomId} destroyed (player left)`);
+          }
+          io.emit('room:list', roomManager.getPublicRooms());
+          return;
+        }
         roomManager.setPlayerOffline(data.roomId, socket.data.userId);
-        gameManager.setPlayerOffline(data.roomId, socket.data.userId, isSingle);
+        gameManager.setPlayerOffline(data.roomId, socket.data.userId, false);
         const result = roomManager.leaveRoom(data.roomId, socket.data.userId, true);
         if (!result.success) {
           return callback({ success: false, error: 'LEAVE_FAILED' });
@@ -422,7 +442,7 @@ export function setupSocketHandlers(
             return;
           }
 
-          const turnTimeLimit = room?.gameSettings.turnTimeLimit || 60;
+          const turnTimeLimit = gameManager.getEffectiveTurnTimeLimit(roomId, room?.gameSettings.turnTimeLimit || 60);
           io.to(roomId).emit('game:turnChanged', {
             roomId,
             currentPlayerIndex: state.currentPlayerIndex,
@@ -450,7 +470,7 @@ export function setupSocketHandlers(
             const payload: any = {
               roomId,
               currentPlayerIndex: gameState.currentPlayerIndex,
-              timeLeft: room?.gameSettings.turnTimeLimit || 60,
+              timeLeft: gameManager.getEffectiveTurnTimeLimit(roomId, room?.gameSettings.turnTimeLimit || 60),
             };
             if (freshState?.creativeState) payload.creativeState = freshState.creativeState;
             io.to(roomId).emit('game:turnChanged', payload);
@@ -494,11 +514,31 @@ export function setupSocketHandlers(
              io.to(roomId).emit('game:turnChanged', {
                roomId,
                currentPlayerIndex: state.currentPlayerIndex,
-               timeLeft: room?.gameSettings.turnTimeLimit || 60,
+               timeLeft: gameManager.getEffectiveTurnTimeLimit(roomId, room?.gameSettings.turnTimeLimit || 60),
              });
           }
         },
         room.gameMode || 'classic',
+        // AI 使用道具卡回调
+        (roomId, result) => {
+          io.to(roomId).emit('game:itemUsed', {
+            roomId,
+            gameState: result.gameState,
+            pieceIdUnused: result.pieceIdUnused,
+            pieceIdRemoved: result.pieceIdRemoved,
+            targetPlayerId: result.targetPlayerId,
+            cardType: result.cardType,
+            usedByPlayerId: result.usedByPlayerId,
+          });
+          const r = roomManager.getRoom(roomId);
+          const payload: any = {
+            roomId,
+            currentPlayerIndex: result.gameState.currentPlayerIndex,
+            timeLeft: gameManager.getEffectiveTurnTimeLimit(roomId, r?.gameSettings.turnTimeLimit || 60),
+          };
+          if (result.gameState.creativeState) payload.creativeState = result.gameState.creativeState;
+          io.to(roomId).emit('game:turnChanged', payload);
+        },
       );
 
       roomManager.setGameStarted(data.roomId);
@@ -540,11 +580,13 @@ export function setupSocketHandlers(
       const playerColors = gameManager.getPlayerColorMap(data.roomId);
       const spectateNames = gameManager.getPlayerNameMap(data.roomId);
       if (state && playerColors) {
+        const playerPieces = gameManager.getPlayerPieces(data.roomId);
         socket.emit('game:state', {
           roomId: data.roomId,
           gameState: state,
           playerColors,
           playerNames: spectateNames || {},
+          playerPieces,
           isPaused: gameManager.isGamePaused(data.roomId),
         });
       }
@@ -567,11 +609,13 @@ export function setupSocketHandlers(
       const names = gameManager.getPlayerNameMap(data.roomId);
 
       if (state && playerColors) {
+        const playerPieces = gameManager.getPlayerPieces(data.roomId);
         socket.emit('game:state', {
           roomId: data.roomId,
           gameState: state,
           playerColors,
           playerNames: names || {},
+          playerPieces,
           isPaused: gameManager.isGamePaused(data.roomId),
         });
       }
@@ -604,7 +648,7 @@ export function setupSocketHandlers(
         const payload: any = {
           roomId: data.roomId,
           currentPlayerIndex: result.gameState!.currentPlayerIndex,
-          timeLeft: room?.gameSettings.turnTimeLimit || 60,
+          timeLeft: gameManager.getEffectiveTurnTimeLimit(data.roomId, room?.gameSettings.turnTimeLimit || 60),
         };
         if (result.gameState!.creativeState) payload.creativeState = result.gameState!.creativeState;
         io.to(data.roomId).emit('game:turnChanged', payload);
@@ -645,7 +689,7 @@ export function setupSocketHandlers(
       io.to(data.roomId).emit('game:turnChanged', {
         roomId: data.roomId,
         currentPlayerIndex: state!.currentPlayerIndex,
-        timeLeft: room?.gameSettings.turnTimeLimit || 60,
+        timeLeft: gameManager.getEffectiveTurnTimeLimit(data.roomId, room?.gameSettings.turnTimeLimit || 60),
       });
     });
 
@@ -673,16 +717,18 @@ export function setupSocketHandlers(
         pieceIdUnused: result.pieceIdUnused,
         pieceIdRemoved: result.pieceIdRemoved,
         targetPlayerId: result.targetPlayerId,
+        cardType: (result as any).cardType,
+        usedByPlayerId: (result as any).usedByPlayerId,
       });
       // 道具阶段结束、主计时器启动，广播 turnChanged 确保客户端同步 timeLeft 与 creativeState
       const room = roomManager.getRoom(data.roomId);
-      const payload: any = {
-        roomId: data.roomId,
-        currentPlayerIndex: result.gameState!.currentPlayerIndex,
-        timeLeft: room?.gameSettings.turnTimeLimit || 60,
-      };
-      if (result.gameState!.creativeState) payload.creativeState = result.gameState!.creativeState;
-      io.to(data.roomId).emit('game:turnChanged', payload);
+        const payload: any = {
+          roomId: data.roomId,
+          currentPlayerIndex: result.gameState!.currentPlayerIndex,
+          timeLeft: gameManager.getEffectiveTurnTimeLimit(data.roomId, room?.gameSettings.turnTimeLimit || 60),
+        };
+        if (result.gameState!.creativeState) payload.creativeState = result.gameState!.creativeState;
+        io.to(data.roomId).emit('game:turnChanged', payload);
     });
 
     // 玩家结算
@@ -721,7 +767,7 @@ export function setupSocketHandlers(
         const payload: any = {
           roomId: data.roomId,
           currentPlayerIndex: result.gameState.currentPlayerIndex,
-          timeLeft: room?.gameSettings.turnTimeLimit || 60,
+          timeLeft: gameManager.getEffectiveTurnTimeLimit(data.roomId, room?.gameSettings.turnTimeLimit || 60),
         };
         if (result.gameState.creativeState) payload.creativeState = result.gameState.creativeState;
         io.to(data.roomId).emit('game:turnChanged', payload);

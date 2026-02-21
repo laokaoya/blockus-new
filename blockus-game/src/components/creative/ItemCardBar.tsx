@@ -1,7 +1,7 @@
 // 道具卡栏 + 道具使用阶段 UI
 
 import React from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { ItemCard, ItemCardId, CreativePlayerState } from '../../types/creative';
 import { Player } from '../../types/game';
 import { PLAYER_COLORS } from '../../constants/pieces';
@@ -17,6 +17,8 @@ interface ItemCardBarProps {
   // 目标选择
   targetSelection: { cardIndex: number; card: ItemCard } | null;
   onConfirmTarget: (targetId: string) => void;
+  /** 创意模式：用于显示目标钢铁护盾特效 */
+  creativePlayers?: CreativePlayerState[];
 }
 
 const slideUp = keyframes`
@@ -169,25 +171,40 @@ const TargetList = styled.div`
   gap: 12px;
 `;
 
-const TargetButton = styled.button<{ $color: string }>`
+const steelShine = keyframes`
+  0%, 100% { box-shadow: 0 0 8px #94a3b8, 0 0 12px #64748b; }
+  50% { box-shadow: 0 0 12px #cbd5e1, 0 0 18px #94a3b8; }
+`;
+
+const TargetButton = styled.button<{ $color: string; $hasSteel?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   padding: 10px 16px;
   border-radius: 10px;
-  border: 2px solid ${props => PLAYER_COLORS[props.$color]};
+  border: 2px solid ${props => props.$hasSteel ? '#94a3b8' : PLAYER_COLORS[props.$color]};
   background: var(--surface-highlight);
   cursor: pointer;
   transition: all 0.2s;
+  position: relative;
   
   &:hover {
     background: ${props => PLAYER_COLORS[props.$color]}30;
     transform: translateY(-3px);
   }
+  ${props => props.$hasSteel && css`
+    &::after {
+      content: '🛡';
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      font-size: 12px;
+    }
+  `}
 `;
 
-const TargetAvatar = styled.div<{ $color: string }>`
+const TargetAvatar = styled.div<{ $color: string; $hasSteel?: boolean }>`
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -198,6 +215,10 @@ const TargetAvatar = styled.div<{ $color: string }>`
   font-weight: bold;
   color: white;
   font-size: 0.9rem;
+  ${props => props.$hasSteel && css`
+    border: 2px solid #94a3b8;
+    animation: ${steelShine} 2s ease-in-out infinite;
+  `}
 `;
 
 const TargetName = styled.div`
@@ -244,12 +265,15 @@ const ItemCardBar: React.FC<ItemCardBarProps> = ({
   onSkipPhase,
   targetSelection,
   onConfirmTarget,
+  creativePlayers,
 }) => {
   if (!creativePlayer) return null;
   const { itemCards } = creativePlayer;
   if (itemCards.length === 0 && !isItemPhase) return null;
 
   const opponents = players.filter(p => p.id !== currentPlayerId && !p.isSettled);
+  const hasSteel = (playerId: string) =>
+    creativePlayers?.some(cp => cp.playerId === playerId && cp.statusEffects.some(e => e.type === 'steel' && e.remainingTurns > 0));
 
   return (
     <Container $isPhase={isItemPhase}>
@@ -262,9 +286,9 @@ const ItemCardBar: React.FC<ItemCardBarProps> = ({
           </div>
           <TargetList>
             {opponents.map(p => (
-              <TargetButton key={p.id} $color={p.color} onClick={() => onConfirmTarget(p.id)}>
-                <TargetAvatar $color={p.color}>{p.name.charAt(0)}</TargetAvatar>
-                <TargetName>{p.name}</TargetName>
+              <TargetButton key={p.id} $color={p.color} $hasSteel={hasSteel(p.id)} onClick={() => onConfirmTarget(p.id)} title={hasSteel(p.id) ? '钢铁护盾（道具无效）' : undefined}>
+                <TargetAvatar $color={p.color} $hasSteel={hasSteel(p.id)}>{p.name.charAt(0)}</TargetAvatar>
+                <TargetName>{p.name}{hasSteel(p.id) ? ' 🛡' : ''}</TargetName>
               </TargetButton>
             ))}
           </TargetList>

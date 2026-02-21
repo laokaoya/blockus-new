@@ -3,7 +3,7 @@
 import { Piece, Position, PlayerColor } from '../types';
 import { canPlacePiece } from './gameEngine';
 import { getUniqueTransformations } from './pieceTransformations';
-import { overlapsBarrier, pieceCellCount } from './creativeModeEngine';
+import { overlapsBarrier, pieceCellCount, findTriggeredTiles } from './creativeModeEngine';
 import type { SpecialTile } from './creativeTypes';
 
 export class AIPlayer {
@@ -56,7 +56,7 @@ export class AIPlayer {
         for (const transformedPiece of transformations) {
           const position = this.findBestPositionCreative(board, transformedPiece, specialTiles);
           if (position) {
-            const score = this.evaluatePosition(board, transformedPiece, position);
+            const score = this.evaluatePositionCreative(board, transformedPiece, position, specialTiles);
             if (score > bestScore) {
               bestScore = score;
               bestMove = { piece: transformedPiece, position };
@@ -92,10 +92,22 @@ export class AIPlayer {
     if (positions.length === 0) return null;
     const scored = positions.map(pos => ({
       position: pos,
-      score: this.evaluatePosition(board, piece, pos),
+      score: this.evaluatePositionCreative(board, piece, pos, specialTiles),
     }));
     scored.sort((a, b) => b.score - a.score);
     return scored[0].position;
+  }
+
+  /** 创意模式：评估位置，含特殊格触发加分（金+20 紫+10 红+5） */
+  private evaluatePositionCreative(board: number[][], piece: Piece, position: Position, specialTiles: SpecialTile[]): number {
+    let score = this.evaluatePosition(board, piece, position);
+    const triggered = findTriggeredTiles(piece.shape, position, specialTiles);
+    for (const t of triggered) {
+      if (t.type === 'gold') score += 20;
+      else if (t.type === 'purple') score += 10;
+      else if (t.type === 'red') score += 5;
+    }
+    return score;
   }
 
   // AI的主要决策函数

@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useRoom } from '../contexts/RoomContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import socketService from '../services/socketService';
 import soundManager from '../utils/soundManager';
 
@@ -413,6 +414,7 @@ const GameRoom: React.FC = () => {
   const { currentRoom, leaveRoom, startGame, addAI, rooms, refreshRooms, removePlayer, isOnline } = useRoom();
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { showToast } = useToast();
   const [selectedAIDifficulty, setSelectedAIDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [isLoading, setIsLoading] = useState(true);
   const retryCountRef = React.useRef(0);
@@ -518,11 +520,11 @@ const GameRoom: React.FC = () => {
           const path = targetRoom.gameMode === 'creative' ? '/creative' : '/game';
           navigate(`${path}?roomId=${targetRoom.id}`, { state: { showTransition: true } });
         } else {
-          alert(t('gameRoom.startFailed') || '开始游戏失败，请确认房间满4人且所有玩家已准备');
+          showToast(t('gameRoom.startFailed') || '开始游戏失败，请确认房间满4人且所有玩家已准备', 'error');
         }
       } catch (error) {
         console.error('开始游戏出错:', error);
-        alert(t('gameRoom.startFailed') || '开始游戏失败，请重试');
+        showToast(t('gameRoom.startFailed') || '开始游戏失败，请重试', 'error');
       }
     }
   };

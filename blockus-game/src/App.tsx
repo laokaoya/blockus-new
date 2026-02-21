@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { RoomProvider } from './contexts/RoomContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ToastProvider } from './contexts/ToastContext';
 import MainLobby from './components/MainLobby';
 import Login from './components/Login';
 import UserProfile from './components/UserProfile';
@@ -23,6 +24,7 @@ function App() {
   return (
     <LanguageProvider>
       <ThemeProvider>
+        <ToastProvider>
         <SocketProvider>
           <AuthProvider>
             <RoomProvider>
@@ -48,6 +50,7 @@ function App() {
             </RoomProvider>
           </AuthProvider>
         </SocketProvider>
+        </ToastProvider>
       </ThemeProvider>
     </LanguageProvider>
   );

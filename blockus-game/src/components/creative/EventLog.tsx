@@ -20,6 +20,9 @@ const slideIn = keyframes`
 const Container = styled.div`
   position: relative;
   z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 `;
 
 const ToggleBtn = styled.button<{ $hasNew: boolean; $active: boolean }>`
@@ -68,12 +71,19 @@ const Badge = styled.span`
   border: 2px solid var(--surface-color);
 `;
 
+const HistoryLabel = styled.span`
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  @media (max-width: 768px) { display: none; }
+`;
+
 const Dropdown = styled.div`
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  width: 300px;
-  max-height: 400px;
+  width: 400px;
+  max-height: 480px;
   background: var(--surface-color);
   backdrop-filter: var(--glass-effect);
   border: 1px solid var(--surface-border);
@@ -148,7 +158,7 @@ const EventTime = styled.span`
 const EventMsg = styled.div`
   font-size: 12px;
   color: var(--text-secondary);
-  line-height: 1.4;
+  line-height: 1.5;
   padding-left: 20px;
 `;
 
@@ -164,6 +174,8 @@ const EventDetail = styled.span`
   color: var(--text-muted);
   font-style: italic;
   margin-left: 4px;
+  display: block;
+  margin-top: 2px;
 `;
 
 const EmptyHint = styled.div`
@@ -228,6 +240,7 @@ const EventLog: React.FC<EventLogProps> = ({ events }) => {
 
   return (
     <Container ref={containerRef}>
+      <HistoryLabel>{t('creative.eventLog') || '历史记录'}</HistoryLabel>
       <ToggleBtn 
         onClick={toggleExpand} 
         $hasNew={!expanded && unread > 0}

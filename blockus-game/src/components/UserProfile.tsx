@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import { UserProfile as UserProfileType } from '../types/game';
 
 const ProfileContainer = styled.div`
@@ -529,6 +530,7 @@ const UserProfile: React.FC = () => {
   const navigate = useNavigate();
   const { user, firebaseUser, isGuest, logout, updateProfile } = useAuth();
   const { t } = useLanguage();
+  const { showToast } = useToast();
   
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({
@@ -599,7 +601,7 @@ const UserProfile: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB限制
-        alert('头像文件大小不能超过5MB');
+        showToast(t('login.avatarTooLarge') || '头像文件大小不能超过5MB', 'error');
         return;
       }
       
@@ -615,12 +617,12 @@ const UserProfile: React.FC = () => {
     e.preventDefault();
     
     if (!editFormData.nickname.trim()) {
-      alert('昵称不能为空');
+      showToast(t('login.nicknameRequired') || '昵称不能为空', 'error');
       return;
     }
     
     if (editFormData.nickname.length > 20) {
-      alert('昵称长度不能超过20个字符');
+      showToast(t('login.nicknameTooLong') || '昵称长度不能超过20个字符', 'error');
       return;
     }
     
@@ -646,7 +648,7 @@ const UserProfile: React.FC = () => {
       
       setIsEditing(false);
     } catch (err) {
-      alert('保存失败，请重试');
+      showToast(t('common.saveFailed') || '保存失败，请重试', 'error');
     } finally {
       setIsSubmitting(false);
     }

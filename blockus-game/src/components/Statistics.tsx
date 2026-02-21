@@ -203,6 +203,62 @@ const ClearHistoryButton = styled.button`
   }
 `;
 
+const ConfirmOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+`;
+
+const ConfirmModal = styled.div`
+  background: var(--surface-color);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: var(--shadow-lg);
+`;
+
+const ConfirmTitle = styled.div`
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+`;
+
+const ConfirmText = styled.div`
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 20px;
+`;
+
+const ConfirmButtons = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+`;
+
+const ConfirmBtn = styled.button<{ $primary?: boolean }>`
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid ${p => p.$primary ? 'transparent' : 'var(--surface-border)'};
+  background: ${p => p.$primary ? 'rgba(239, 68, 68, 0.2)' : 'var(--surface-highlight)'};
+  color: ${p => p.$primary ? '#fca5a5' : 'var(--text-primary)'};
+  &:hover {
+    background: ${p => p.$primary ? 'rgba(239, 68, 68, 0.3)' : 'var(--surface-border)'};
+  }
+`;
+
 const HistoryItem = styled.div<{ isSelected: boolean }>`
   padding: 15px;
   margin-bottom: 10px;
@@ -497,6 +553,7 @@ const Statistics: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [replayBoard, setReplayBoard] = useState<number[][]>(createEmptyBoard());
   const [replaySpeed, setReplaySpeed] = useState<string>('normal');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const isPlayingRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -546,14 +603,17 @@ const Statistics: React.FC = () => {
   }, []);
 
   const clearGameHistory = () => {
-    if (window.confirm(t('statistics.clearConfirm'))) {
-      localStorage.removeItem('gameHistory');
-      setGameHistory([]);
-      setSelectedGame(null);
-      setReplayBoard(createEmptyBoard());
-      setCurrentMoveIndex(-1);
-      stopReplay();
-    }
+    setShowClearConfirm(true);
+  };
+
+  const doClearGameHistory = () => {
+    localStorage.removeItem('gameHistory');
+    setGameHistory([]);
+    setSelectedGame(null);
+    setReplayBoard(createEmptyBoard());
+    setCurrentMoveIndex(-1);
+    stopReplay();
+    setShowClearConfirm(false);
   };
 
   const handleGameSelect = (game: GameRecord) => {
@@ -826,6 +886,19 @@ const Statistics: React.FC = () => {
           </RightPanel>
         </ContentContainer>
       </ContentWrapper>
+
+      {showClearConfirm && (
+        <ConfirmOverlay onClick={() => setShowClearConfirm(false)}>
+          <ConfirmModal onClick={e => e.stopPropagation()}>
+            <ConfirmTitle>{t('statistics.clearHistory')}</ConfirmTitle>
+            <ConfirmText>{t('statistics.clearConfirm')}</ConfirmText>
+            <ConfirmButtons>
+              <ConfirmBtn onClick={() => setShowClearConfirm(false)}>{t('common.cancel')}</ConfirmBtn>
+              <ConfirmBtn $primary onClick={doClearGameHistory}>{t('common.confirm')}</ConfirmBtn>
+            </ConfirmButtons>
+          </ConfirmModal>
+        </ConfirmOverlay>
+      )}
     </StatisticsContainer>
   );
 };

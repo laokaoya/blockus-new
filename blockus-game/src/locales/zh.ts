@@ -5,6 +5,7 @@ export const zh = {
     confirm: '确认',
     cancel: '取消',
     save: '保存',
+    saveFailed: '保存失败，请重试',
     reset: '重置',
     close: '关闭',
     loading: '加载中...',
@@ -444,5 +445,8 @@ export const zh = {
     noEvents: '暂无记录',
     itemUseExpired: '道具阶段已结束，请下次回合再试',
     itemUseFailed: '道具使用失败，请重试',
+    itemBlameNoDebuff: '嫁祸卡需要自身有负面状态才能使用',
+    targetImmune: '目标有钢铁护盾，道具无效',
+    steelActive: '钢铁护盾',
   },
 };
