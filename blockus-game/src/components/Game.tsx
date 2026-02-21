@@ -839,7 +839,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
               <AIPlayersInfo 
                 aiPlayers={otherPlayers} 
                 thinkingAI={thinkingAI} 
-                creativePlayers={gameState.creativeState?.creativePlayers}
+                creativePlayers={gameState.creativeState?.creativePlayers as CreativePlayerState[] | undefined}
               />
             </LeftPanel>
             <BoardArea>
