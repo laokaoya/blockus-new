@@ -901,7 +901,7 @@ const MultiplayerGameView: React.FC<{ roomId: string }> = ({ roomId }) => {
               itemPhaseTimeLeft={itemPhaseTimeLeft}
               players={gameState.players}
               currentPlayerId={myPlayer?.id ?? ''}
-              creativePlayers={gameState.creativeState?.creativePlayers}
+              creativePlayers={gameState.creativeState?.creativePlayers as CreativePlayerState[] | undefined}
               onUseCard={handleUseItemCard}
               onSkipPhase={async () => {
                 soundManager.buttonClick();
