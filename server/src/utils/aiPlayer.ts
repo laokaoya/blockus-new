@@ -33,12 +33,14 @@ export class AIPlayer {
     return colorMap[color];
   }
   
-  /** 创意模式落子：过滤屏障格、big_piece_ban 限制 */
+  /** 创意模式落子：过滤屏障格、big_piece_ban 限制
+   * @param excludeMoves 排除的落子列表（重试时传入所有已失败的落子） */
   public makeMoveCreative(
     board: number[][],
     pieces: Piece[],
     specialTiles: SpecialTile[],
     hasBigPieceBan: boolean,
+    excludeMoves?: Array<{ pieceId: string; position: Position }>,
   ): { piece: Piece; position: Position } | null {
     let availablePieces = pieces.filter(p => !p.isUsed);
     if (hasBigPieceBan) {
@@ -68,7 +70,17 @@ export class AIPlayer {
 
       if (scoredPieces.length === 0) continue;
       scoredPieces.sort((a, b) => b.score - a.score);
-      const topChoices = scoredPieces.slice(0, Math.min(3, scoredPieces.length));
+      let topChoices = scoredPieces.slice(0, Math.min(5, scoredPieces.length));
+      if (excludeMoves?.length) {
+        topChoices = topChoices.filter(c =>
+          !excludeMoves!.some(ex =>
+            c.bestMove!.piece.id === ex.pieceId &&
+            c.bestMove!.position.x === ex.position.x &&
+            c.bestMove!.position.y === ex.position.y
+          )
+        );
+      }
+      if (topChoices.length === 0) continue;
       const idx = this.difficulty === 'hard' ? 0 : this.getWeightedRandomIndex(topChoices.map(c => c.score));
       return topChoices[idx].bestMove;
     }

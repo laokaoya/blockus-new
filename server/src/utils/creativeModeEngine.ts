@@ -292,6 +292,15 @@ export function overlapsBarrier(
   return false;
 }
 
+/** 用 boardChanges 检查是否与屏障重叠（AI 旋转/翻转后 shape 与 playerPieces 中原始 shape 不一致时使用） */
+export function overlapsBarrierByBoardChanges(
+  boardChanges: Array<{ x: number; y: number }>,
+  specialTiles: SpecialTile[],
+): boolean {
+  const barriers = specialTiles.filter(t => t.type === 'barrier');
+  return boardChanges.some(c => barriers.some(t => t.x === c.x && t.y === c.y));
+}
+
 /** 计算棋子格数 */
 export function pieceCellCount(shape: number[][]): number {
   return shape.reduce((s, row) => s + row.reduce((a, c) => a + (c === 1 ? 1 : 0), 0), 0);
@@ -313,6 +322,17 @@ export function findTriggeredTiles(
     }
   }
   return triggered;
+}
+
+/** 用 boardChanges 查找触发的特殊格（AI 旋转/翻转后 shape 与原始不一致时使用） */
+export function findTriggeredTilesFromBoardChanges(
+  boardChanges: Array<{ x: number; y: number }>,
+  specialTiles: SpecialTile[],
+): SpecialTile[] {
+  return specialTiles.filter(t =>
+    !t.used && t.type !== 'barrier' &&
+    boardChanges.some(c => c.x === t.x && c.y === t.y)
+  );
 }
 
 export function findTerritoryExpansionCell(board: number[][], colorIndex: number): { x: number; y: number } | null {

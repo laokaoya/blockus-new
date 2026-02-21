@@ -1,12 +1,12 @@
-import { GameState, GameMove, PlayerColor, RoomPlayer, Piece } from './types';
+import { GameState, GameMove, PlayerColor, RoomPlayer, Piece, Position } from './types';
 import { GameMode } from './types';
 import { AIPlayer } from './utils/aiPlayer';
 import { PIECE_SHAPES, PIECE_COUNTS } from './constants/pieces';
 import {
-  generateSpecialTiles, initCreativePlayerStates, findTriggeredTiles,
+  generateSpecialTiles, initCreativePlayerStates,
   resolveEffect, rollGoldEffect, rollPurpleEffect, rollRedEffect,
-  rollItemCard, addItemCard, tickStatusEffects, overlapsBarrier, pieceCellCount,
-  findTerritoryExpansionCell, resolveItemCard, aiDecideItemCard,
+  rollItemCard, addItemCard, tickStatusEffects, overlapsBarrierByBoardChanges, pieceCellCount,
+  findTriggeredTilesFromBoardChanges, findTerritoryExpansionCell, resolveItemCard, aiDecideItemCard,
 } from './utils/creativeModeEngine';
 import type { CreativeGameState, CreativePlayerState, SpecialTile } from './utils/creativeTypes';
 
@@ -185,9 +185,9 @@ export class GameManager {
     const piece = pieces?.find(p => p.id === move.pieceId);
     if (!piece) return { success: false, error: 'INVALID_PIECE' };
 
-    // 创意模式：屏障、big_piece_ban 校验
+    // 创意模式：屏障、big_piece_ban 校验（用 boardChanges 检查，AI 旋转/翻转后 shape 与原始不一致）
     if (cs) {
-      if (overlapsBarrier(piece.shape, move.position, cs.specialTiles)) {
+      if (overlapsBarrierByBoardChanges(move.boardChanges, cs.specialTiles)) {
         return { success: false, error: 'BARRIER_BLOCKED' };
       }
       const cp = cs.creativePlayers.find(p => p.playerId === playerId);
@@ -222,7 +222,7 @@ export class GameManager {
     let extraTurn = false;
     const triggeredEffects: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }> = [];
     if (cs) {
-      const triggered = findTriggeredTiles(piece.shape, move.position, cs.specialTiles);
+      const triggered = findTriggeredTilesFromBoardChanges(move.boardChanges, cs.specialTiles);
       const allPlayers: { id: string; color: PlayerColor; score: number }[] = game.players.map(p => ({
         id: p.id,
         color: game.playerColorMap[p.id]!,
@@ -658,54 +658,62 @@ export class GameManager {
             }
 
             const pieces = game.playerPieces[currentPlayer.id];
-          const moveResult = game.gameMode === 'creative' && game.state.creativeState
-            ? aiPlayer.makeMoveCreative(
-                game.state.board,
-                pieces,
-                game.state.creativeState.specialTiles,
-                game.state.creativeState.creativePlayers
-                  .find(p => p.playerId === currentPlayer.id)
-                  ?.statusEffects.some(e => e.type === 'big_piece_ban' && e.remainingTurns > 0) ?? false,
-              )
-            : aiPlayer.makeMove(game.state.board, pieces);
+            const isCreative = game.gameMode === 'creative' && game.state.creativeState;
+            const hasBigBan = !!(isCreative && game.state.creativeState!.creativePlayers
+              .find(p => p.playerId === currentPlayer.id)
+              ?.statusEffects.some(e => e.type === 'big_piece_ban' && e.remainingTurns > 0));
 
-          if (moveResult) {
-            // 构建 GameMove
-            const colorIndex = PLAYER_COLORS.indexOf(currentPlayer.color!) + 1;
-            const boardChanges = [];
-            const { shape } = moveResult.piece;
-            const { x, y } = moveResult.position;
+            let moveResult = isCreative
+              ? aiPlayer.makeMoveCreative(game.state.board, pieces, game.state.creativeState!.specialTiles, hasBigBan)
+              : aiPlayer.makeMove(game.state.board, pieces);
 
-            for (let r = 0; r < shape.length; r++) {
-              for (let c = 0; c < shape[r].length; c++) {
-                if (shape[r][c] === 1) {
-                  boardChanges.push({
-                    x: x + c,
-                    y: y + r,
-                    color: colorIndex
-                  });
+            if (!moveResult) {
+              this.settlePlayer(roomId, currentPlayer.id);
+              game.onAISettle(roomId, currentPlayer.id);
+            } else {
+              let placed = false;
+              const excludedMoves: Array<{ pieceId: string; position: Position }> = [];
+              const maxRetries = isCreative ? 5 : 1;
+
+              for (let attempt = 0; attempt < maxRetries && moveResult; attempt++) {
+                const colorIndex = PLAYER_COLORS.indexOf(currentPlayer.color!) + 1;
+                const boardChanges: Array<{ x: number; y: number; color: number }> = [];
+                const { shape } = moveResult.piece;
+                const { x, y } = moveResult.position;
+
+                for (let r = 0; r < shape.length; r++) {
+                  for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c] === 1) {
+                      boardChanges.push({ x: x + c, y: y + r, color: colorIndex });
+                    }
+                  }
                 }
+
+                const move: GameMove = {
+                  playerColor: currentPlayer.color!,
+                  pieceId: moveResult.piece.id,
+                  position: moveResult.position,
+                  boardChanges,
+                  timestamp: Date.now()
+                };
+
+                const procResult = this.processMove(roomId, currentPlayer.id, move);
+                if (procResult.success) {
+                  game.onAIMove(roomId, move, game.state, procResult.triggeredEffects);
+                  placed = true;
+                  break;
+                }
+                excludedMoves.push({ pieceId: moveResult.piece.id, position: moveResult.position });
+                moveResult = isCreative
+                  ? aiPlayer.makeMoveCreative(game.state.board, pieces, game.state.creativeState!.specialTiles, hasBigBan, excludedMoves)
+                  : null;
+              }
+
+              if (!placed) {
+                this.skipCurrentTurn(roomId);
+                game.onTurnTimeout(roomId);
               }
             }
-
-            const move: GameMove = {
-              playerColor: currentPlayer.color!,
-              pieceId: moveResult.piece.id,
-              position: moveResult.position,
-              boardChanges,
-              timestamp: Date.now()
-            };
-
-            // 应用移动
-            const procResult = this.processMove(roomId, currentPlayer.id, move);
-            
-            // 通知外部
-            game.onAIMove(roomId, move, game.state, procResult.triggeredEffects);
-          } else {
-            // AI 无法移动，结算
-            this.settlePlayer(roomId, currentPlayer.id);
-            game.onAISettle(roomId, currentPlayer.id);
-          }
           } catch (err) {
             console.error('[AI] checkAndProcessAITurn error:', err);
             const errCs = this.games.get(roomId)?.state.creativeState;

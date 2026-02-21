@@ -443,11 +443,9 @@ export function setupSocketHandlers(
           }
 
           const turnTimeLimit = gameManager.getEffectiveTurnTimeLimit(roomId, room?.gameSettings.turnTimeLimit || 60);
-          io.to(roomId).emit('game:turnChanged', {
-            roomId,
-            currentPlayerIndex: state.currentPlayerIndex,
-            timeLeft: turnTimeLimit,
-          });
+          const payload: any = { roomId, currentPlayerIndex: state.currentPlayerIndex, timeLeft: turnTimeLimit };
+          if (state.creativeState) payload.creativeState = state.creativeState;
+          io.to(roomId).emit('game:turnChanged', payload);
         },
         // 时间更新回调
         (roomId, timeLeft) => {
