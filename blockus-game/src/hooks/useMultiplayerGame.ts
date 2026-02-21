@@ -223,8 +223,10 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
 
     // 其他玩家落子
     unsubscribers.push(
-      socketService.on('game:move', (data: { roomId: string; move: GameMove; gameState: ServerGameState; triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }> }) => {
+      socketService.on('game:move', (data: { roomId: string; move: GameMove; gameState: ServerGameState; triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>; undoLastMove?: boolean }) => {
         if (data.roomId !== roomId) return;
+
+        const isUndo = !!data.undoLastMove;
 
         // 创意模式：将服务端下发的触发效果加入展示队列（兜底：找不到时用服务端数据构造）
         if (data.triggeredEffects?.length) {
@@ -261,45 +263,53 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
               score: data.gameState.playerScores[p.id] || p.score,
               isSettled: data.gameState.settledPlayers.includes(p.id),
             };
-            // 标记被使用的棋子（通过 pieceId 匹配）
+            // 标记被使用的棋子（通过 pieceId 匹配）；undoLastMove 时显式恢复拼图为未使用
             if (data.move.pieceId && p.color === data.move.playerColor) {
               updated.pieces = p.pieces.map(piece =>
-                piece.id === data.move.pieceId ? { ...piece, isUsed: true } : piece
+                piece.id === data.move.pieceId ? { ...piece, isUsed: !isUndo } : piece
               );
             }
             return updated;
           });
 
-          // 历史记录：落子
-            const mover = prev.players.find(p => p.color === data.move.playerColor);
+          // 历史记录：落子（undo 时记录「回收」）
+          const mover = prev.players.find(p => p.color === data.move.playerColor);
           if (mover) {
-            addEvent('place', mover.color, mover.name,
-              `放置了 ${data.move.boardChanges.length} 格拼图`,
-              { icon: '🧩' });
-            data.triggeredEffects?.forEach(t => {
-              const posStr = t.tileX != null && t.tileY != null ? `(${t.tileX},${t.tileY})` : '';
-              const tileName = t.tileType === 'gold' ? '金色' : t.tileType === 'purple' ? '紫色' : '红色';
-              const extra: string[] = [];
-              if (t.scoreChange !== 0) extra.push(`${t.scoreChange > 0 ? '+' : ''}${t.scoreChange}分`);
-              if (t.grantItemCard) extra.push('获得道具卡');
-              if (t.extraTurn) extra.push('额外回合');
-              const detailStr = [t.effectName, ...extra].filter(Boolean).join('，');
-              addEvent('tile_effect', mover.color, mover.name,
-                `踩到${tileName}方格${posStr}`,
-                { detail: detailStr, scoreChange: t.scoreChange, icon: t.tileType === 'gold' ? '★' : t.tileType === 'purple' ? '?' : '!' });
-            });
+            if (isUndo) {
+              addEvent('tile_effect', mover.color, mover.name, '踩到红色方格，触发回收', { icon: '↩' });
+            } else {
+              addEvent('place', mover.color, mover.name,
+                `放置了 ${data.move.boardChanges.length} 格拼图`,
+                { icon: '🧩' });
+              data.triggeredEffects?.forEach(t => {
+                const posStr = t.tileX != null && t.tileY != null ? `(${t.tileX},${t.tileY})` : '';
+                const tileName = t.tileType === 'gold' ? '金色' : t.tileType === 'purple' ? '紫色' : '红色';
+                const extra: string[] = [];
+                if (t.scoreChange !== 0) extra.push(`${t.scoreChange > 0 ? '+' : ''}${t.scoreChange}分`);
+                if (t.grantItemCard) extra.push('获得道具卡');
+                if (t.extraTurn) extra.push('额外回合');
+                const detailStr = [t.effectName, ...extra].filter(Boolean).join('，');
+                addEvent('tile_effect', mover.color, mover.name,
+                  `踩到${tileName}方格${posStr}`,
+                  { detail: detailStr, scoreChange: t.scoreChange, icon: t.tileType === 'gold' ? '★' : t.tileType === 'purple' ? '?' : '!' });
+              });
+            }
           }
 
           const serverCreative = data.gameState.creativeState;
           const nextCreative = serverCreative
             ? { ...serverCreative, specialTiles: serverCreative.specialTiles ?? prev.creativeState?.specialTiles ?? [] }
             : prev.creativeState;
+          // undo 时 moves 不包含本次落子，用服务端 moves；否则追加
+          const newMoves = isUndo && data.gameState.moves
+            ? data.gameState.moves
+            : [...prev.moves, data.move];
           return {
             ...prev,
             board: newBoard,
             players: newPlayers,
             currentPlayerIndex: data.gameState.currentPlayerIndex,
-            moves: [...prev.moves, data.move],
+            moves: newMoves,
             turnCount: data.gameState.turnCount,
             creativeState: nextCreative as GameState['creativeState'],
           };

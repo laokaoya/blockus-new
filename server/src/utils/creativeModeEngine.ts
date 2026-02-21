@@ -45,27 +45,43 @@ function rollTileType(barrierCapped: boolean): SpecialTileType {
   return 'barrier';
 }
 
+function getQuadrant(x: number, y: number): number {
+  const mid = BOARD_SIZE / 2;
+  if (y < mid) return x < mid ? 0 : 1;
+  return x < mid ? 2 : 3;
+}
+
 export function generateSpecialTiles(): SpecialTile[] {
   const count = 10 + Math.floor(Math.random() * 5);
   const tiles: SpecialTile[] = [];
-  const candidates: { x: number; y: number }[] = [];
+  const byQuadrant: { x: number; y: number }[][] = [[], [], [], []];
   for (let y = 0; y < BOARD_SIZE; y++) {
     for (let x = 0; x < BOARD_SIZE; x++) {
-      if (!isInSafeZone(x, y)) candidates.push({ x, y });
+      if (!isInSafeZone(x, y)) byQuadrant[getQuadrant(x, y)].push({ x, y });
     }
   }
-  for (let i = candidates.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-  }
+  byQuadrant.forEach(q => {
+    for (let i = q.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [q[i], q[j]] = [q[j], q[i]];
+    }
+  });
+  const basePerQuad = Math.floor(count / 4);
+  const extra = count - basePerQuad * 4;
+  const extraSlots = [0, 1, 2, 3].sort(() => Math.random() - 0.5).slice(0, extra);
   let barrierCount = 0;
   const MAX_BARRIERS = 3;
-  for (const pos of candidates) {
-    if (tiles.length >= count) break;
-    if (!isFarEnoughFromExisting(pos.x, pos.y, tiles)) continue;
-    const tileType = rollTileType(barrierCount >= MAX_BARRIERS);
-    if (tileType === 'barrier') barrierCount++;
-    tiles.push({ x: pos.x, y: pos.y, type: tileType, used: false });
+  for (let q = 0; q < 4; q++) {
+    const need = basePerQuad + (extraSlots.includes(q) ? 1 : 0);
+    let placed = 0;
+    for (const pos of byQuadrant[q]) {
+      if (placed >= need) break;
+      if (!isFarEnoughFromExisting(pos.x, pos.y, tiles)) continue;
+      const tileType = rollTileType(barrierCount >= MAX_BARRIERS);
+      if (tileType === 'barrier') barrierCount++;
+      tiles.push({ x: pos.x, y: pos.y, type: tileType, used: false });
+      placed++;
+    }
   }
   return tiles;
 }
@@ -192,10 +208,6 @@ export function resolveEffect(
       break;
     case 'red_half_score':
       if (!hasSteel) result.newStatusEffects = [{ type: 'half_score', remainingTurns: 1, isNew: true }];
-      result.grantItemCard = true;
-      break;
-    case 'red_undo_last':
-      if (!hasSteel) result.undoLastMove = true;
       result.grantItemCard = true;
       break;
     case 'red_big_piece_ban':

@@ -169,6 +169,7 @@ export class GameManager {
     error?: string;
     gameState?: GameState;
     triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>;
+    undoLastMove?: boolean;
   } {
     const game = this.games.get(roomId);
     if (!game) return { success: false, error: 'GAME_NOT_FOUND' };
@@ -278,7 +279,7 @@ export class GameManager {
           game.state.playerScores[playerId] = (game.state.playerScores[playerId] || 0) - baseScore;
           if (pieceIndex !== -1) pieces![pieceIndex].isUsed = false;
           game.state.moves.pop();
-          return { success: true, gameState: game.state, triggeredEffects: triggeredEffects.length > 0 ? triggeredEffects : undefined };
+          return { success: true, gameState: game.state, triggeredEffects: triggeredEffects.length > 0 ? triggeredEffects : undefined, undoLastMove: true };
         }
         if (result.territoryExpand) {
           const colorIdx = PLAYER_COLORS.indexOf(currentPlayer.color!) + 1;

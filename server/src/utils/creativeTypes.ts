@@ -22,7 +22,7 @@ export type PurpleEffectId =
 
 export type RedEffectId =
   | 'red_minus3' | 'red_minus5' | 'red_minus10' | 'red_skip' | 'red_time5s' | 'red_remove_piece'
-  | 'red_half_score' | 'red_undo_last' | 'red_big_piece_ban' | 'red_total_08';
+  | 'red_half_score' | 'red_big_piece_ban' | 'red_total_08';
 
 export type TileEffectId = GoldEffectId | PurpleEffectId | RedEffectId;
 
@@ -116,7 +116,6 @@ export const RED_EFFECTS: TileEffect[] = [
   { id: 'red_time5s', name: '5秒 + 道具卡', description: '下回合只有5秒，但获得道具卡', type: 'red' },
   { id: 'red_remove_piece', name: '丢棋 + 道具卡', description: '移除最大未使用棋子，但获得道具卡', type: 'red' },
   { id: 'red_half_score', name: '×0.5 + 道具卡', description: '下回合得分减半，但获得道具卡', type: 'red' },
-  { id: 'red_undo_last', name: '回收 + 道具卡', description: '最近放置的棋子被清除，但获得道具卡', type: 'red' },
   { id: 'red_big_piece_ban', name: '限制 + 道具卡', description: '2回合不能用4格以上棋子，但获得道具卡', type: 'red' },
   { id: 'red_total_08', name: '×0.8 + 道具卡', description: '总分×0.8，但获得道具卡', type: 'red' },
 ];

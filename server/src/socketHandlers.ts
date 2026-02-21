@@ -638,12 +638,13 @@ export function setupSocketHandlers(
 
       callback({ success: true });
 
-      // 广播落子给房间内所有人（创意模式附带触发效果供客户端展示）
+      // 广播落子给房间内所有人（创意模式附带触发效果供客户端展示；undoLastMove 时客户端需恢复拼图）
       io.to(data.roomId).emit('game:move', {
         roomId: data.roomId,
         move: data.move,
         gameState: result.gameState!,
         ...(result.triggeredEffects && result.triggeredEffects.length > 0 ? { triggeredEffects: result.triggeredEffects } : {}),
+        ...(result.undoLastMove ? { undoLastMove: true } : {}),
       });
 
       // 广播回合切换（创意模式道具阶段时包含 creativeState）
