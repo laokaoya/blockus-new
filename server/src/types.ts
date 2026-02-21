@@ -106,9 +106,9 @@ export interface ServerToClientEvents {
 
   // 游戏事件
   'game:started': (data: { roomId: string; gameState: GameState; playerColors: Record<string, PlayerColor>; playerNames: Record<string, string> }) => void;
-  'game:state': (data: { roomId: string; gameState: GameState; playerColors: Record<string, PlayerColor>; playerNames: Record<string, string>; isPaused?: boolean }) => void;
+  'game:state': (data: { roomId: string; gameState: GameState; playerColors: Record<string, PlayerColor>; playerNames: Record<string, string>; playerPieces?: Record<string, Array<{ id: string; isUsed: boolean }>>; isPaused?: boolean }) => void;
   'game:move': (data: { roomId: string; move: GameMove; gameState: GameState }) => void;
-  'game:itemUsed': (data: { roomId: string; gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string }) => void;
+  'game:itemUsed': (data: { roomId: string; gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string }) => void;
   'game:turnChanged': (data: { roomId: string; currentPlayerIndex: number; timeLeft: number; creativeState?: import('./utils/creativeTypes').CreativeGameState }) => void;
   'game:creativeState': (data: { roomId: string; creativeState: import('./utils/creativeTypes').CreativeGameState }) => void;
   'game:playerSettled': (data: { roomId: string; playerId: string }) => void;

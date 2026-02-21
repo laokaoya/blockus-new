@@ -717,8 +717,8 @@ export function setupSocketHandlers(
         pieceIdUnused: result.pieceIdUnused,
         pieceIdRemoved: result.pieceIdRemoved,
         targetPlayerId: result.targetPlayerId,
-        cardType: (result as any).cardType,
-        usedByPlayerId: (result as any).usedByPlayerId,
+        cardType: result.cardType,
+        usedByPlayerId: result.usedByPlayerId,
       });
       // 道具阶段结束、主计时器启动，广播 turnChanged 确保客户端同步 timeLeft 与 creativeState
       const room = roomManager.getRoom(data.roomId);
