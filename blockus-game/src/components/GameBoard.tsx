@@ -482,10 +482,22 @@ const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   // ===== 触摸事件处理（移动端） =====
-  // BoardGrid 有 border 1px + padding 2px，getBoundingClientRect 为 border-box，内容区 inset=3
-  const GRID_INSET = 3;
+  // 优先用 elementFromPoint 获取触摸下的格子，避免 clientX/Y 与 getBoundingClientRect 在部分移动端的坐标系偏差
   const touchToBoardPos = (touch: React.Touch, grid: Element): Position | null => {
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (el) {
+      const cell = el.closest('[data-cell-x][data-cell-y]');
+      if (cell) {
+        const x = parseInt(cell.getAttribute('data-cell-x') ?? '', 10);
+        const y = parseInt(cell.getAttribute('data-cell-y') ?? '', 10);
+        if (!isNaN(x) && !isNaN(y) && x >= 0 && x < 20 && y >= 0 && y < 20) {
+          return { x, y };
+        }
+      }
+    }
+    // 回退：坐标计算（BoardGrid border 1px + padding 2px）
     const rect = grid.getBoundingClientRect();
+    const GRID_INSET = 3;
     const gap = 1;
     const innerW = rect.width - GRID_INSET * 2;
     const innerH = rect.height - GRID_INSET * 2;
@@ -645,7 +657,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
             const unusedTile = specialTile && !specialTile.used;
             const coveredTile = specialTile && specialTile.used && cell !== 0;
             return (
-              <CellWrapper key={`${x}-${y}`}>
+              <CellWrapper key={`${x}-${y}`} data-cell-x={x} data-cell-y={y}>
                 <Cell
                   isOccupied={cell !== 0}
                   playerColor={cell}
