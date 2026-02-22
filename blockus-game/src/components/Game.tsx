@@ -972,7 +972,7 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
           {gameState.creativeState && myCreative && createPortal(
             <ItemCardBar
               creativePlayer={myCreative as CreativePlayerState}
-              isItemPhase={isItemPhase && !isSpectateMode}
+              isItemPhase={isItemPhase && !isSpectateMode && isMyTurn}
               itemPhaseTimeLeft={itemPhaseTimeLeft}
               players={gameState.players}
               currentPlayerId={myPlayer?.id ?? ''}
@@ -996,7 +996,7 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
           )}
 
           {/* 创意模式道具阶段遮罩（道具卡栏已用 Portal 渲染到 body，不会被遮挡） */}
-          {isItemPhase && !isSpectateMode && <ItemPhaseOverlay />}
+          {isItemPhase && !isSpectateMode && isMyTurn && <ItemPhaseOverlay />}
 
           {showingEffect && (
             <EffectPopup effect={showingEffect.effect} result={showingEffect.result} />

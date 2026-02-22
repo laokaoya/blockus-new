@@ -507,10 +507,11 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
           const user = prev.players.find(p => p.id === usedBy);
           const target = data.targetPlayerId ? prev.players.find(p => p.id === data.targetPlayerId) : null;
           if (user) {
-            const cardDesc = cardDef?.description ? `（${cardDef.description}）` : '';
-            addEvent('item_use', user.color, user.name,
-              target ? `对 ${target.name} 使用道具「${cardName}」` : `使用道具「${cardName}」`,
-              { detail: cardDesc || undefined, icon: '🃏' });
+            const who = target?.name || user.name;
+            const msg = effectText
+              ? (target ? `对 ${target.name} 使用了「${cardName}」— ${who} ${effectText}` : `使用了「${cardName}」— ${who} ${effectText}`)
+              : (target ? `对 ${target.name} 使用道具「${cardName}」` : `使用道具「${cardName}」`);
+            addEvent('item_use', user.color, user.name, msg, { icon: '🃏' });
             setItemUseBroadcast({ playerName: user.name, playerColor: user.color, cardName, targetName: target?.name, effectText });
           }
 

@@ -260,17 +260,17 @@ export function useCreativeGameState() {
 
     applyItemResult(itemResult, player.id, decision.targetPlayerId, decision.cardIndex);
     const targetName = targetPlayer?.name || '';
-    addEvent('item_use', player.color, player.name,
-      targetName
-        ? `对 ${targetName} 使用了道具「${card.name}」`
-        : `使用了道具「${card.name}」`,
-      { icon: '🃏' });
     const effectTextMap: Record<string, string> = {
       item_blame: '获得了负面状态', item_shrink: '的棋子被缩减', item_curse: '被诅咒',
       item_steel: '获得了免疫', item_freeze: '被冰冻', item_pressure: '获得了时间压力',
       item_plunder: '的分数被掠夺', item_blackhole: '的棋子被清除',
     };
     const effectText = effectTextMap[card.cardType];
+    const who = targetName || player.name;
+    const msg = effectText
+      ? (targetName ? `对 ${targetName} 使用了「${card.name}」— ${who} ${effectText}` : `使用了「${card.name}」— ${who} ${effectText}`)
+      : (targetName ? `对 ${targetName} 使用道具「${card.name}」` : `使用道具「${card.name}」`);
+    addEvent('item_use', player.color, player.name, msg, { icon: '🃏' });
     setItemUseBroadcast({ playerName: player.name, playerColor: player.color, cardName: card.name, targetName: targetName || undefined, effectText });
   }, [gameState.players, creativeState.creativePlayers, addEvent]);
 
@@ -1224,11 +1224,11 @@ export function useCreativeGameState() {
     } else {
       const result = resolveItemCard(card.cardType, currentPlayer, null, playerCreative, null);
       applyItemResult(result, currentPlayer.id, null, cardIndex);
-      const cardDesc = card.description ? `（${card.description}）` : '';
-      addEvent('item_use', currentPlayer.color, currentPlayer.name,
-        `使用道具「${card.name}」`, { detail: cardDesc || undefined, icon: '🃏' });
       const effectTextMap: Record<string, string> = { item_steel: '获得了免疫' };
-      setItemUseBroadcast({ playerName: currentPlayer.name, playerColor: currentPlayer.color, cardName: card.name, effectText: effectTextMap[card.cardType] });
+      const effectText = effectTextMap[card.cardType];
+      const msg = effectText ? `使用了「${card.name}」— ${currentPlayer.name} ${effectText}` : `使用道具「${card.name}」`;
+      addEvent('item_use', currentPlayer.color, currentPlayer.name, msg, { icon: '🃏' });
+      setItemUseBroadcast({ playerName: currentPlayer.name, playerColor: currentPlayer.color, cardName: card.name, effectText });
       setCreativeState(prev => ({ ...prev, itemPhase: false, itemPhaseTimeLeft: 0 }));
     }
   }, [gameState, creativeState, applyItemResult, addEvent]);
@@ -1247,16 +1247,16 @@ export function useCreativeGameState() {
     );
     applyItemResult(result, currentPlayer.id, targetPlayerId, itemTargetSelection.cardIndex);
     const targetName = targetPlayer?.name || '?';
-    const cardDesc = itemTargetSelection.card.description ? `（${itemTargetSelection.card.description}）` : '';
-    addEvent('item_use', currentPlayer.color, currentPlayer.name,
-      `对 ${targetName} 使用道具「${itemTargetSelection.card.name}」`,
-      { detail: cardDesc || undefined, icon: '🃏' });
     const effectTextMap: Record<string, string> = {
       item_blame: '获得了负面状态', item_shrink: '的棋子被缩减', item_curse: '被诅咒',
       item_steel: '获得了免疫', item_freeze: '被冰冻', item_pressure: '获得了时间压力',
       item_plunder: '的分数被掠夺', item_blackhole: '的棋子被清除',
     };
     const effectText = effectTextMap[itemTargetSelection.card.cardType];
+    const msg = effectText
+      ? `对 ${targetName} 使用了「${itemTargetSelection.card.name}」— ${targetName} ${effectText}`
+      : `对 ${targetName} 使用道具「${itemTargetSelection.card.name}」`;
+    addEvent('item_use', currentPlayer.color, currentPlayer.name, msg, { icon: '🃏' });
     setItemUseBroadcast({ playerName: currentPlayer.name, playerColor: currentPlayer.color, cardName: itemTargetSelection.card.name, targetName, effectText });
     setItemTargetSelection(null);
     setCreativeState(prev => ({ ...prev, itemPhase: false, itemPhaseTimeLeft: 0 }));
