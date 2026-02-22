@@ -648,6 +648,7 @@ export function setupSocketHandlers(
       });
 
       // 广播回合切换（创意模式道具阶段时包含 creativeState）
+      // 有触发效果时 advanceTurn 延迟 2.5s 才设置 itemPhase，需延迟再广播一次以同步道具阶段
       if (result.gameState!.gamePhase === 'playing') {
         const room = roomManager.getRoom(data.roomId);
         const payload: any = {
@@ -657,6 +658,21 @@ export function setupSocketHandlers(
         };
         if (result.gameState!.creativeState) payload.creativeState = result.gameState!.creativeState;
         io.to(data.roomId).emit('game:turnChanged', payload);
+
+        if (result.triggeredEffects && result.triggeredEffects.length > 0) {
+          setTimeout(() => {
+            const freshState = gameManager.getGameState(data.roomId);
+            if (freshState?.gamePhase === 'playing' && freshState.creativeState) {
+              const delayedPayload: any = {
+                roomId: data.roomId,
+                currentPlayerIndex: freshState.currentPlayerIndex,
+                timeLeft: gameManager.getEffectiveTurnTimeLimit(data.roomId, room?.gameSettings.turnTimeLimit || 60),
+              };
+              delayedPayload.creativeState = freshState.creativeState;
+              io.to(data.roomId).emit('game:turnChanged', delayedPayload);
+            }
+          }, 2500);
+        }
       }
 
       // 检查游戏是否结束

@@ -632,10 +632,16 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
 
   const [toast, setToast] = useState<{ message: string; type?: 'error' | 'info' | 'success' } | null>(null);
 
-  const myCreative = gameState.creativeState?.creativePlayers.find((c: { playerId: string }) => c.playerId === user?.profile.id);
+  // 联机时服务端 Firebase 用户用 fb_${uid}，需兼容 profile.id 与 playerId 的匹配
+  const myUserIdForCreative = user?.profile.id;
+  const myCreative = gameState.creativeState?.creativePlayers.find((c: { playerId: string }) =>
+    c.playerId === myUserIdForCreative || (myUserIdForCreative && !myUserIdForCreative.startsWith('fb_') && c.playerId === `fb_${myUserIdForCreative}`)
+  );
   
-  // 找到自己的 player 对象
-  const myPlayer = gameState.players.find((p: Player) => p.id === user?.profile.id);
+  // 找到自己的 player 对象（兼容服务端 fb_ 前缀）
+  const myPlayer = gameState.players.find((p: Player) =>
+    p.id === myUserIdForCreative || (myUserIdForCreative && !myUserIdForCreative.startsWith('fb_') && p.id === `fb_${myUserIdForCreative}`)
+  );
   const otherPlayers = gameState.players.filter((p: Player) => p.id !== user?.profile.id);
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const selectedPieceRef = useRef(gameState.selectedPiece);
@@ -658,7 +664,9 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
   // 被房主踢出时，立即返回主界面（房间页和游戏中都需处理）
   useEffect(() => {
     const unsub = socketService.on('room:playerLeft', (data: { roomId: string; playerId: string }) => {
-      if (data.roomId === roomId && data.playerId === user?.profile.id) {
+      const pid = user?.profile.id;
+      const isMe = pid && (data.playerId === pid || (!pid.startsWith('fb_') && data.playerId === `fb_${pid}`));
+      if (data.roomId === roomId && isMe) {
         leaveRoom();
         navigate('/', { state: { showTransition: true } });
       }

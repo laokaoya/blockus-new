@@ -66,6 +66,11 @@ const BoardGrid = styled.div`
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(4px);
   position: relative;
+
+  @media (max-width: 768px) {
+    /* 移动端禁用 backdrop-filter 以减轻 GPU 负担，缓解放置卡顿 */
+    backdrop-filter: none;
+  }
   
   &::after {
     content: '';
@@ -261,7 +266,18 @@ const GameBoard: React.FC<GameBoardProps> = ({
   // 触摸交互标记：防止移动端 touch 后的兼容性 mouse 事件干扰
   const isTouchActiveRef = useRef(false);
   const touchDragActive = useRef(false);
+  // 移动端 touch move 节流：避免每帧触发 400 格重渲染导致卡顿
+  const touchRafRef = useRef<number | null>(null);
+  const lastTouchPosRef = useRef<Position | null>(null);
+  const pendingTouchPosRef = useRef<Position | null>(null);
   
+  // 卸载时取消未执行的 touch 节流
+  useEffect(() => () => {
+    if (touchRafRef.current != null) {
+      cancelAnimationFrame(touchRafRef.current);
+    }
+  }, []);
+
   // 全局鼠标事件监听
   useEffect(() => {
     const clientToCell = (cx: number, cy: number, rect: DOMRect): { x: number; y: number } | null => {
@@ -448,12 +464,19 @@ const GameBoard: React.FC<GameBoardProps> = ({
     e.preventDefault();
     isTouchActiveRef.current = true;
     touchDragActive.current = false;
+    lastTouchPosRef.current = null;
+    pendingTouchPosRef.current = null;
+    if (touchRafRef.current != null) {
+      cancelAnimationFrame(touchRafRef.current);
+      touchRafRef.current = null;
+    }
     if (dragMode !== 'none') {
       setDragMode('none');
       setIsDragging(false);
     }
     const pos = touchToBoardPos(e.touches[0], e.currentTarget, true);
     if (pos) {
+      lastTouchPosRef.current = pos;
       setHoverPosition(pos);
     }
   };
@@ -463,19 +486,33 @@ const GameBoard: React.FC<GameBoardProps> = ({
     e.preventDefault();
     touchDragActive.current = true;
     const pos = touchToBoardPos(e.touches[0], e.currentTarget, true);
-    if (pos) {
-      setHoverPosition(pos);
-    }
+    if (!pos) return;
+    if (lastTouchPosRef.current && lastTouchPosRef.current.x === pos.x && lastTouchPosRef.current.y === pos.y) return;
+    lastTouchPosRef.current = pos;
+    pendingTouchPosRef.current = pos;
+    if (touchRafRef.current != null) return;
+    touchRafRef.current = requestAnimationFrame(() => {
+      touchRafRef.current = null;
+      const p = pendingTouchPosRef.current;
+      if (p) setHoverPosition(p);
+    });
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!selectedPiece || !hoverPosition) {
+    if (touchRafRef.current != null) {
+      cancelAnimationFrame(touchRafRef.current);
+      touchRafRef.current = null;
+    }
+    const posToUse = pendingTouchPosRef.current ?? hoverPosition;
+    lastTouchPosRef.current = null;
+    pendingTouchPosRef.current = null;
+    if (!selectedPiece || !posToUse) {
       setTimeout(() => { isTouchActiveRef.current = false; }, 400);
       touchDragActive.current = false;
       return;
     }
-    if (canPlaceAt(hoverPosition.x, hoverPosition.y)) {
-      onPiecePlace(hoverPosition);
+    if (canPlaceAt(posToUse.x, posToUse.y)) {
+      onPiecePlace(posToUse);
     }
     setHoverPosition(null);
     touchDragActive.current = false;

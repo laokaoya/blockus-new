@@ -128,10 +128,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(newUser);
         saveUserToStorage(newUser);
 
-        // Connect socket with Firebase ID token
+        // Connect socket with Firebase ID token（服务端使用 fb_${uid}，需同步 profile.id 以匹配联机 creativePlayers 等）
         const socketResult = await connectSocket(newUser.profile.nickname, newUser.profile.avatar, idToken);
-        if (socketResult?.success && socketResult.token) {
-          localStorage.setItem('authToken', socketResult.token);
+        if (socketResult?.success) {
+          if (socketResult.token) localStorage.setItem('authToken', socketResult.token);
+          if (socketResult.userId) {
+            newUser.profile.id = socketResult.userId;
+            setUser({ ...newUser });
+            saveUserToStorage(newUser);
+          }
         }
       } else if (!isGuest) {
         // Not signed in and not a guest — try restoring guest session

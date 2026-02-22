@@ -1,7 +1,7 @@
 // 多人在线对战状态管理 Hook
 // 监听服务器广播的游戏事件，同步更新本地 UI 状态
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { GameState, Player, Piece, Position, PlayerColor, GameMove } from '../types/game';
 import { PIECE_SHAPES, PIECE_COUNTS } from '../constants/pieces';
 import { canPlacePiece } from '../utils/gameEngine';
@@ -58,6 +58,16 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
   const [eventLog, setEventLog] = useState<GameEvent[]>([]);
   const [itemUseBroadcast, setItemUseBroadcast] = useState<{ playerName: string; playerColor: PlayerColor; cardName: string; targetName?: string } | null>(null);
   const eventIdRef = useRef(0);
+
+  // 联机时服务端 Firebase 用户用 fb_${uid}，需用服务端 playerId 匹配
+  const effectiveMyUserId = useMemo(() => {
+    if (!myUserId) return '';
+    const players = gameState.players;
+    const creativePlayers = gameState.creativeState?.creativePlayers ?? [];
+    const ids = [myUserId];
+    if (myUserId && !myUserId.startsWith('fb_')) ids.push(`fb_${myUserId}`);
+    return ids.find(id => players.some(p => p.id === id) || creativePlayers.some(c => c.playerId === id)) || myUserId;
+  }, [myUserId, gameState.players, gameState.creativeState?.creativePlayers]);
 
   const addEvent = useCallback((
     type: GameEvent['type'],
@@ -141,13 +151,16 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     const handleGameStateInit = (data: { roomId: string; gameState: ServerGameState; playerColors: Record<string, PlayerColor>; playerNames?: Record<string, string>; playerPieces?: Record<string, Array<{ id: string; isUsed: boolean }>>; isPaused?: boolean }, isStart: boolean) => {
       if (data.roomId !== roomId) return;
 
-      const myPlayerColor = data.playerColors[myUserId];
+      // 联机时服务端 Firebase 用 fb_${uid}，需用服务端 id 匹配
+      const effectiveId = data.playerColors[myUserId] !== undefined ? myUserId
+        : (myUserId && !myUserId.startsWith('fb_') && data.playerColors[`fb_${myUserId}`] !== undefined ? `fb_${myUserId}` : myUserId);
+      const myPlayerColor = data.playerColors[effectiveId];
       if (myPlayerColor) setMyColor(myPlayerColor);
       setPlayerColorMap(data.playerColors);
 
       const playerNames: Record<string, string> = {};
       Object.keys(data.playerColors).forEach(uid => {
-        playerNames[uid] = data.playerNames?.[uid] || (uid === myUserId ? myNickname : `Player ${uid.slice(-4)}`);
+        playerNames[uid] = data.playerNames?.[uid] || (uid === effectiveId ? myNickname : `Player ${uid.slice(-4)}`);
       });
 
       const players = createPlayersFromServerData(data.gameState, data.playerColors, playerNames, data.playerPieces);
@@ -165,7 +178,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         creativeState: data.gameState.creativeState as GameState['creativeState'],
       }));
 
-      setIsMyTurn(players[data.gameState.currentPlayerIndex]?.id === myUserId);
+      setIsMyTurn(players[data.gameState.currentPlayerIndex]?.id === effectiveId);
       setIsPaused(!!data.isPaused);
       if (data.gameState.creativeState?.itemPhase) {
         setItemPhaseTimeLeft(data.gameState.creativeState.itemPhaseTimeLeft ?? 30);
@@ -367,7 +380,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         // 检查是否轮到自己
         setGameState(prev => {
           const currentPlayer = prev.players[data.currentPlayerIndex];
-          const turnIsMe = currentPlayer?.id === myUserId;
+          const turnIsMe = currentPlayer?.id === effectiveMyUserId;
           setIsMyTurn(turnIsMe);
           if (turnIsMe) {
             soundManager.yourTurn();
@@ -427,7 +440,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
             ),
           };
         });
-        if (data.playerId !== myUserId) soundManager.settle();
+        if (data.playerId !== effectiveMyUserId) soundManager.settle();
       })
     );
 
@@ -453,7 +466,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         }));
 
         // 判断胜负播放音效
-        const myRank = data.rankings.find(r => r.playerId === myUserId);
+        const myRank = data.rankings.find(r => r.playerId === effectiveMyUserId);
         if (myRank && myRank.rank === 1) {
           soundManager.gameWin();
         } else {
@@ -639,7 +652,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     if (showingEffect || itemUseBroadcast) return false; // 效果/道具广播期间暂停
     if (gameState.creativeState?.itemPhase) return false; // 道具阶段不能落子
 
-    const myPlayerIndex = gameState.players.findIndex(p => p.id === myUserId);
+    const myPlayerIndex = gameState.players.findIndex(p => p.id === effectiveMyUserId);
     if (myPlayerIndex < 0) return false;
     
     const colorIndex = COLOR_ORDER.indexOf(myColor) + 1;
@@ -690,7 +703,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
 
       // 标记拼图已使用
       const newPlayers = prev.players.map(p => {
-        if (p.id === myUserId) {
+        if (p.id === effectiveMyUserId) {
           return {
             ...p,
             pieces: p.pieces.map(piece =>
@@ -722,7 +735,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     });
 
     return true;
-  }, [gameState, isMyTurn, isPaused, showingEffect, itemUseBroadcast, myUserId, myColor, roomId]);
+  }, [gameState, isMyTurn, isPaused, showingEffect, itemUseBroadcast, effectiveMyUserId, myColor, roomId]);
 
   // 结算（发送到服务器）
   const settlePlayer = useCallback(() => {
@@ -769,7 +782,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
 
   // 判断当前玩家是否可以继续
   const canPlayerContinue = useCallback((): boolean => {
-    const myPlayerIndex = gameState.players.findIndex(p => p.id === myUserId);
+    const myPlayerIndex = gameState.players.findIndex(p => p.id === effectiveMyUserId);
     if (myPlayerIndex < 0) return false;
     
     const myPlayer = gameState.players[myPlayerIndex];
@@ -790,20 +803,20 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         }
         return false;
       });
-  }, [gameState.board, gameState.players, gameState.creativeState?.specialTiles, myUserId, myColor]);
+  }, [gameState.board, gameState.players, gameState.creativeState?.specialTiles, effectiveMyUserId, myColor]);
 
   // 自动检测当前玩家是否可以继续，如果不能则自动结算
   useEffect(() => {
     if (gameState.gamePhase !== 'playing' || !isMyTurn) return;
     
-    const myPlayer = gameState.players.find(p => p.id === myUserId);
+    const myPlayer = gameState.players.find(p => p.id === effectiveMyUserId);
     if (!myPlayer || myPlayer.isSettled) return;
 
     // 使用 setTimeout 避免在渲染过程中更新状态
     const timer = setTimeout(() => {
       // 检查是否还有可放置的棋子
       // 注意：canPlayerContinue 是一个开销较大的操作，只在轮到自己时检查一次
-      const myPlayer = gameState.players.find(p => p.id === myUserId);
+      const myPlayer = gameState.players.find(p => p.id === effectiveMyUserId);
       if (!myPlayer) return;
 
       const colorIndex = COLOR_ORDER.indexOf(myColor) + 1;
@@ -830,7 +843,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     }, 1000); // 给一点延迟，让玩家看清局面
     
     return () => clearTimeout(timer);
-  }, [isMyTurn, gameState.gamePhase, gameState.board, gameState.players, myUserId, myColor, settlePlayer]);
+  }, [isMyTurn, gameState.gamePhase, gameState.board, gameState.players, effectiveMyUserId, myColor, settlePlayer]);
 
   // 超时由服务端处理（skip/settle），客户端不主动结算，避免 60 秒首次超时即被错误结算
 
@@ -842,13 +855,13 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     }
 
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-    if (currentPlayer && currentPlayer.id !== myUserId && !currentPlayer.isSettled) {
+    if (currentPlayer && currentPlayer.id !== effectiveMyUserId && !currentPlayer.isSettled) {
       // 如果不是我，且未结算，显示思考状态
       setThinkingAI(currentPlayer.color);
     } else {
       setThinkingAI(null);
     }
-  }, [gameState.currentPlayerIndex, gameState.gamePhase, gameState.players, myUserId]);
+  }, [gameState.currentPlayerIndex, gameState.gamePhase, gameState.players, effectiveMyUserId]);
 
   return {
     gameState,
