@@ -411,15 +411,13 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
 
   const refreshRooms = useCallback(async () => {
     if (!socketService.isConnected) return;
-    setIsLoading(true);
     try {
       const roomList = await socketService.getRooms();
       setRooms(roomList);
     } catch (error) {
       console.error('Failed to refresh rooms:', error);
-    } finally {
-      setIsLoading(false);
     }
+    // 不再设置 isLoading，避免定时刷新时 UI 闪烁「加载中」
   }, []);
 
   const value: RoomContextType = {

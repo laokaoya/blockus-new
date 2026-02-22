@@ -642,7 +642,7 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
   const myPlayer = gameState.players.find((p: Player) =>
     p.id === myUserIdForCreative || (myUserIdForCreative && !myUserIdForCreative.startsWith('fb_') && p.id === `fb_${myUserIdForCreative}`)
   );
-  const otherPlayers = gameState.players.filter((p: Player) => p.id !== user?.profile.id);
+  const otherPlayers = gameState.players.filter((p: Player) => p.id !== myPlayer?.id);
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const selectedPieceRef = useRef(gameState.selectedPiece);
   const isMyTurnRef = useRef(isMyTurn);

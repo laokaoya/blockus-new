@@ -103,10 +103,6 @@ const aiMoveFlash = keyframes`
 const Cell = styled.div<{ 
   isOccupied: boolean; 
   playerColor: number;
-  isHighlighted: boolean;
-  isInvalid: boolean;
-  isPreview: boolean;
-  isPreviewValid: boolean;
   isCurrentTurn: boolean;
   startingPlayerColor: number;
   isRecentAIMove: boolean;
@@ -120,21 +116,13 @@ const Cell = styled.div<{
   
   background: ${props => {
     if (props.isOccupied) {
-      // 占位格子：发光渐变
       const colors = ['transparent', 'var(--player-red-main)', 'var(--player-yellow-main)', 'var(--player-blue-main)', 'var(--player-green-main)'];
       return colors[props.playerColor] || '#ccc';
     }
-    if (props.isHighlighted) return 'rgba(16, 185, 129, 0.4)';
-    if (props.isInvalid) return 'rgba(239, 68, 68, 0.3)';
-    if (props.isPreview && props.isPreviewValid) return 'rgba(16, 185, 129, 0.25)';
-    if (props.isPreview && !props.isPreviewValid) return 'rgba(239, 68, 68, 0.2)';
-    
-    // 起始点标记
     if (props.startingPlayerColor > 0) {
       return STARTING_COLORS[props.startingPlayerColor]?.bg || 'rgba(255, 215, 0, 0.1)';
     }
-    
-    return 'transparent'; // 空格子完全透明
+    return 'transparent';
   }};
   
   /* 占位格子特效 */
@@ -149,13 +137,13 @@ const Cell = styled.div<{
     z-index: 1;
   `}
   
-  cursor: ${props => (props.isHighlighted || (props.isPreview && props.isPreviewValid)) ? 'pointer' : 'default'};
+  cursor: default;
   transition: all 0.15s ease;
   
   ${props => props.isRecentAIMove && css`animation: ${aiMoveFlash} 1.2s ease-out;`}
   
   &:hover {
-    background: ${props => !props.isOccupied && !props.isHighlighted ? 'rgba(255, 255, 255, 0.05)' : ''};
+    background: ${props => !props.isOccupied ? 'rgba(255, 255, 255, 0.05)' : ''};
   }
 `;
 
@@ -236,6 +224,24 @@ const PreviewOverlay = styled.div<{ $valid: boolean }>`
   box-shadow: 0 0 8px ${p => p.$valid ? 'rgba(16, 185, 129, 0.6)' : 'rgba(239, 68, 68, 0.5)'};
 `;
 
+/** 独立预览层：仅渲染拼图形状，避免 400 格重渲染导致移动端卡死 */
+const PiecePreviewLayer = styled.div`
+  position: absolute;
+  top: 2px; left: 2px; right: 2px; bottom: 2px;
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  grid-template-rows: repeat(20, 1fr);
+  gap: 1px;
+  pointer-events: none;
+  z-index: 10;
+`;
+
+const PiecePreviewCell = styled.div<{ $valid: boolean }>`
+  background: ${p => p.$valid ? 'rgba(16, 185, 129, 0.45)' : 'rgba(239, 68, 68, 0.35)'};
+  box-shadow: 0 0 8px ${p => p.$valid ? 'rgba(16, 185, 129, 0.6)' : 'rgba(239, 68, 68, 0.5)'};
+  border-radius: 1px;
+`;
+
 
 
 const GameBoard: React.FC<GameBoardProps> = ({ 
@@ -266,17 +272,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
   // 触摸交互标记：防止移动端 touch 后的兼容性 mouse 事件干扰
   const isTouchActiveRef = useRef(false);
   const touchDragActive = useRef(false);
-  // 移动端 touch move 节流：避免每帧触发 400 格重渲染导致卡顿
-  const touchRafRef = useRef<number | null>(null);
   const lastTouchPosRef = useRef<Position | null>(null);
   const pendingTouchPosRef = useRef<Position | null>(null);
-  
-  // 卸载时取消未执行的 touch 节流
-  useEffect(() => () => {
-    if (touchRafRef.current != null) {
-      cancelAnimationFrame(touchRafRef.current);
-    }
-  }, []);
 
   // 全局鼠标事件监听
   useEffect(() => {
@@ -446,17 +443,20 @@ const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   // ===== 触摸事件处理（移动端） =====
-  const TOUCH_Y_OFFSET_PX = 80;
-
-  const touchToBoardPos = (touch: React.Touch, grid: Element, applyOffset: boolean): Position | null => {
+  // 与 clientToCell 保持一致：pad=2, gap=1，否则触摸与点击会映射到不同格子
+  const touchToBoardPos = (touch: React.Touch, grid: Element): Position | null => {
     const rect = grid.getBoundingClientRect();
-    const cellSize = rect.width / 20;
-    const rawX = (touch.clientX - rect.left) / cellSize;
-    const rawY = (touch.clientY - rect.top - (applyOffset ? TOUCH_Y_OFFSET_PX : 0)) / cellSize;
-    const x = Math.max(0, Math.min(19, Math.floor(rawX)));
-    const y = Math.max(0, Math.min(19, Math.floor(rawY)));
-    if (rawX < -1 || rawX > 21 || rawY < -2 || rawY > 21) return null;
-    return { x, y };
+    const pad = 2;
+    const gap = 1;
+    const innerW = rect.width - pad * 2;
+    const innerH = rect.height - pad * 2;
+    const cellW = (innerW - gap * 19) / 20;
+    const cellH = (innerH - gap * 19) / 20;
+    if (cellW <= 0 || cellH <= 0) return null;
+    const x = Math.floor((touch.clientX - rect.left - pad) / cellW);
+    const y = Math.floor((touch.clientY - rect.top - pad) / cellH);
+    if (x >= 0 && x < 20 && y >= 0 && y < 20) return { x, y };
+    return null;
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -466,18 +466,18 @@ const GameBoard: React.FC<GameBoardProps> = ({
     touchDragActive.current = false;
     lastTouchPosRef.current = null;
     pendingTouchPosRef.current = null;
-    if (touchRafRef.current != null) {
-      cancelAnimationFrame(touchRafRef.current);
-      touchRafRef.current = null;
-    }
     if (dragMode !== 'none') {
       setDragMode('none');
       setIsDragging(false);
     }
-    const pos = touchToBoardPos(e.touches[0], e.currentTarget, true);
+    const pos = touchToBoardPos(e.touches[0], e.currentTarget);
     if (pos) {
       lastTouchPosRef.current = pos;
       setHoverPosition(pos);
+    } else {
+      setHoverPosition(null);
+      lastTouchPosRef.current = null;
+      pendingTouchPosRef.current = null;
     }
   };
 
@@ -485,24 +485,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
     if (!selectedPiece || e.touches.length !== 1) return;
     e.preventDefault();
     touchDragActive.current = true;
-    const pos = touchToBoardPos(e.touches[0], e.currentTarget, true);
+    const pos = touchToBoardPos(e.touches[0], e.currentTarget);
     if (!pos) return;
     if (lastTouchPosRef.current && lastTouchPosRef.current.x === pos.x && lastTouchPosRef.current.y === pos.y) return;
     lastTouchPosRef.current = pos;
     pendingTouchPosRef.current = pos;
-    if (touchRafRef.current != null) return;
-    touchRafRef.current = requestAnimationFrame(() => {
-      touchRafRef.current = null;
-      const p = pendingTouchPosRef.current;
-      if (p) setHoverPosition(p);
-    });
+    setHoverPosition(pos);
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchRafRef.current != null) {
-      cancelAnimationFrame(touchRafRef.current);
-      touchRafRef.current = null;
-    }
     const posToUse = pendingTouchPosRef.current ?? hoverPosition;
     lastTouchPosRef.current = null;
     pendingTouchPosRef.current = null;
@@ -541,32 +532,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
            row[relativeX] === 1;
   };
   
-  // 检查位置是否应该高亮（可放置）
-  const shouldHighlight = (x: number, y: number): boolean => {
-    if (dragMode !== 'dragging' || !selectedPiece) return false;
-    
-    return isPositionInPiece(x, y, mousePosition.x, mousePosition.y) && 
-           canPlaceAt(mousePosition.x, mousePosition.y);
-  };
-  
-  // 检查位置是否应该显示无效提示（不可放置）
-  const shouldShowInvalid = (x: number, y: number): boolean => {
-    if (dragMode !== 'dragging' || !selectedPiece) return false;
-    
-    return isPositionInPiece(x, y, mousePosition.x, mousePosition.y) && 
-           !canPlaceAt(mousePosition.x, mousePosition.y);
-  };
-  
-  // 检查位置是否在悬停预览范围内（选中拼图但未拖拽时）
+  // 检查位置是否在悬停预览范围内（点击放置时用）
   const isInHoverPreview = (x: number, y: number): boolean => {
     if (dragMode !== 'none' || !selectedPiece || !hoverPosition) return false;
     return isPositionInPiece(x, y, hoverPosition.x, hoverPosition.y);
-  };
-
-  // 悬停预览位置是否可放置
-  const isHoverPositionValid = (): boolean => {
-    if (!hoverPosition || !selectedPiece) return false;
-    return canPlaceAt(hoverPosition.x, hoverPosition.y);
   };
 
   // 处理垃圾桶点击（退回拼图）
@@ -633,10 +602,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
                 <Cell
                   isOccupied={cell !== 0}
                   playerColor={cell}
-                  isHighlighted={shouldHighlight(x, y)}
-                  isInvalid={shouldShowInvalid(x, y)}
-                  isPreview={isInHoverPreview(x, y)}
-                  isPreviewValid={isHoverPositionValid()}
                   isCurrentTurn={currentPlayer?.isCurrentTurn ?? false}
                   startingPlayerColor={getStartingPlayerColor(x, y)}
                   isRecentAIMove={lastAIMove.some(m => m.x === x && m.y === y)}
@@ -650,13 +615,36 @@ const GameBoard: React.FC<GameBoardProps> = ({
                 {coveredTile && specialTile.type !== 'barrier' && (
                   <CoveredSpecialTileGlow tileType={specialTile.type} />
                 )}
-                {(isInHoverPreview(x, y) || shouldHighlight(x, y)) && (
-                  <PreviewOverlay $valid={shouldHighlight(x, y) ? canPlaceAt(mousePosition.x, mousePosition.y) : isHoverPositionValid()} />
-                )}
               </CellWrapper>
             );
           })
         )}
+        {/* 独立预览层：仅渲染拼图形状 ~20 格，避免 400 格重渲染导致移动端卡死 */}
+        {selectedPiece && (() => {
+          const pos = dragMode === 'dragging' ? mousePosition : hoverPosition;
+          if (!pos) return null;
+          const valid = canPlaceAt(pos.x, pos.y);
+          const shape = selectedPiece.shape;
+          const cells: React.ReactNode[] = [];
+          for (let dy = 0; dy < shape.length; dy++) {
+            for (let dx = 0; dx < (shape[dy]?.length ?? 0); dx++) {
+              if (shape[dy][dx] === 1) {
+                const gx = pos.x + dx;
+                const gy = pos.y + dy;
+                if (gx >= 0 && gx < 20 && gy >= 0 && gy < 20) {
+                  cells.push(
+                    <PiecePreviewCell
+                      key={`${gx}-${gy}`}
+                      $valid={valid}
+                      style={{ gridColumn: gx + 1, gridRow: gy + 1 }}
+                    />
+                  );
+                }
+              }
+            }
+          }
+          return <PiecePreviewLayer>{cells}</PiecePreviewLayer>;
+        })()}
       </BoardGrid>
     </BoardContainer>
   );

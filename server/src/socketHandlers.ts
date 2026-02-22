@@ -21,10 +21,29 @@ export function setupSocketHandlers(
   roomManager: RoomManager,
   gameManager: GameManager
 ) {
+  // room:list 节流：2 秒内多次触发只广播一次，避免过于频繁
+  let roomListTimer: NodeJS.Timeout | null = null;
+  let lastRoomListEmit = 0;
+  const scheduleRoomListBroadcast = () => {
+    const now = Date.now();
+    const elapsed = now - lastRoomListEmit;
+    if (elapsed >= 2000) {
+      lastRoomListEmit = now;
+      io.emit('room:list', roomManager.getPublicRooms());
+      return;
+    }
+    if (roomListTimer) return;
+    roomListTimer = setTimeout(() => {
+      roomListTimer = null;
+      lastRoomListEmit = Date.now();
+      io.emit('room:list', roomManager.getPublicRooms());
+    }, 2000 - elapsed);
+  };
+
   // 已结束房间自动删除时，广播通知客户端
   roomManager.onRoomDeleted = (roomId: string) => {
     io.emit('room:deleted', roomId);
-    io.emit('room:list', roomManager.getPublicRooms());
+    scheduleRoomListBroadcast();
     gameManager.removeGame(roomId);
   };
   roomManager.onRoomUpdated = (roomId: string) => {
@@ -32,7 +51,7 @@ export function setupSocketHandlers(
     if (room) {
       io.to(roomId).emit('room:updated', room);
     }
-    io.emit('room:list', roomManager.getPublicRooms());
+    scheduleRoomListBroadcast();
   };
 
   // Socket.io 中间件：认证（支持 local JWT 和 Firebase ID token）
@@ -141,7 +160,7 @@ export function setupSocketHandlers(
         callback({ success: true, room });
 
         // 广播更新给所有人
-        io.emit('room:list', roomManager.getPublicRooms());
+        scheduleRoomListBroadcast();
         console.log(`[Room] Created: ${room.id} by ${socket.data.nickname}`);
       } catch (error: any) {
         if (error.message && error.message.startsWith('ALREADY_IN_ROOM')) {
@@ -206,7 +225,7 @@ export function setupSocketHandlers(
       if (result.room) {
         io.to(data.roomId).emit('room:updated', result.room);
       }
-      io.emit('room:list', roomManager.getPublicRooms());
+      scheduleRoomListBroadcast();
       console.log(`[Room] ${socket.data.nickname} ${result.isRejoin ? 'rejoined' : 'joined'} ${data.roomId}`);
     });
 
@@ -238,7 +257,7 @@ export function setupSocketHandlers(
             io.emit('room:deleted', data.roomId);
             console.log(`[Room] Single-player room ${data.roomId} destroyed (player left)`);
           }
-          io.emit('room:list', roomManager.getPublicRooms());
+          scheduleRoomListBroadcast();
           return;
         }
         roomManager.setPlayerOffline(data.roomId, socket.data.userId);
@@ -254,7 +273,7 @@ export function setupSocketHandlers(
         if (isSingle) {
           io.to(data.roomId).emit('game:paused', { roomId: data.roomId, reason: 'player_disconnected' });
         }
-        io.emit('room:list', roomManager.getPublicRooms());
+        scheduleRoomListBroadcast();
         const updated = roomManager.getRoomSafe(data.roomId);
         if (updated) io.to(data.roomId).emit('room:updated', updated);
         console.log(`[Room] ${socket.data.nickname} temporarily left ${data.roomId} (game in progress, can rejoin)`);
@@ -293,7 +312,7 @@ export function setupSocketHandlers(
         }
       }
 
-      io.emit('room:list', roomManager.getPublicRooms());
+      scheduleRoomListBroadcast();
       console.log(`[Room] ${socket.data.nickname} left ${data.roomId}`);
     });
 
@@ -314,7 +333,7 @@ export function setupSocketHandlers(
       if (updatedRoom) {
         io.to(data.roomId).emit('room:updated', updatedRoom);
       }
-      io.emit('room:list', roomManager.getPublicRooms());
+      scheduleRoomListBroadcast();
     });
 
     // 添加 AI 玩家
@@ -333,7 +352,7 @@ export function setupSocketHandlers(
       if (result.room) {
         io.to(data.roomId).emit('room:updated', result.room);
       }
-      io.emit('room:list', roomManager.getPublicRooms());
+      scheduleRoomListBroadcast();
     });
 
     // 移除玩家
@@ -364,7 +383,7 @@ export function setupSocketHandlers(
       if (updatedRoom) {
         io.to(data.roomId).emit('room:updated', updatedRoom);
       }
-      io.emit('room:list', roomManager.getPublicRooms());
+      scheduleRoomListBroadcast();
     });
 
     // 房间聊天
@@ -558,7 +577,7 @@ export function setupSocketHandlers(
         playerPieces: playerPieces || {},
       });
 
-      io.emit('room:list', roomManager.getPublicRooms());
+      scheduleRoomListBroadcast();
       console.log(`[Game] Started in room ${data.roomId}`);
     });
 
@@ -851,7 +870,7 @@ export function setupSocketHandlers(
           }
         }
 
-        io.emit('room:list', roomManager.getPublicRooms());
+        scheduleRoomListBroadcast();
       }
     });
 

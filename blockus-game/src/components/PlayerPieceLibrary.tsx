@@ -27,6 +27,8 @@ const LibraryContainer = styled.div`
   
   overflow-x: auto;
   overflow-y: hidden;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
   
   &::-webkit-scrollbar {
     height: 4px;

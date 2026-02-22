@@ -926,7 +926,7 @@ const SpectatorCount = styled.span`
 `;
 
 const RoomList: React.FC = () => {
-  const { rooms, isLoading, refreshRooms, createRoom, joinRoom, spectateGame, isOnline } = useRoom();
+  const { rooms, refreshRooms, createRoom, joinRoom, spectateGame, isOnline } = useRoom();
   const { user } = useAuth();
   const { t } = useLanguage();
   const { showToast } = useToast();
@@ -945,13 +945,13 @@ const RoomList: React.FC = () => {
   const [joinPassword, setJoinPassword] = useState('');
   const [rejoiningRoomId, setRejoiningRoomId] = useState<string | null>(null);
 
-  // 自动定时刷新房间列表（每 5 秒）
+  // 自动定时刷新房间列表（每 15 秒，避免过于频繁）
   React.useEffect(() => {
     if (!isOnline) return;
     refreshRooms();
     const interval = setInterval(() => {
       refreshRooms();
-    }, 5000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [isOnline, refreshRooms]);
 
@@ -1288,9 +1288,7 @@ const RoomList: React.FC = () => {
         </ConsoleContainer>
       </CreateRoomOverlay>
 
-      {isLoading ? (
-        <LoadingState>{t('common.loading')}</LoadingState>
-      ) : rooms.length === 0 ? (
+      {rooms.length === 0 ? (
         <EmptyState>{t('room.noRooms')}</EmptyState>
       ) : null}
       
