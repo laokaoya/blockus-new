@@ -64,11 +64,13 @@ interface ItemUseBroadcastProps {
   playerColor: PlayerColor;
   cardName: string;
   targetName?: string;
+  /** 效果描述，如「获得了负面状态」「被冰冻」— 写清谁获得/被施加效果 */
+  effectText?: string;
   onDone: () => void;
 }
 
 const ItemUseBroadcast: React.FC<ItemUseBroadcastProps> = ({
-  playerName, playerColor, cardName, targetName, onDone,
+  playerName, playerColor, cardName, targetName, effectText, onDone,
 }) => {
   useEffect(() => {
     const t = setTimeout(onDone, 2800);
@@ -76,9 +78,17 @@ const ItemUseBroadcast: React.FC<ItemUseBroadcastProps> = ({
   }, [onDone]);
 
   const color = PLAYER_COLORS[playerColor] || '#6b7280';
-  const msg = targetName
-    ? `${playerName} 对 ${targetName} 使用了「${cardName}」`
-    : `${playerName} 使用了「${cardName}」`;
+  let msg: string;
+  if (effectText) {
+    const who = targetName || playerName;
+    msg = targetName
+      ? `${playerName} 对 ${targetName} 使用了「${cardName}」— ${who} ${effectText}`
+      : `${playerName} 使用了「${cardName}」— ${who} ${effectText}`;
+  } else {
+    msg = targetName
+      ? `${playerName} 对 ${targetName} 使用了「${cardName}」`
+      : `${playerName} 使用了「${cardName}」`;
+  }
 
   return (
     <Overlay>

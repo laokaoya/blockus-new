@@ -463,6 +463,7 @@ const LocalCreativeGame: React.FC = () => {
               playerColor={itemUseBroadcast.playerColor}
               cardName={itemUseBroadcast.cardName}
               targetName={itemUseBroadcast.targetName}
+              effectText={itemUseBroadcast.effectText}
               onDone={() => setItemUseBroadcast(null)}
             />
           )}

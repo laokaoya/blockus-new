@@ -56,7 +56,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
   const [showingEffect, setShowingEffect] = useState<{ effect: TileEffect; result: EffectResult } | null>(null);
   const [itemPhaseTimeLeft, setItemPhaseTimeLeft] = useState(0);
   const [eventLog, setEventLog] = useState<GameEvent[]>([]);
-  const [itemUseBroadcast, setItemUseBroadcast] = useState<{ playerName: string; playerColor: PlayerColor; cardName: string; targetName?: string } | null>(null);
+  const [itemUseBroadcast, setItemUseBroadcast] = useState<{ playerName: string; playerColor: PlayerColor; cardName: string; targetName?: string; effectText?: string } | null>(null);
   const eventIdRef = useRef(0);
 
   // 联机时服务端 Firebase 用户用 fb_${uid}，需用服务端 playerId 匹配
@@ -491,6 +491,17 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
         const usedBy = data.usedByPlayerId;
         const cardDef = data.cardType ? ITEM_CARD_DEFS.find(c => c.cardType === data.cardType) : null;
         const cardName = cardDef?.name || '道具卡';
+        const effectTextMap: Record<string, string> = {
+          item_blame: '获得了负面状态',
+          item_shrink: '的棋子被缩减',
+          item_curse: '被诅咒',
+          item_steel: '获得了免疫',
+          item_freeze: '被冰冻',
+          item_pressure: '获得了时间压力',
+          item_plunder: '的分数被掠夺',
+          item_blackhole: '的棋子被清除',
+        };
+        const effectText = data.cardType ? effectTextMap[data.cardType] : undefined;
 
         setGameState(prev => {
           const user = prev.players.find(p => p.id === usedBy);
@@ -500,7 +511,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
             addEvent('item_use', user.color, user.name,
               target ? `对 ${target.name} 使用道具「${cardName}」` : `使用道具「${cardName}」`,
               { detail: cardDesc || undefined, icon: '🃏' });
-            setItemUseBroadcast({ playerName: user.name, playerColor: user.color, cardName, targetName: target?.name });
+            setItemUseBroadcast({ playerName: user.name, playerColor: user.color, cardName, targetName: target?.name, effectText });
           }
 
           let newPlayers = prev.players.map(p => ({

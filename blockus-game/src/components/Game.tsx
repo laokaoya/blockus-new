@@ -811,6 +811,7 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
     if (result.success) {
       setItemTargetSelection(null);
     } else if (result.error) {
+      setItemTargetSelection(null); // 失败时关闭目标选择弹窗，避免卡住
       const msg = result.error === 'NOT_IN_ITEM_PHASE'
         ? (t('creative.itemUseExpired') || '道具阶段已结束，请下次回合再试')
         : result.error === 'NO_DEBUFF_TO_TRANSFER'
@@ -1006,6 +1007,7 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
               playerColor={itemUseBroadcast.playerColor}
               cardName={itemUseBroadcast.cardName}
               targetName={itemUseBroadcast.targetName}
+              effectText={itemUseBroadcast.effectText}
               onDone={() => setItemUseBroadcast(null)}
             />
           )}
