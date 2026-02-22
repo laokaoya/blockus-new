@@ -285,15 +285,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
   // 全局鼠标事件监听
   useEffect(() => {
     const clientToCell = (cx: number, cy: number, rect: DOMRect): { x: number; y: number } | null => {
-      const pad = 2;
+      const inset = 3; // BoardGrid border 1px + padding 2px
       const gap = 1;
-      const innerW = rect.width - pad * 2;
-      const innerH = rect.height - pad * 2;
+      const innerW = rect.width - inset * 2;
+      const innerH = rect.height - inset * 2;
       const cellW = (innerW - gap * 19) / 20;
       const cellH = (innerH - gap * 19) / 20;
       if (cellW <= 0 || cellH <= 0) return null;
-      const x = Math.floor((cx - rect.left - pad) / cellW);
-      const y = Math.floor((cy - rect.top - pad) / cellH);
+      const x = Math.floor((cx - rect.left - inset) / cellW);
+      const y = Math.floor((cy - rect.top - inset) / cellH);
       if (x >= 0 && x < 20 && y >= 0 && y < 20) return { x, y };
       return null;
     };
@@ -332,11 +332,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
       setDragMode('dragging');
       
       const boardElement = document.querySelector('[data-board-grid]');
+      const invalidPos = { x: -1, y: -1 }; // 点击在棋盘外时不显示预览，避免误用默认 (0,0)
       if (boardElement) {
         const pos = clientToCell(clientX, clientY, boardElement.getBoundingClientRect());
         if (pos) {
           mousePositionRef.current = pos;
           setMousePosition(pos);
+        } else {
+          mousePositionRef.current = invalidPos;
+          setMousePosition(invalidPos);
         }
       }
     };
@@ -412,15 +416,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
     if (dragMode !== 'dragging') return;
     
     const rect = e.currentTarget.getBoundingClientRect();
-    const pad = 2;
+    const inset = 3; // BoardGrid border 1px + padding 2px
     const gap = 1;
-    const innerW = rect.width - pad * 2;
-    const innerH = rect.height - pad * 2;
+    const innerW = rect.width - inset * 2;
+    const innerH = rect.height - inset * 2;
     const cellW = (innerW - gap * 19) / 20;
     const cellH = (innerH - gap * 19) / 20;
     if (cellW <= 0 || cellH <= 0) return;
-    const x = Math.max(0, Math.min(19, Math.floor((e.clientX - rect.left - pad) / cellW)));
-    const y = Math.max(0, Math.min(19, Math.floor((e.clientY - rect.top - pad) / cellH)));
+    const x = Math.max(0, Math.min(19, Math.floor((e.clientX - rect.left - inset) / cellW)));
+    const y = Math.max(0, Math.min(19, Math.floor((e.clientY - rect.top - inset) / cellH)));
     const pos = { x, y };
     mousePositionRef.current = pos;
     setMousePosition(pos);
@@ -478,18 +482,18 @@ const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   // ===== 触摸事件处理（移动端） =====
-  // 与 clientToCell 保持一致：pad=2, gap=1，否则触摸与点击会映射到不同格子
+  // BoardGrid 有 border 1px + padding 2px，getBoundingClientRect 为 border-box，内容区 inset=3
+  const GRID_INSET = 3;
   const touchToBoardPos = (touch: React.Touch, grid: Element): Position | null => {
     const rect = grid.getBoundingClientRect();
-    const pad = 2;
     const gap = 1;
-    const innerW = rect.width - pad * 2;
-    const innerH = rect.height - pad * 2;
+    const innerW = rect.width - GRID_INSET * 2;
+    const innerH = rect.height - GRID_INSET * 2;
     const cellW = (innerW - gap * 19) / 20;
     const cellH = (innerH - gap * 19) / 20;
     if (cellW <= 0 || cellH <= 0) return null;
-    const x = Math.floor((touch.clientX - rect.left - pad) / cellW);
-    const y = Math.floor((touch.clientY - rect.top - pad) / cellH);
+    const x = Math.floor((touch.clientX - rect.left - GRID_INSET) / cellW);
+    const y = Math.floor((touch.clientY - rect.top - GRID_INSET) / cellH);
     if (x >= 0 && x < 20 && y >= 0 && y < 20) return { x, y };
     return null;
   };
@@ -664,7 +668,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
         {/* 独立预览层：仅渲染拼图形状 ~20 格，避免 400 格重渲染导致移动端卡死 */}
         {selectedPiece && (() => {
           const pos = dragMode === 'dragging' ? mousePosition : hoverPosition;
-          if (!pos) return null;
+          if (!pos || pos.x < 0 || pos.y < 0) return null; // 棋盘外开始的拖拽不显示预览
           const isTouch = isTouchActiveRef.current;
           const displayPos = getDisplayPosition(pos, isTouch);
           const valid = canPlaceAt(pos.x, pos.y);
