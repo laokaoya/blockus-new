@@ -227,19 +227,22 @@ const PreviewOverlay = styled.div<{ $valid: boolean }>`
 /** 独立预览层：仅渲染拼图形状，避免 400 格重渲染导致移动端卡死 */
 const PiecePreviewLayer = styled.div`
   position: absolute;
-  top: 2px; left: 2px; right: 2px; bottom: 2px;
+  inset: 2px;
   display: grid;
-  grid-template-columns: repeat(20, 1fr);
-  grid-template-rows: repeat(20, 1fr);
+  grid-template-columns: repeat(20, minmax(0, 1fr));
+  grid-template-rows: repeat(20, minmax(0, 1fr));
   gap: 1px;
   pointer-events: none;
   z-index: 10;
+  overflow: visible;
 `;
 
 const PiecePreviewCell = styled.div<{ $valid: boolean }>`
   background: ${p => p.$valid ? 'rgba(16, 185, 129, 0.45)' : 'rgba(239, 68, 68, 0.35)'};
   box-shadow: 0 0 8px ${p => p.$valid ? 'rgba(16, 185, 129, 0.6)' : 'rgba(239, 68, 68, 0.5)'};
   border-radius: 1px;
+  min-width: 2px;
+  min-height: 2px;
 `;
 
 
@@ -275,6 +278,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const lastTouchPosRef = useRef<Position | null>(null);
   const pendingTouchPosRef = useRef<Position | null>(null);
 
+  // 拖拽时最新位置（用于全局 mouseup，因释放在棋盘外时 BoardGrid.onMouseUp 不触发）
+  const mousePositionRef = useRef<Position>({ x: 0, y: 0 });
+  const dragHandledRef = useRef(false); // 防止 BoardGrid.onMouseUp 与 document.mouseup 重复处理
+
   // 全局鼠标事件监听
   useEffect(() => {
     const clientToCell = (cx: number, cy: number, rect: DOMRect): { x: number; y: number } | null => {
@@ -296,25 +303,47 @@ const GameBoard: React.FC<GameBoardProps> = ({
         const boardElement = document.querySelector('[data-board-grid]');
         if (boardElement) {
           const pos = clientToCell(e.clientX, e.clientY, boardElement.getBoundingClientRect());
-          if (pos) setMousePosition(pos);
+          if (pos) {
+            mousePositionRef.current = pos;
+            setMousePosition(pos);
+          }
         }
       }
     };
+
+    const handleGlobalMouseUp = () => {
+      if (dragMode !== 'dragging') return;
+      if (dragHandledRef.current) return; // BoardGrid.onMouseUp 已处理，避免重复放置
+      dragHandledRef.current = true;
+      const pos = mousePositionRef.current;
+      if (selectedPiece && canPlaceAt(pos.x, pos.y)) {
+        onPiecePlace(pos);
+      }
+      setIsDragging(false);
+      setDragMode('none');
+    };
     
-    const handleStartDragFromLibrary = (e: CustomEvent) => {
-      const { clientX, clientY } = e.detail;
+    const handleStartDragFromLibrary = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail || typeof detail.clientX !== 'number' || typeof detail.clientY !== 'number') return;
+      const { clientX, clientY } = detail;
+      dragHandledRef.current = false;
       setIsDragging(true);
       setDragMode('dragging');
       
       const boardElement = document.querySelector('[data-board-grid]');
       if (boardElement) {
         const pos = clientToCell(clientX, clientY, boardElement.getBoundingClientRect());
-        if (pos) setMousePosition(pos);
+        if (pos) {
+          mousePositionRef.current = pos;
+          setMousePosition(pos);
+        }
       }
     };
     
     if (dragMode === 'dragging') {
       document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
     }
     
     // 监听从拼图库开始的拖拽
@@ -325,6 +354,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
     
     return () => {
       document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
       if (boardElement) {
         boardElement.removeEventListener('startDragFromLibrary', handleStartDragFromLibrary as EventListener);
       }
@@ -352,9 +382,12 @@ const GameBoard: React.FC<GameBoardProps> = ({
     if (isTouchActiveRef.current) return;
     if (!selectedPiece) return;
     
+    const pos = { x, y };
+    mousePositionRef.current = pos;
+    dragHandledRef.current = false;
     setIsDragging(true);
     setDragMode('dragging');
-    setMousePosition({ x, y });
+    setMousePosition(pos);
   };
   
   // 从拼图库开始拖拽
@@ -388,19 +421,21 @@ const GameBoard: React.FC<GameBoardProps> = ({
     if (cellW <= 0 || cellH <= 0) return;
     const x = Math.max(0, Math.min(19, Math.floor((e.clientX - rect.left - pad) / cellW)));
     const y = Math.max(0, Math.min(19, Math.floor((e.clientY - rect.top - pad) / cellH)));
-    setMousePosition({ x, y });
+    const pos = { x, y };
+    mousePositionRef.current = pos;
+    setMousePosition(pos);
   };
   
   // 结束拖拽
   const endDrag = () => {
     if (dragMode !== 'dragging') return;
-    
+    if (dragHandledRef.current) return; // 全局 mouseup 已处理
+    dragHandledRef.current = true;
     setIsDragging(false);
     setDragMode('none');
-    
-    // 检查是否可以放置
-    if (canPlaceAt(mousePosition.x, mousePosition.y)) {
-      onPiecePlace(mousePosition);
+    const pos = mousePositionRef.current;
+    if (canPlaceAt(pos.x, pos.y)) {
+      onPiecePlace(pos);
     }
   };
   
@@ -457,6 +492,13 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const y = Math.floor((touch.clientY - rect.top - pad) / cellH);
     if (x >= 0 && x < 20 && y >= 0 && y < 20) return { x, y };
     return null;
+  };
+
+  // 移动端：影子显示在手指上方 2-3 格，避免被手指遮挡
+  const TOUCH_PREVIEW_Y_OFFSET = 2;
+  const getDisplayPosition = (pos: Position, isTouch: boolean): Position => {
+    if (!isTouch) return pos;
+    return { x: pos.x, y: Math.max(0, pos.y - TOUCH_PREVIEW_Y_OFFSET) };
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -623,14 +665,16 @@ const GameBoard: React.FC<GameBoardProps> = ({
         {selectedPiece && (() => {
           const pos = dragMode === 'dragging' ? mousePosition : hoverPosition;
           if (!pos) return null;
+          const isTouch = isTouchActiveRef.current;
+          const displayPos = getDisplayPosition(pos, isTouch);
           const valid = canPlaceAt(pos.x, pos.y);
           const shape = selectedPiece.shape;
           const cells: React.ReactNode[] = [];
           for (let dy = 0; dy < shape.length; dy++) {
             for (let dx = 0; dx < (shape[dy]?.length ?? 0); dx++) {
               if (shape[dy][dx] === 1) {
-                const gx = pos.x + dx;
-                const gy = pos.y + dy;
+                const gx = displayPos.x + dx;
+                const gy = displayPos.y + dy;
                 if (gx >= 0 && gx < 20 && gy >= 0 && gy < 20) {
                   cells.push(
                     <PiecePreviewCell

@@ -68,6 +68,7 @@ const HeaderRight = styled.div`
 const GameContent = styled.div`
   display: flex;
   flex: 1;
+  min-height: 0; /* 允许 flex 子项正确收缩，避免挤占 BottomDock */
   overflow: hidden;
   position: relative;
   
@@ -109,6 +110,7 @@ const LeftPanel = styled.div`
 
 const BoardArea = styled.div`
   flex: 1;
+  min-height: 0; /* 移动端允许收缩，避免挤占拼图库 */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -159,13 +161,16 @@ const BottomDock = styled.div`
   display: flex;
   align-items: center;
   padding: 0 20px;
+  padding-bottom: env(safe-area-inset-bottom, 0); /* 移动端底部安全区 */
   z-index: 100;
   box-shadow: var(--shadow-lg);
   flex-shrink: 0;
 
   @media (max-width: 768px) {
     height: 90px;
+    min-height: 90px;
     padding: 0 10px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0));
   }
 `;
 
@@ -364,6 +369,29 @@ const PauseDesc = styled.div`
   font-size: 1rem;
   color: var(--text-secondary);
   max-width: 320px;
+`;
+
+const PauseBackBtn = styled.button`
+  margin-top: 24px;
+  background: var(--surface-highlight);
+  color: var(--text-primary);
+  border: 1px solid var(--surface-border);
+  border-radius: 50px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover {
+    background: var(--surface-border);
+    transform: translateX(-2px);
+  }
 `;
 
 const SpectatorBadge = styled.div`
@@ -982,6 +1010,9 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
             <PauseOverlay>
               <PauseTitle>{t('game.paused') || '游戏已暂停'}</PauseTitle>
               <PauseDesc>{t('game.pausedReconnect') || '玩家已离开，请返回大厅后点击「回到游戏」继续'}</PauseDesc>
+              <PauseBackBtn onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()}>
+                ← {isSpectateMode ? (t('room.leaveSpectate') || '离开观战') : t('common.back')}
+              </PauseBackBtn>
             </PauseOverlay>
           )}
           <ChatBox />

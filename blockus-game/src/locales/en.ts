@@ -379,6 +379,7 @@ export const en = {
     scrollForMore: 'Scroll down for more rooms',
     more: 'more',
     spectate: 'Spectating',
+    leaveSpectate: 'Leave Spectating',
     ready: 'Ready',
     waiting: 'Waiting',
     aiPlayer: 'AI Player',

@@ -125,6 +125,7 @@ export const zh = {
     ready: '已准备',
     notReady: '未准备',
     spectate: '观战',
+    leaveSpectate: '离开观战',
     status: {
       waiting: '等待中',
       playing: '游戏中',
