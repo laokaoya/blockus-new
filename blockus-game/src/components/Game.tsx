@@ -34,6 +34,8 @@ const GameContainer = styled.div`
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh; /* 移动端动态视口，避免地址栏等导致底部被裁切 */
+  min-height: -webkit-fill-available;
   width: 100vw;
   background: var(--bg-gradient);
   overflow: hidden;
@@ -51,6 +53,11 @@ const Header = styled.div`
   border-bottom: 1px solid var(--surface-border);
   z-index: 50;
   flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    height: 48px;
+    padding: 0 12px;
+  }
 `;
 
 const HeaderLeft = styled.div`
@@ -74,6 +81,7 @@ const GameContent = styled.div`
   
   @media (max-width: 768px) {
     flex-direction: column;
+    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0)); /* 为固定底部拼图库留空 */
   }
 `;
 
@@ -96,7 +104,7 @@ const LeftPanel = styled.div`
   @media (max-width: 768px) {
     width: 100%;
     height: auto;
-    max-height: 90px;
+    max-height: 64px;
     flex-direction: row;
     border-right: none;
     border-bottom: 1px solid var(--surface-border);
@@ -152,6 +160,7 @@ const RightPanel = styled.div`
   }
 `;
 
+const BOTTOM_DOCK_MOBILE_HEIGHT = 80;
 const BottomDock = styled.div`
   height: 100px; /* Reduced from 140px */
   width: 100%;
@@ -167,8 +176,12 @@ const BottomDock = styled.div`
   flex-shrink: 0;
 
   @media (max-width: 768px) {
-    height: 90px;
-    min-height: 90px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: ${BOTTOM_DOCK_MOBILE_HEIGHT}px;
+    min-height: unset;
     padding: 0 10px;
     padding-bottom: max(10px, env(safe-area-inset-bottom, 0));
   }

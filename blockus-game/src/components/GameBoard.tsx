@@ -36,7 +36,7 @@ const BoardContainer = styled.div`
   
   @media (max-width: 768px) {
     max-width: 95vw;
-    max-height: 95vw;
+    max-height: min(95vw, 50vh); /* 小屏限制高度，确保拼图库可见 */
   }
 `;
 
