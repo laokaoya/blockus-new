@@ -336,7 +336,7 @@ export class GameManager {
         game.timeLeft = 0;
         this.startTurnTimer(roomId);
       } else {
-        this.advanceTurn(roomId);
+        this.advanceTurn(roomId, triggeredEffects.length > 0 ? 2500 : 0);
       }
     } else {
       this.advanceTurn(roomId);
@@ -527,8 +527,8 @@ export class GameManager {
     return { success: true };
   }
 
-  // 切换到下一个活跃玩家
-  private advanceTurn(roomId: string): void {
+  // 切换到下一个活跃玩家（delayBeforeAI：有触发效果时延迟再让 AI 落子，给客户端展示时间）
+  private advanceTurn(roomId: string, delayBeforeAI: number = 0): void {
     const game = this.games.get(roomId);
     if (!game) return;
 
@@ -567,22 +567,27 @@ export class GameManager {
     game.state.currentPlayerIndex = nextIndex;
     game.state.turnCount++;
 
-    this.checkAndProcessAITurn(roomId);
-    // 仅人类回合启动主计时器；AI 回合不启动，避免倒计时连续不重置
-    const currentPlayer = game.players[game.state.currentPlayerIndex];
-    const hasHostedAI = !currentPlayer.isAI && currentPlayer.isOffline && game.hostedAIPlayers.has(currentPlayer.id);
-    if (!currentPlayer.isAI && !hasHostedAI) {
-      // 创意模式：人类有道具卡则先进入道具阶段，不启动主计时器
-      const cs = game.state.creativeState;
-      const cp = cs?.creativePlayers.find(p => p.playerId === currentPlayer.id);
-      const hasItemCards = cp && cp.itemCards && cp.itemCards.length > 0;
-      if (cs && hasItemCards) {
-        cs.itemPhase = true;
-        cs.itemPhaseTimeLeft = 30;
-        // 道具阶段由客户端计时，服务端不启动主计时器
-      } else {
-        this.startTurnTimer(roomId);
+    const doNext = () => {
+      this.checkAndProcessAITurn(roomId);
+      // 仅人类回合启动主计时器；AI 回合不启动，避免倒计时连续不重置
+      const cur = game.players[game.state.currentPlayerIndex];
+      const hasHostedAI = !cur.isAI && cur.isOffline && game.hostedAIPlayers.has(cur.id);
+      if (!cur.isAI && !hasHostedAI) {
+        const cs = game.state.creativeState;
+        const cp = cs?.creativePlayers.find(p => p.playerId === cur.id);
+        const hasItemCards = cp && cp.itemCards && cp.itemCards.length > 0;
+        if (cs && hasItemCards) {
+          cs.itemPhase = true;
+          cs.itemPhaseTimeLeft = 30;
+        } else {
+          this.startTurnTimer(roomId);
+        }
       }
+    };
+    if (delayBeforeAI > 0) {
+      setTimeout(doNext, delayBeforeAI);
+    } else {
+      doNext();
     }
   }
 
@@ -623,6 +628,7 @@ export class GameManager {
             // 再次检查游戏状态（防止思考期间游戏结束或玩家断线）
             if (game.state.gamePhase !== 'playing' || game.players[game.state.currentPlayerIndex].id !== currentPlayer.id) return;
 
+            let aiUsedItem = false;
             const cs = game.state.creativeState;
             // 创意模式：AI 有道具卡则先尝试使用
             const aiCp = cs?.creativePlayers.find(p => p.playerId === currentPlayer.id);
@@ -647,6 +653,7 @@ export class GameManager {
                     cardType: itemResult.cardType,
                     usedByPlayerId: itemResult.usedByPlayerId,
                   });
+                  aiUsedItem = true;
                 } else if (!itemResult.success) {
                   // 道具使用失败（如目标有护盾）时，结束道具阶段以便继续落子
                   cs.itemPhase = false;
@@ -663,6 +670,7 @@ export class GameManager {
               cs.itemPhaseTimeLeft = 0;
             }
 
+            const doPlace = () => {
             const pieces = game.playerPieces[currentPlayer.id];
             const isCreative = game.gameMode === 'creative' && game.state.creativeState;
             const hasBigBan = !!(isCreative && game.state.creativeState!.creativePlayers
@@ -726,6 +734,18 @@ export class GameManager {
                 this.skipCurrentTurn(roomId);
                 game.onTurnTimeout(roomId);
               }
+            }
+            };
+
+            // AI 使用道具后延迟 2.5 秒再落子，让客户端广播展示完成
+            const placeDelay = aiUsedItem ? 2500 : 0;
+            if (placeDelay > 0) {
+              setTimeout(() => {
+                if (game.state.gamePhase !== 'playing' || game.players[game.state.currentPlayerIndex]?.id !== currentPlayer.id) return;
+                doPlace();
+              }, placeDelay);
+            } else {
+              doPlace();
             }
           } catch (err) {
             console.error('[AI] checkAndProcessAITurn error:', err);

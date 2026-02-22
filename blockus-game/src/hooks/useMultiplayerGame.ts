@@ -516,20 +516,17 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
                 }),
               };
             });
-          } else if (data.pieceIdRemoved) {
-            const pieceColor = data.pieceIdRemoved.split('_')[0] as PlayerColor;
-            newPlayers = newPlayers.map(p => {
-              const isTarget = p.id === data.targetPlayerId || (pieceColor && p.color === pieceColor);
-              if (!isTarget) return p;
-              const hasMatch = p.pieces.some(pc => pc.id === data.pieceIdRemoved);
-              if (!hasMatch) return p;
-              return {
-                ...p,
-                pieces: p.pieces.map(pc =>
-                  pc.id === data.pieceIdRemoved ? { ...pc, isUsed: true } : pc
-                ),
-              };
-            });
+          } else if (data.pieceIdRemoved && data.targetPlayerId) {
+            newPlayers = newPlayers.map(p =>
+              p.id === data.targetPlayerId
+                ? {
+                    ...p,
+                    pieces: p.pieces.map(pc =>
+                      pc.id === data.pieceIdRemoved ? { ...pc, isUsed: true } : pc
+                    ),
+                  }
+                : p
+            );
           }
           return {
             ...prev,
