@@ -540,7 +540,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    const posToUse = pendingTouchPosRef.current ?? hoverPosition;
+    // 优先用 ref（同步更新），hoverPosition 可能因 React 批处理尚未更新导致放置失败
+    const posToUse = pendingTouchPosRef.current ?? lastTouchPosRef.current ?? hoverPosition;
     lastTouchPosRef.current = null;
     pendingTouchPosRef.current = null;
     if (!selectedPiece || !posToUse) {
