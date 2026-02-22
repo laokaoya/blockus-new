@@ -546,6 +546,7 @@ export function setupSocketHandlers(
             targetPlayerId: result.targetPlayerId,
             cardType: result.cardType,
             usedByPlayerId: result.usedByPlayerId,
+            effectDetail: result.effectDetail,
           };
           if (result.pieceIdRemoved) {
             itemUsedPayload.playerPieces = gameManager.getPlayerPieces(roomId);
@@ -761,6 +762,7 @@ export function setupSocketHandlers(
         targetPlayerId: result.targetPlayerId,
         cardType: result.cardType,
         usedByPlayerId: result.usedByPlayerId,
+        effectDetail: result.effectDetail,
       };
       if (result.pieceIdRemoved) {
         itemUsedPayload.playerPieces = gameManager.getPlayerPieces(data.roomId);

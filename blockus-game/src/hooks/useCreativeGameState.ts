@@ -25,6 +25,35 @@ const BOARD_SIZE = 20;
 const DEFAULT_TURN_TIME_LIMIT = 60;
 const ITEM_PHASE_TIME = 30; // 道具阶段 30 秒
 
+/** 根据道具结果生成详细效果描述（用于广播与历史记录） */
+function buildItemEffectDetail(
+  cardType: string,
+  result: ItemResult,
+  selfCreative: CreativePlayerState | null,
+  selfName: string,
+): string | undefined {
+  const DEBUFF_NAMES: Record<string, string> = {
+    skip_turn: '跳过回合', time_pressure: '时间压力',
+    half_score: '得分减半', big_piece_ban: '大棋子限制',
+  };
+  if (cardType === 'item_blame' && result.transferDebuff && selfCreative) {
+    const debuff = selfCreative.statusEffects.find(e =>
+      ['skip_turn', 'time_pressure', 'half_score', 'big_piece_ban'].includes(e.type)
+    );
+    return debuff ? `获得了「${DEBUFF_NAMES[debuff.type]}」` : '获得了负面状态';
+  }
+  if (cardType === 'item_plunder' && result.selfScoreChange !== undefined && result.targetScoreChange !== undefined) {
+    return `失去${-result.targetScoreChange}分，${selfName}获得${result.selfScoreChange}分`;
+  }
+  if (cardType === 'item_shrink') return '最大未使用棋子被移除';
+  if (cardType === 'item_curse') return '被诅咒，下回合得分×0.5';
+  if (cardType === 'item_freeze') return '被冰冻，下回合跳过';
+  if (cardType === 'item_pressure') return '获得时间压力，下回合仅5秒';
+  if (cardType === 'item_steel') return '获得免疫（2回合）';
+  if (cardType === 'item_blackhole') return '最后一手被撤销';
+  return undefined;
+}
+
 interface GameSettings {
   aiDifficulty: 'easy' | 'medium' | 'hard';
   timeLimit: number;
@@ -260,12 +289,12 @@ export function useCreativeGameState() {
 
     applyItemResult(itemResult, player.id, decision.targetPlayerId, decision.cardIndex);
     const targetName = targetPlayer?.name || '';
-    const effectTextMap: Record<string, string> = {
+    const fallbackMap: Record<string, string> = {
       item_blame: '获得了负面状态', item_shrink: '的棋子被缩减', item_curse: '被诅咒',
       item_steel: '获得了免疫', item_freeze: '被冰冻', item_pressure: '获得了时间压力',
       item_plunder: '的分数被掠夺', item_blackhole: '的棋子被清除',
     };
-    const effectText = effectTextMap[card.cardType];
+    const effectText = buildItemEffectDetail(card.cardType, itemResult, aiCreative, player.name) ?? fallbackMap[card.cardType];
     const who = targetName || player.name;
     const msg = effectText
       ? (targetName ? `对 ${targetName} 使用了「${card.name}」— ${who} ${effectText}` : `使用了「${card.name}」— ${who} ${effectText}`)
@@ -600,8 +629,8 @@ export function useCreativeGameState() {
       if (effectResult.grantItemCard) extra.push('获得道具卡');
       if (effectResult.extraTurn) extra.push('额外回合');
       addEvent('tile_effect', currentPlayer.color, currentPlayer.name,
-        `踩到${tileName}方格${posStr}`,
-        { detail: extra.join('，'), scoreChange: effectResult.scoreChange || undefined, icon: tileIcon }
+        `踩到${tileName}方格${posStr}，${extra.join('、')}`,
+        { scoreChange: effectResult.scoreChange || undefined, icon: tileIcon }
       );
 
       // 应用即时分数变化，同步写入 bonusScore 保证累计
@@ -991,8 +1020,8 @@ export function useCreativeGameState() {
             if (effectResult.grantItemCard) aiExtra.push('获得道具卡');
             if (effectResult.extraTurn) aiExtra.push('额外回合');
             addEvent('tile_effect', currentPlayer.color, currentPlayer.name,
-              `踩到${aiTileName}方格${aiPosStr}`,
-              { detail: aiExtra.join('，'), scoreChange: effectResult.scoreChange || undefined, icon: aiTileIcon }
+              `踩到${aiTileName}方格${aiPosStr}，${aiExtra.join('、')}`,
+              { scoreChange: effectResult.scoreChange || undefined, icon: aiTileIcon }
             );
 
             // 分数 + bonusScore
@@ -1224,9 +1253,8 @@ export function useCreativeGameState() {
     } else {
       const result = resolveItemCard(card.cardType, currentPlayer, null, playerCreative, null);
       applyItemResult(result, currentPlayer.id, null, cardIndex);
-      const effectTextMap: Record<string, string> = { item_steel: '获得了免疫' };
-      const effectText = effectTextMap[card.cardType];
-      const msg = effectText ? `使用了「${card.name}」— ${currentPlayer.name} ${effectText}` : `使用道具「${card.name}」`;
+      const effectText = buildItemEffectDetail(card.cardType, result, playerCreative, currentPlayer.name) ?? '获得了免疫';
+      const msg = `使用了「${card.name}」— ${currentPlayer.name} ${effectText}`;
       addEvent('item_use', currentPlayer.color, currentPlayer.name, msg, { icon: '🃏' });
       setItemUseBroadcast({ playerName: currentPlayer.name, playerColor: currentPlayer.color, cardName: card.name, effectText });
       setCreativeState(prev => ({ ...prev, itemPhase: false, itemPhaseTimeLeft: 0 }));
@@ -1247,12 +1275,12 @@ export function useCreativeGameState() {
     );
     applyItemResult(result, currentPlayer.id, targetPlayerId, itemTargetSelection.cardIndex);
     const targetName = targetPlayer?.name || '?';
-    const effectTextMap: Record<string, string> = {
+    const fallbackMap: Record<string, string> = {
       item_blame: '获得了负面状态', item_shrink: '的棋子被缩减', item_curse: '被诅咒',
       item_steel: '获得了免疫', item_freeze: '被冰冻', item_pressure: '获得了时间压力',
       item_plunder: '的分数被掠夺', item_blackhole: '的棋子被清除',
     };
-    const effectText = effectTextMap[itemTargetSelection.card.cardType];
+    const effectText = buildItemEffectDetail(itemTargetSelection.card.cardType, result, playerCreative, currentPlayer.name) ?? fallbackMap[itemTargetSelection.card.cardType];
     const msg = effectText
       ? `对 ${targetName} 使用了「${itemTargetSelection.card.name}」— ${targetName} ${effectText}`
       : `对 ${targetName} 使用道具「${itemTargetSelection.card.name}」`;

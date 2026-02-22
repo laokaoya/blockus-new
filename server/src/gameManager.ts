@@ -31,7 +31,7 @@ interface ActiveGame {
   onTimeUpdate: (roomId: string, timeLeft: number) => void;
   onAIMove: (roomId: string, move: GameMove, gameState: GameState, triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>) => void;
   onAISettle: (roomId: string, playerId: string) => void;
-  onAIItemUsed?: (roomId: string, result: { gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string }) => void;
+  onAIItemUsed?: (roomId: string, result: { gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string; effectDetail?: string }) => void;
   timeoutCounts: Record<string, number>;
   gameMode: GameMode;
 }
@@ -49,7 +49,7 @@ export class GameManager {
     onAIMove: (roomId: string, move: GameMove, gameState: GameState, triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>) => void,
     onAISettle: (roomId: string, playerId: string) => void,
     gameMode: GameMode = 'classic',
-    onAIItemUsed?: (roomId: string, result: { gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string }) => void,
+    onAIItemUsed?: (roomId: string, result: { gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string; effectDetail?: string }) => void,
   ): { gameState: GameState; playerColors: Record<string, PlayerColor> } {
     const normalizedTurnTimeLimit =
       Number.isFinite(turnTimeLimit) && turnTimeLimit > 0 ? turnTimeLimit : 60;
@@ -382,7 +382,7 @@ export class GameManager {
     playerId: string,
     cardIndex: number,
     targetPlayerId?: string
-  ): { success: boolean; error?: string; gameState?: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string } {
+  ): { success: boolean; error?: string; gameState?: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string; effectDetail?: string } {
     const game = this.games.get(roomId);
     if (!game) return { success: false, error: 'GAME_NOT_FOUND' };
     if (game.state.gamePhase !== 'playing') return { success: false, error: 'GAME_NOT_PLAYING' };
@@ -482,13 +482,35 @@ export class GameManager {
       }
     }
 
+    let effectDetail: string | undefined;
     if (result.transferDebuff && targetPlayerId && targetCp) {
       const negTypes = ['half_score', 'skip_turn', 'time_pressure', 'big_piece_ban'];
+      const DEBUFF_NAMES: Record<string, string> = {
+        skip_turn: '跳过回合', time_pressure: '时间压力',
+        half_score: '得分减半', big_piece_ban: '大棋子限制',
+      };
       const toTransfer = selfCp.statusEffects.find(e => negTypes.includes(e.type));
       if (toTransfer) {
+        effectDetail = `获得了「${DEBUFF_NAMES[toTransfer.type] || toTransfer.type}」`;
         selfCp.statusEffects = selfCp.statusEffects.filter(e => e !== toTransfer);
         targetCp.statusEffects.push({ ...toTransfer });
       }
+    } else if (card.cardType === 'item_plunder' && result.selfScoreChange !== undefined && result.targetScoreChange !== undefined) {
+      const steal = result.selfScoreChange;
+      const lost = -result.targetScoreChange;
+      effectDetail = `失去${lost}分，USER获得${steal}分`;
+    } else if (card.cardType === 'item_shrink' && targetPlayerId) {
+      effectDetail = '最大未使用棋子被移除';
+    } else if (card.cardType === 'item_curse' && targetPlayerId) {
+      effectDetail = '被诅咒，下回合得分×0.5';
+    } else if (card.cardType === 'item_freeze' && targetPlayerId) {
+      effectDetail = '被冰冻，下回合跳过';
+    } else if (card.cardType === 'item_pressure' && targetPlayerId) {
+      effectDetail = '获得时间压力，下回合仅5秒';
+    } else if (card.cardType === 'item_steel') {
+      effectDetail = '获得免疫（2回合）';
+    } else if (card.cardType === 'item_blackhole' && targetPlayerId) {
+      effectDetail = '最后一手被撤销';
     }
 
     // 道具阶段结束，启动主计时器（AI 不启动，由 checkAndProcessAITurn 继续落子）
@@ -508,6 +530,7 @@ export class GameManager {
       targetPlayerId,
       cardType: card.cardType,
       usedByPlayerId: playerId,
+      effectDetail,
     };
   }
 
@@ -652,6 +675,7 @@ export class GameManager {
                     targetPlayerId: itemResult.targetPlayerId,
                     cardType: itemResult.cardType,
                     usedByPlayerId: itemResult.usedByPlayerId,
+                    effectDetail: itemResult.effectDetail,
                   });
                   aiUsedItem = true;
                 } else if (!itemResult.success) {

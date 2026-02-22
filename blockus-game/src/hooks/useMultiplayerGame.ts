@@ -297,14 +297,13 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
               data.triggeredEffects?.forEach(t => {
                 const posStr = t.tileX != null && t.tileY != null ? `(${t.tileX},${t.tileY})` : '';
                 const tileName = t.tileType === 'gold' ? '金色' : t.tileType === 'purple' ? '紫色' : '红色';
-                const extra: string[] = [];
+                const extra: string[] = [t.effectName].filter(Boolean);
                 if (t.scoreChange !== 0) extra.push(`${t.scoreChange > 0 ? '+' : ''}${t.scoreChange}分`);
                 if (t.grantItemCard) extra.push('获得道具卡');
                 if (t.extraTurn) extra.push('额外回合');
-                const detailStr = [t.effectName, ...extra].filter(Boolean).join('，');
                 addEvent('tile_effect', mover.color, mover.name,
-                  `踩到${tileName}方格${posStr}`,
-                  { detail: detailStr, scoreChange: t.scoreChange, icon: t.tileType === 'gold' ? '★' : t.tileType === 'purple' ? '?' : '!' });
+                  `踩到${tileName}方格${posStr}，${extra.join('、')}`,
+                  { scoreChange: t.scoreChange, icon: t.tileType === 'gold' ? '★' : t.tileType === 'purple' ? '?' : '!' });
               });
             }
           }
@@ -480,7 +479,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       socketService.on('game:itemUsed', (data: {
         roomId: string; gameState: ServerGameState;
         pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string;
-        cardType?: string; usedByPlayerId?: string;
+        cardType?: string; usedByPlayerId?: string; effectDetail?: string;
         playerPieces?: Record<string, Array<{ id: string; isUsed: boolean }>>;
       }) => {
         if (data.roomId !== roomId) return;
@@ -501,12 +500,14 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
           item_plunder: '的分数被掠夺',
           item_blackhole: '的棋子被清除',
         };
-        const effectText = data.cardType ? effectTextMap[data.cardType] : undefined;
+        // 优先用服务端 effectDetail（含嫁祸转移类型、掠夺分数等），替换 USER 为使用者名
+        const fallbackEffectText = data.cardType ? effectTextMap[data.cardType] : undefined;
 
         setGameState(prev => {
           const user = prev.players.find(p => p.id === usedBy);
           const target = data.targetPlayerId ? prev.players.find(p => p.id === data.targetPlayerId) : null;
           if (user) {
+            const effectText = data.effectDetail?.replace(/USER/g, user.name) || fallbackEffectText;
             const who = target?.name || user.name;
             const msg = effectText
               ? (target ? `对 ${target.name} 使用了「${cardName}」— ${who} ${effectText}` : `使用了「${cardName}」— ${who} ${effectText}`)
