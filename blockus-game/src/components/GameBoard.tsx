@@ -553,16 +553,18 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     // 优先用 ref（同步更新），hoverPosition 可能因 React 批处理尚未更新导致放置失败
-    const posToUse = pendingTouchPosRef.current ?? lastTouchPosRef.current ?? hoverPosition;
+    const fingerPos = pendingTouchPosRef.current ?? lastTouchPosRef.current ?? hoverPosition;
     lastTouchPosRef.current = null;
     pendingTouchPosRef.current = null;
-    if (!selectedPiece || !posToUse) {
+    if (!selectedPiece || !fingerPos) {
       setTimeout(() => { isTouchActiveRef.current = false; }, 400);
       touchDragActive.current = false;
       return;
     }
-    if (canPlaceAt(posToUse.x, posToUse.y)) {
-      onPiecePlace(posToUse);
+    // 触摸时放置位置与预览一致：使用 displayPos（手指上方 2 格），与影子显示位置对齐
+    const placePos = getDisplayPosition(fingerPos, true);
+    if (canPlaceAt(placePos.x, placePos.y)) {
+      onPiecePlace(placePos);
     }
     setHoverPosition(null);
     touchDragActive.current = false;
@@ -684,7 +686,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
           if (!pos || pos.x < 0 || pos.y < 0) return null; // 棋盘外开始的拖拽不显示预览
           const isTouch = isTouchActiveRef.current;
           const displayPos = getDisplayPosition(pos, isTouch);
-          const valid = canPlaceAt(pos.x, pos.y);
+          // 触摸时预览在 displayPos 绘制，判定和放置也应用 displayPos，否则影子与判定位置不一致
+          const checkPos = isTouch ? displayPos : pos;
+          const valid = canPlaceAt(checkPos.x, checkPos.y);
           const shape = selectedPiece.shape;
           const cells: React.ReactNode[] = [];
           for (let dy = 0; dy < shape.length; dy++) {
