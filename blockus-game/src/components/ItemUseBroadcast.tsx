@@ -19,7 +19,8 @@ const Overlay = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.35);
 `;
 
 const Card = styled.div`
@@ -28,7 +29,7 @@ const Card = styled.div`
   border-radius: 16px;
   padding: 20px 32px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  animation: ${fadeInOut} 2.5s ease-out forwards;
+  animation: ${fadeInOut} 2.8s ease-out forwards;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -70,7 +71,7 @@ const ItemUseBroadcast: React.FC<ItemUseBroadcastProps> = ({
   playerName, playerColor, cardName, targetName, onDone,
 }) => {
   useEffect(() => {
-    const t = setTimeout(onDone, 2500);
+    const t = setTimeout(onDone, 2800);
     return () => clearTimeout(t);
   }, [onDone]);
 

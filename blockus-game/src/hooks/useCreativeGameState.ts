@@ -437,6 +437,7 @@ export function useCreativeGameState() {
 
   const placePieceOnBoard = useCallback((position: Position) => {
     if (!gameState.selectedPiece) return false;
+    if (showingEffect || itemUseBroadcast) return false; // 效果/道具广播期间暂停
     if (creativeState.itemPhase) return false; // 道具阶段不能放棋子
 
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
@@ -783,7 +784,7 @@ export function useCreativeGameState() {
     }));
 
     return true;
-  }, [gameState, creativeState, findNextActivePlayer, gameSettings.timeLimit, removeLargestPiece, removeRandomPiece]);
+  }, [gameState, creativeState, showingEffect, itemUseBroadcast, findNextActivePlayer, gameSettings.timeLimit, removeLargestPiece, removeRandomPiece]);
 
   // ==================== AI 回合 ====================
 

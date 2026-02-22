@@ -582,7 +582,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     };
   }, [roomId, myUserId, myNickname, myColor, isSpectating, joinRoom, spectateGame, createPlayersFromServerData, addEvent]);
 
-  // 创意模式：效果展示队列（与本地创意模式一致）
+  // 创意模式：效果展示队列（2.5秒期间游戏暂停）
   useEffect(() => {
     if (effectQueue.length > 0 && !showingEffect) {
       const next = effectQueue[0];
@@ -639,6 +639,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
   // 放置拼图（发送到服务器）
   const placePieceOnBoard = useCallback((position: Position): boolean => {
     if (!gameState.selectedPiece || !isMyTurn || isPaused) return false;
+    if (showingEffect || itemUseBroadcast) return false; // 效果/道具广播期间暂停
     if (gameState.creativeState?.itemPhase) return false; // 道具阶段不能落子
 
     const myPlayerIndex = gameState.players.findIndex(p => p.id === myUserId);
@@ -724,7 +725,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     });
 
     return true;
-  }, [gameState, isMyTurn, isPaused, myUserId, myColor, roomId]);
+  }, [gameState, isMyTurn, isPaused, showingEffect, itemUseBroadcast, myUserId, myColor, roomId]);
 
   // 结算（发送到服务器）
   const settlePlayer = useCallback(() => {
@@ -733,6 +734,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
   }, [roomId]);
 
   const doUseItemCard = useCallback(async (cardIndex: number, targetPlayerId?: string) => {
+    if (showingEffect || itemUseBroadcast) return { success: false, error: 'BROADCAST_ACTIVE' };
     const result = await socketService.useItemCard(roomId, cardIndex, targetPlayerId);
     if (result.success) {
       soundManager.placePiece(); // 使用道具音效
@@ -740,9 +742,10 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       soundManager.invalidMove();
     }
     return result;
-  }, [roomId]);
+  }, [roomId, showingEffect, itemUseBroadcast]);
 
   const skipItemPhase = useCallback(async () => {
+    if (showingEffect || itemUseBroadcast) return false;
     setGameState(prev => prev.creativeState ? {
       ...prev,
       creativeState: { ...prev.creativeState, itemPhase: false, itemPhaseTimeLeft: 0 },
@@ -765,7 +768,7 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       } : prev);
       return false;
     }
-  }, [roomId]);
+  }, [roomId, showingEffect, itemUseBroadcast]);
 
   // 判断当前玩家是否可以继续
   const canPlayerContinue = useCallback((): boolean => {

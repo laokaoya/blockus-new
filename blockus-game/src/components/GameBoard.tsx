@@ -220,6 +220,17 @@ const CellWrapper = styled.div`
   height: 100%;
 `;
 
+/** 放置预览影子：置于最上层，不被特殊格/已放置方块遮挡 */
+const PreviewOverlay = styled.div<{ $valid: boolean }>`
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 10;
+  pointer-events: none;
+  border-radius: 2px;
+  background: ${p => p.$valid ? 'rgba(16, 185, 129, 0.45)' : 'rgba(239, 68, 68, 0.35)'};
+  box-shadow: 0 0 8px ${p => p.$valid ? 'rgba(16, 185, 129, 0.6)' : 'rgba(239, 68, 68, 0.5)'};
+`;
+
 
 
 const GameBoard: React.FC<GameBoardProps> = ({ 
@@ -601,6 +612,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
                 )}
                 {coveredTile && specialTile.type !== 'barrier' && (
                   <CoveredSpecialTileGlow tileType={specialTile.type} />
+                )}
+                {(isInHoverPreview(x, y) || shouldHighlight(x, y)) && (
+                  <PreviewOverlay $valid={shouldHighlight(x, y) ? canPlaceAt(mousePosition.x, mousePosition.y) : isHoverPositionValid()} />
                 )}
               </CellWrapper>
             );
