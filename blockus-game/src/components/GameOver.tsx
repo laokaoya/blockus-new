@@ -443,16 +443,25 @@ const GameOver: React.FC<GameOverProps> = ({
     if (hasProcessed.current) return;
     hasProcessed.current = true;
     
-    const humanPlayer = players.find(p => p.id === user?.profile.id) || players.find(p => !p.isAI) || players[0];
+    const pid = user?.profile.id;
+    const humanPlayer = players.find(p => p.id === pid || (pid && !pid.startsWith('fb_') && p.id === `fb_${pid}`)) || players.find(p => !p.isAI) || players[0];
     const playerScore = humanPlayer?.score ?? 0;
     const maxScore = players.length > 0 ? Math.max(...players.map(p => p.score)) : 0;
-    const isWinner = players.length > 0 && playerScore === maxScore;
+    const sortedByScore = [...players].sort((a, b) => b.score - a.score);
+    const rank = humanPlayer ? sortedByScore.findIndex(p => p.id === humanPlayer.id) + 1 : 4;
+    const isWinner = rank === 1;
+
+    // 天梯积分：1名+25 2名+10 3名+5 4名+2
+    const POINTS_BY_RANK: Record<number, number> = { 1: 25, 2: 10, 3: 5, 4: 2 };
+    const pointsGain = POINTS_BY_RANK[rank] ?? 0;
 
     // 同步更新到 AuthContext（会自动持久化到 localStorage）
     if (user) {
       const prevStats = user.stats;
       const newTotalGames = prevStats.totalGames + 1;
       const newTotalWins = prevStats.totalWins + (isWinner ? 1 : 0);
+      const prevPoints = (prevStats as { ladderPoints?: number }).ladderPoints ?? 1000;
+      const newLadderPoints = Math.max(0, prevPoints + pointsGain);
 
       updateStats({
         totalGames: newTotalGames,
@@ -461,7 +470,8 @@ const GameOver: React.FC<GameOverProps> = ({
         winRate: (newTotalWins / newTotalGames) * 100,
         bestScore: Math.max(prevStats.bestScore, playerScore),
         averageScore: Math.round((prevStats.totalScore + playerScore) / newTotalGames),
-        totalPlayTime: prevStats.totalPlayTime + 5, // 约5分钟
+        totalPlayTime: prevStats.totalPlayTime + 5,
+        ladderPoints: newLadderPoints,
       });
     }
 

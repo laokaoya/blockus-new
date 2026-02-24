@@ -348,6 +348,13 @@ export const en = {
   },
 
   // About
+  ladder: {
+    title: 'Ladder',
+    subtitle: 'Earn points by winning games',
+    points: 'Points',
+    myRank: 'My Rank',
+  },
+
   about: {
     title: 'About Game',
     description: 'Blokus is a classic strategy puzzle game',

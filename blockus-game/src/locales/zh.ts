@@ -437,6 +437,14 @@ export const zh = {
     newGameplay: '全新玩法',
   },
 
+  // 天梯
+  ladder: {
+    title: '天梯排行',
+    subtitle: '赢取对局获得积分',
+    points: '积分',
+    myRank: '我的排名',
+  },
+
   // 关于
   about: {
     title: '关于游戏',

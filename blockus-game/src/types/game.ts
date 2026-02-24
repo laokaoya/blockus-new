@@ -97,6 +97,7 @@ export interface UserStats {
   bestScore: number;
   averageScore: number;
   totalPlayTime: number; // 总游戏时长（分钟）
+  ladderPoints: number;  // 天梯积分，用于排行榜
 }
 
 export interface User {

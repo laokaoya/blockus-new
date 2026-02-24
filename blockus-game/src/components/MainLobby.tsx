@@ -7,6 +7,7 @@ import { useRoom } from '../contexts/RoomContext';
 import { useToast } from '../contexts/ToastContext';
 import GameRulesModal from './GameRulesModal';
 import RoomList from './RoomList';
+import LadderBoard from './LadderBoard';
 import soundManager from '../utils/soundManager';
 import { SettingsIcon, UserIcon, BookIcon, RocketIcon } from './Icons';
 
@@ -294,6 +295,19 @@ const ContentArea = styled.div`
   flex: 1;
   padding: 0 40px 40px 40px;
   overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr minmax(280px, 340px);
+  gap: 24px;
+  min-height: 0;
+  
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 0 16px 24px 16px;
+    gap: 16px;
+  }
 `;
 
 const RoomListWrapper = styled.div`
@@ -309,6 +323,16 @@ const RoomListWrapper = styled.div`
     border: none;
     background: transparent;
     box-shadow: none;
+  }
+`;
+
+const LadderWrapper = styled.div`
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  
+  @media (max-width: 1024px) {
+    max-height: 320px;
   }
 `;
 
@@ -499,6 +523,11 @@ const MainLobby: React.FC = () => {
           <RoomListWrapper>
             <RoomList />
           </RoomListWrapper>
+          {user && !isGuest && (
+            <LadderWrapper>
+              <LadderBoard />
+            </LadderWrapper>
+          )}
         </ContentArea>
       </MainArea>
 

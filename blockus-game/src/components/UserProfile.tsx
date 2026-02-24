@@ -917,6 +917,10 @@ const UserProfile: React.FC = () => {
               <StatValue>{Math.round(user.stats.totalPlayTime / 60)}</StatValue>
               <StatLabel>{t('statistics.averageTime') || '总时长(小时)'}</StatLabel>
             </StatCard>
+            <StatCard>
+              <StatValue>{(user.stats as { ladderPoints?: number }).ladderPoints ?? 1000}</StatValue>
+              <StatLabel>{t('ladder.points') || '天梯积分'}</StatLabel>
+            </StatCard>
           </StatsGrid>
           <WinRateBar>
             <WinRateLabel>

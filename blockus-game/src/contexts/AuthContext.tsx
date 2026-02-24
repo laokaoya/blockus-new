@@ -45,6 +45,7 @@ interface AuthProviderProps {
 const DEFAULT_STATS: UserStats = {
   totalGames: 0, totalWins: 0, totalScore: 0,
   winRate: 0, bestScore: 0, averageScore: 0, totalPlayTime: 0,
+  ladderPoints: 1000, // 初始积分 1000
 };
 
 function loadMergedStats(): UserStats {
@@ -52,7 +53,11 @@ function loadMergedStats(): UserStats {
     const saved = localStorage.getItem('user');
     if (saved) {
       const prev = JSON.parse(saved);
-      if (prev.stats) return { ...DEFAULT_STATS, ...prev.stats };
+      if (prev.stats) {
+        const merged = { ...DEFAULT_STATS, ...prev.stats };
+        if (merged.ladderPoints == null) merged.ladderPoints = 1000;
+        return merged;
+      }
     }
   } catch { /* ignore */ }
   return { ...DEFAULT_STATS };
