@@ -38,29 +38,38 @@ function getTransporter(): nodemailer.Transporter | null {
 export async function sendVerificationCode(to: string, code: string): Promise<void> {
   const resend = getResend();
   if (resend) {
-    const { error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: RESEND_FROM,
       to,
       subject: '[Blockus] 邮箱验证码',
       html: `<p>您的验证码是：<strong>${code}</strong>，5分钟内有效。</p>`,
     });
     if (error) {
-      console.error('[Auth] Resend error:', error);
-      throw new Error('SEND_FAILED');
+      console.error('[Auth] Resend error:', JSON.stringify(error, null, 2));
+      throw new Error(error.message || 'SEND_FAILED');
     }
+    console.log('[Auth] 验证码已通过 Resend 发送:', data?.id);
     return;
   }
 
   const trans = getTransporter();
   if (trans) {
-    await trans.sendMail({
-      from: SMTP_FROM,
-      to,
-      subject: '[Blockus] 邮箱验证码',
-      text: `您的验证码是：${code}，5分钟内有效。`,
-      html: `<p>您的验证码是：<strong>${code}</strong>，5分钟内有效。</p>`,
-    });
-  } else {
-    console.log(`[Auth] 验证码 (${to}): ${code}`);
+    try {
+      await trans.sendMail({
+        from: SMTP_FROM,
+        to,
+        subject: '[Blockus] 邮箱验证码',
+        text: `您的验证码是：${code}，5分钟内有效。`,
+        html: `<p>您的验证码是：<strong>${code}</strong>，5分钟内有效。</p>`,
+      });
+      console.log('[Auth] 验证码已通过 SMTP 发送');
+    } catch (err: unknown) {
+      console.error('[Auth] SMTP error:', err);
+      throw new Error(err instanceof Error ? err.message : 'SEND_FAILED');
+    }
+    return;
   }
+
+  // 无邮件配置时：控制台输出（开发调试用）
+  console.log(`[Auth] 验证码 (${to}): ${code} [未配置 RESEND/SMTP，仅控制台输出]`);
 }

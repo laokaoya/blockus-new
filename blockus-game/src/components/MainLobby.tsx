@@ -9,7 +9,7 @@ import GameRulesModal from './GameRulesModal';
 import RoomList from './RoomList';
 import LadderBoard from './LadderBoard';
 import soundManager from '../utils/soundManager';
-import { SettingsIcon, UserIcon, BookIcon, RocketIcon } from './Icons';
+import { SettingsIcon, UserIcon, BookIcon, RocketIcon, LogoutIcon } from './Icons';
 
 interface UserStats {
   totalGames: number;
@@ -340,7 +340,7 @@ const MainLobby: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useLanguage();
-  const { user, isAuthenticated, isGuest } = useAuth();
+  const { user, isAuthenticated, isGuest, logout } = useAuth();
   const { currentRoom, createRoom, addAI, setReady, startGame, isOnline } = useRoom();
   const { showToast } = useToast();
   
@@ -467,6 +467,14 @@ const MainLobby: React.FC = () => {
             {!user?.profile.avatar && (user?.profile.nickname ? user.profile.nickname.charAt(0).toUpperCase() : <UserIcon />)}
           </UserAvatar>
         </SidebarIcon>
+        {!isGuest && (
+          <SidebarIcon 
+            onClick={() => { soundManager.buttonClick(); logout(); navigate('/login'); }}
+            data-tooltip={t('player.logout') || '退出登录'}
+          >
+            <LogoutIcon />
+          </SidebarIcon>
+        )}
         <SidebarIcon 
           onClick={() => { soundManager.buttonClick(); navigate('/settings'); }}
           data-tooltip={t('menu.settings')}

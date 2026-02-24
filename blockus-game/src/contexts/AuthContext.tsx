@@ -67,7 +67,7 @@ function saveUserToStorage(userData: User) {
   localStorage.setItem('user', JSON.stringify(userData));
 }
 
-async function connectSocket(nickname: string, avatar?: string, token?: string) {
+async function connectSocket(nickname: string, avatar?: string, token?: string | (() => Promise<string | undefined>)) {
   try {
     await socketService.connect(token);
     const result = await socketService.login(nickname, avatar);
@@ -92,15 +92,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (fbUser) {
         // Firebase user signed in — build local user state
-        const idToken = await fbUser.getIdToken();
+        const idToken = await fbUser.getIdToken(true);
         setToken(idToken);
         setIsGuest(false);
 
         const stats = loadMergedStats();
+        // 优先使用 Firebase displayName（注册/登录时的昵称），确保天梯和 profile 同步
+        const firebaseNickname = fbUser.displayName?.trim() || fbUser.email?.split('@')[0] || 'Player';
         const newUser: User = {
           profile: {
             id: fbUser.uid,
-            nickname: fbUser.displayName || fbUser.email?.split('@')[0] || 'Player',
+            nickname: firebaseNickname,
             email: fbUser.email || undefined,
             isGuest: false,
             avatar: fbUser.photoURL || undefined,
@@ -110,7 +112,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           stats,
         };
 
-        // Merge saved profile extras (age, gender, bio, location, avatar)
+        // Merge saved profile extras (age, gender, bio, location, avatar) — 不覆盖 nickname，保持与 Firebase 同步
         try {
           const saved = localStorage.getItem('user');
           if (saved) {
@@ -123,9 +125,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               if (prev.profile.avatar && !newUser.profile.avatar) {
                 newUser.profile.avatar = prev.profile.avatar;
               }
-              if (prev.profile.nickname && prev.profile.nickname !== 'Player') {
-                newUser.profile.nickname = prev.profile.nickname;
-              }
             }
           }
         } catch { /* ignore */ }
@@ -133,8 +132,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(newUser);
         saveUserToStorage(newUser);
 
-        // Connect socket with Firebase ID token（服务端使用 fb_${uid}，需同步 profile.id 以匹配联机 creativePlayers 等）
-        const socketResult = await connectSocket(newUser.profile.nickname, newUser.profile.avatar, idToken);
+        // Connect socket：传入 token 获取函数，重连时自动刷新避免 id-token-expired
+        const tokenProvider = () => fbUser.getIdToken(true);
+        const socketResult = await connectSocket(newUser.profile.nickname, newUser.profile.avatar, tokenProvider);
         if (socketResult?.success) {
           if (socketResult.token) localStorage.setItem('authToken', socketResult.token);
           if (socketResult.userId) {
@@ -234,7 +234,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       saveUserToStorage(updatedUser);
       return updatedUser;
     });
-  }, []);
+    // 同步昵称到 Firebase displayName，确保下次登录时天梯/profile 正确显示
+    if (profile.nickname && firebaseUser) {
+      fbUpdateProfile(firebaseUser, { displayName: profile.nickname }).catch(() => {});
+    }
+  }, [firebaseUser]);
 
   const updateStats = useCallback((stats: Partial<UserStats>) => {
     setUser(prev => {

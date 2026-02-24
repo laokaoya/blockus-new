@@ -48,13 +48,20 @@ router.post('/send-code', async (req, res) => {
     const code = createCode(normalized);
     await sendVerificationCode(normalized, code);
     res.json({ success: true });
-  } catch (err: any) {
-    if (err.message === 'TOO_FREQUENT') {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'TOO_FREQUENT') {
       res.status(429).json({ success: false, error: 'TOO_FREQUENT' });
       return;
     }
     console.error('[Auth] send-code error:', err);
-    res.status(500).json({ success: false, error: 'SEND_FAILED' });
+    const msg = err instanceof Error ? err.message : 'SEND_FAILED';
+    // 将 Resend 常见错误转为用户可理解的错误码
+    const userError = msg.includes('domain') || msg.includes('Domain')
+      ? 'DOMAIN_NOT_VERIFIED'
+      : msg.includes('rate') || msg.includes('limit')
+        ? 'RATE_LIMIT'
+        : 'SEND_FAILED';
+    res.status(500).json({ success: false, error: userError, detail: process.env.NODE_ENV === 'development' ? msg : undefined });
   }
 });
 

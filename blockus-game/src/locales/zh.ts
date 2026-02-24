@@ -357,6 +357,8 @@ export const zh = {
     resendAfter: '秒后重发',
     codeInvalid: '验证码错误或已过期',
     codeRequired: '请输入验证码',
+    sendFailed: '验证码发送失败，请检查邮箱或稍后重试',
+    domainNotVerified: '发件域名未验证，请联系管理员配置',
     // 旧字段保留兼容
     ageLabel: '年龄',
     agePlaceholder: '请输入您的年龄',

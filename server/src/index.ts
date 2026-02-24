@@ -64,12 +64,16 @@ if (IS_PRODUCTION) {
 }
 
 httpServer.listen(PORT, () => {
+  const hasResend = !!process.env.RESEND_API_KEY;
+  const hasSmtp = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  const emailStatus = hasResend ? 'Resend' : hasSmtp ? 'SMTP' : '控制台输出';
   console.log(`
 ╔══════════════════════════════════════════╗
 ║       Blockus Game Server v1.0.0         ║
 ╠══════════════════════════════════════════╣
 ║  Port:   ${PORT}                              ║
 ║  Mode:   ${IS_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT'}                     ║
+║  Email:  ${emailStatus.padEnd(34)}║
 ╚══════════════════════════════════════════╝
   `);
 });

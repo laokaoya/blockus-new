@@ -382,7 +382,11 @@ const Login: React.FC = () => {
         setSuccess(t('login.codeSent'));
         setCodeCooldown(60);
       } else {
-        setError(err === 'TOO_FREQUENT' ? t('login.tooManyRequests') : err || t('login.loginFailed'));
+        const msg = err === 'TOO_FREQUENT' ? t('login.tooManyRequests')
+          : err === 'DOMAIN_NOT_VERIFIED' ? t('login.domainNotVerified')
+          : err === 'RATE_LIMIT' ? t('login.tooManyRequests')
+          : t('login.sendFailed');
+        setError(msg);
       }
     } catch {
       setError(t('login.loginFailed'));

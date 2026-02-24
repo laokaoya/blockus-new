@@ -43,26 +43,54 @@ export interface GameRanking {
 
 type EventCallback = (...args: any[]) => void;
 
+type TokenProvider = () => Promise<string | undefined>;
+
 class SocketService {
   private socket: Socket | null = null;
   private eventHandlers: Map<string, Set<EventCallback>> = new Map();
   private _isConnected: boolean = false;
+  private _tokenProvider: TokenProvider | null = null;
 
-  // 连接到服务器
-  connect(token?: string): Promise<void> {
-    return new Promise((resolve, reject) => {
+  // 连接到服务器；token 为字符串或返回新 token 的函数（用于 Firebase 用户，重连时自动刷新）
+  connect(token?: string | TokenProvider): Promise<void> {
+    return new Promise(async (resolve, reject) => {
       if (this.socket?.connected) {
         resolve();
         return;
       }
 
+      let authToken: string | undefined;
+      if (typeof token === 'function') {
+        this._tokenProvider = token;
+        try {
+          authToken = await token();
+        } catch (e) {
+          console.warn('[Socket] Token provider failed:', e);
+        }
+      } else {
+        this._tokenProvider = null;
+        authToken = token;
+      }
+
       this.socket = io(SERVER_URL, {
-        auth: token ? { token } : {},
+        auth: authToken ? { token: authToken } : {},
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
+      });
+
+      // 重连前刷新 token，避免 id-token-expired
+      this.socket.io.on('reconnect_attempt', async () => {
+        if (this._tokenProvider && this.socket) {
+          try {
+            const fresh = await this._tokenProvider();
+            if (fresh) (this.socket as any).auth = { token: fresh };
+          } catch (e) {
+            console.warn('[Socket] Token refresh on reconnect failed:', e);
+          }
+        }
       });
 
       this.socket.on('connect', () => {
@@ -128,6 +156,7 @@ class SocketService {
 
   // 断开连接
   disconnect(): void {
+    this._tokenProvider = null;
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;

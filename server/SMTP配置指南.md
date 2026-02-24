@@ -111,6 +111,13 @@ npm run dev
 
 ## 常见问题
 
+**Resend 验证码发不出去？**
+- 确认 `RESEND_API_KEY` 和 `RESEND_FROM` 已在 `.env` 或部署平台环境变量中配置
+- 部署平台（如 Render）：在 Environment 中添加 `RESEND_API_KEY`、`RESEND_FROM`
+- 使用 `onboarding@resend.dev` 时，Resend 免费版可能限制收件人；建议在 [Resend 控制台](https://resend.com/domains) 添加并验证你的域名，再改用 `noreply@你的域名.com`
+- 查看服务端启动日志中的 `Email: Resend` 确认配置已加载
+- 查看 Resend 控制台 Logs 了解具体错误
+
 **收不到邮件？**
 - 检查垃圾箱
 - 确认 QQ/163 的 SMTP 已开启

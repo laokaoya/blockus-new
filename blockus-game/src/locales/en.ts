@@ -268,6 +268,8 @@ export const en = {
     resendAfter: 's to resend',
     codeInvalid: 'Invalid or expired code',
     codeRequired: 'Please enter verification code',
+    sendFailed: 'Failed to send verification code. Please check your email or try again later.',
+    domainNotVerified: 'Sender domain not verified. Please contact admin.',
     ageLabel: 'Age',
     agePlaceholder: 'Enter your age',
     genderLabel: 'Gender',
