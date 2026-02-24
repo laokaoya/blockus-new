@@ -523,11 +523,9 @@ const MainLobby: React.FC = () => {
           <RoomListWrapper>
             <RoomList />
           </RoomListWrapper>
-          {user && !isGuest && (
-            <LadderWrapper>
-              <LadderBoard />
-            </LadderWrapper>
-          )}
+          <LadderWrapper>
+            <LadderBoard />
+          </LadderWrapper>
         </ContentArea>
       </MainArea>
 

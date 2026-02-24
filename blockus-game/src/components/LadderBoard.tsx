@@ -3,18 +3,11 @@ import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
-// 初始天梯 AI 玩家（名字真实感）
+// 初始天梯 AI 玩家（当代网名风格，中英皆可）
 const SEED_LADDER_ENTRIES: Array<{ id: string; nickname: string; ladderPoints: number; isAI?: boolean }> = [
-  { id: 'ai_1', nickname: '张明远', ladderPoints: 2847, isAI: true },
-  { id: 'ai_2', nickname: '李思琪', ladderPoints: 2653, isAI: true },
-  { id: 'ai_3', nickname: '王浩然', ladderPoints: 2512, isAI: true },
-  { id: 'ai_4', nickname: '陈雨萱', ladderPoints: 2398, isAI: true },
-  { id: 'ai_5', nickname: '刘子轩', ladderPoints: 2280, isAI: true },
-  { id: 'ai_6', nickname: '赵雅婷', ladderPoints: 2156, isAI: true },
-  { id: 'ai_7', nickname: '周俊杰', ladderPoints: 2034, isAI: true },
-  { id: 'ai_8', nickname: '吴梦琪', ladderPoints: 1892, isAI: true },
-  { id: 'ai_9', nickname: '郑博文', ladderPoints: 1756, isAI: true },
-  { id: 'ai_10', nickname: '孙晓琳', ladderPoints: 1620, isAI: true },
+  { id: 'ai_1', nickname: '一颗柠檬', ladderPoints: 2650, isAI: true },
+  { id: 'ai_2', nickname: 'Cloud', ladderPoints: 2380, isAI: true },
+  { id: 'ai_3', nickname: '小透明', ladderPoints: 2120, isAI: true },
 ];
 
 const Container = styled.div`
@@ -151,8 +144,6 @@ const LadderBoard: React.FC<LadderBoardProps> = ({ className }) => {
     }
     return list.sort((a, b) => b.ladderPoints - a.ladderPoints).slice(0, 11);
   }, [user, isGuest, myPoints]);
-
-  if (isGuest) return null;
 
   return (
     <Container className={className}>
