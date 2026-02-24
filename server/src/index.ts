@@ -8,6 +8,7 @@ import { RoomManager } from './roomManager';
 import { GameManager } from './gameManager';
 import { setupSocketHandlers } from './socketHandlers';
 import { ServerToClientEvents, ClientToServerEvents } from './types';
+import authRoutes from './auth/routes';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
@@ -21,6 +22,7 @@ if (IS_PRODUCTION) {
   app.use(cors({ origin: CLIENT_URL, credentials: true }));
 }
 app.use(express.json());
+app.use('/api/auth', authRoutes);
 
 const httpServer = createServer(app);
 

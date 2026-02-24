@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { UserProfile } from '../types/game';
+import { sendVerificationCode as apiSendCode, verifyCode as apiVerifyCode } from '../services/authApi';
 
 type AuthMode = 'login' | 'register' | 'reset';
 
@@ -181,6 +182,36 @@ const ForgotLink = styled(LinkButton)`
   margin-top: -8px;
 `;
 
+const CodeRow = styled.div`
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  > div:first-child { flex: 1; }
+`;
+
+const CodeButton = styled.button`
+  flex-shrink: 0;
+  padding: 12px 16px;
+  background: var(--surface-highlight);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 const SwitchRow = styled.div`
   margin-top: 4px;
 `;
@@ -236,10 +267,18 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [nickname, setNickname] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [codeCooldown, setCodeCooldown] = useState(0);
   const [guestNickname, setGuestNickname] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (codeCooldown <= 0) return;
+    const timer = setTimeout(() => setCodeCooldown(c => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [codeCooldown]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -255,11 +294,18 @@ const Login: React.FC = () => {
       if (!nickname.trim()) { setError(t('login.nicknameRequired')); return; }
       if (nickname.length > 20) { setError(t('login.nicknameTooLong')); return; }
       if (password !== confirmPassword) { setError(t('login.passwordMismatch')); return; }
+      if (!verificationCode.trim()) { setError(t('login.codeRequired')); return; }
     }
 
     setIsSubmitting(true);
     try {
       if (mode === 'register') {
+        const { valid } = await apiVerifyCode(email.trim(), verificationCode.trim());
+        if (!valid) {
+          setError(t('login.codeInvalid'));
+          setIsSubmitting(false);
+          return;
+        }
         await registerWithEmail(email, password, nickname.trim());
       } else {
         await loginWithEmail(email, password);
@@ -319,6 +365,30 @@ const Login: React.FC = () => {
     setMode(newMode);
     setError('');
     setSuccess('');
+    setVerificationCode('');
+    setCodeCooldown(0);
+  };
+
+  const handleSendCode = async () => {
+    setError('');
+    setSuccess('');
+    if (!email.trim()) { setError(t('login.emailRequired')); return; }
+    if (!/\S+@\S+\.\S+/.test(email)) { setError(t('login.emailInvalid')); return; }
+    if (codeCooldown > 0) return;
+    setIsSubmitting(true);
+    try {
+      const { success: ok, error: err } = await apiSendCode(email.trim());
+      if (ok) {
+        setSuccess(t('login.codeSent'));
+        setCodeCooldown(60);
+      } else {
+        setError(err === 'TOO_FREQUENT' ? t('login.tooManyRequests') : err || t('login.loginFailed'));
+      }
+    } catch {
+      setError(t('login.loginFailed'));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (mode === 'reset') {
@@ -398,16 +468,38 @@ const Login: React.FC = () => {
           </FormGroup>
 
           {mode === 'register' && (
-            <FormGroup>
-              <Label>{t('login.confirmPasswordLabel')}</Label>
-              <Input
-                type="password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                placeholder={t('login.confirmPasswordPlaceholder')}
-                autoComplete="new-password"
-              />
-            </FormGroup>
+            <>
+              <FormGroup>
+                <Label>{t('login.confirmPasswordLabel')}</Label>
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder={t('login.confirmPasswordPlaceholder')}
+                  autoComplete="new-password"
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>{t('login.codeLabel') || t('login.codePlaceholder')}</Label>
+                <CodeRow>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={e => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder={t('login.codePlaceholder')}
+                  />
+                  <CodeButton
+                    type="button"
+                    onClick={handleSendCode}
+                    disabled={codeCooldown > 0 || isSubmitting}
+                  >
+                    {codeCooldown > 0 ? `${codeCooldown}${t('login.resendAfter')}` : t('login.sendCode')}
+                  </CodeButton>
+                </CodeRow>
+              </FormGroup>
+            </>
           )}
 
           {mode === 'login' && (

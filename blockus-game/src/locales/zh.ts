@@ -350,6 +350,13 @@ export const zh = {
     wrongPassword: '密码错误',
     userNotFound: '该邮箱未注册',
     tooManyRequests: '操作过于频繁，请稍后再试',
+    sendCode: '发送验证码',
+    codeLabel: '验证码',
+    codePlaceholder: '请输入6位验证码',
+    codeSent: '验证码已发送',
+    resendAfter: '秒后重发',
+    codeInvalid: '验证码错误或已过期',
+    codeRequired: '请输入验证码',
     // 旧字段保留兼容
     ageLabel: '年龄',
     agePlaceholder: '请输入您的年龄',
