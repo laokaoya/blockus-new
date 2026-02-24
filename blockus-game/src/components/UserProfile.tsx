@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
@@ -7,6 +7,13 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { UserProfile as UserProfileType } from '../types/game';
 import soundManager from '../utils/soundManager';
+
+interface GameRecordBrief {
+  id: string;
+  date: string;
+  players: { name: string; color: string; score: number; isWinner: boolean }[];
+  moves: { boardChanges: { x: number; y: number; color: number }[] }[];
+}
 
 const glowPulse = keyframes`
   0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3), inset 0 0 20px rgba(99, 102, 241, 0.05); }
@@ -190,93 +197,190 @@ const SectionTitle = styled.h2`
   }
 `;
 
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+/* 核心指标紧凑行 */
+const CompactStatsRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin: 16px 0 20px;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+`;
+
+const CompactStat = styled.span`
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
   
-  @media (max-width: 768px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
+  strong {
+    color: var(--primary-color);
+    margin-right: 4px;
   }
 `;
 
-const StatCard = styled.div`
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.04));
-  border-radius: 14px;
-  padding: 20px;
-  text-align: center;
-  border: 1px solid rgba(99, 102, 241, 0.2);
+/* 详细统计入口按钮 */
+const DetailStatsButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 12px;
+  color: var(--primary-color);
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: 'Rajdhani', sans-serif;
+  cursor: pointer;
   transition: all 0.25s ease;
+  
+  &:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.25));
+    border-color: rgba(99, 102, 241, 0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.25);
+  }
+`;
+
+/* 游戏化：段位徽章 */
+const RankBadge = styled.div<{ $tier: number }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 8px;
+  background: ${p => {
+    const gradients: Record<number, string> = {
+      0: 'linear-gradient(135deg, #94a3b8, #64748b)',
+      1: 'linear-gradient(135deg, #cd7f32, #a0522d)',
+      2: 'linear-gradient(135deg, #c0c0c0, #808080)',
+      3: 'linear-gradient(135deg, #ffd700, #daa520)',
+      4: 'linear-gradient(135deg, #e5e4e2, #b4b4b4)',
+      5: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
+    };
+    return gradients[p.$tier] || gradients[0];
+  }};
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+`;
+
+/* 游戏化：核心数据突出区 */
+const HeroStats = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 0;
+`;
+
+const HeroStatCard = styled.div`
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.1));
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
   
   &::before {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.5), transparent);
-  }
-  
-  &:hover {
-    border-color: rgba(99, 102, 241, 0.4);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+    height: 3px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
   }
 `;
 
-const StatValue = styled.div`
-  font-size: 2rem;
+const HeroStatValue = styled.div`
+  font-size: 2.5rem;
   font-weight: 800;
   color: var(--primary-color);
-  margin-bottom: 6px;
   font-family: 'Orbitron', sans-serif;
-  text-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+  text-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
 `;
 
-const StatLabel = styled.div`
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  font-weight: 600;
-  font-family: 'Rajdhani', sans-serif;
-`;
-
-const WinRateBar = styled.div`
-  margin-top: 24px;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 12px;
-  border: 1px solid var(--surface-border);
-`;
-
-const WinRateLabel = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
+const HeroStatLabel = styled.div`
   font-size: 0.9rem;
   color: var(--text-secondary);
-  font-family: 'Rajdhani', sans-serif;
+  margin-top: 4px;
+  font-weight: 600;
 `;
 
-const WinRateTrack = styled.div`
-  height: 10px;
-  background: var(--surface-highlight);
-  border-radius: 5px;
-  overflow: hidden;
+/* 最近对局 */
+const RecentMatchesSection = styled.div`
+  margin-top: 28px;
 `;
 
-const WinRateFill = styled.div<{ $percent: number }>`
-  height: 100%;
-  width: ${p => Math.min(100, p.$percent)}%;
-  background: linear-gradient(90deg, #6366f1, #10b981);
-  border-radius: 5px;
-  transition: width 0.5s ease;
+const MatchCard = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.03));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.4);
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+  }
+`;
+
+const MatchInfo = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const MatchDate = styled.div`
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+`;
+
+const MatchMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+`;
+
+const ResultBadge = styled.span<{ $isWin: boolean }>`
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: ${p => p.$isWin ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'};
+  color: ${p => p.$isWin ? '#10b981' : '#ef4444'};
+`;
+
+const ViewReplayBtn = styled.span`
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
+  color: var(--primary-color);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid rgba(99, 102, 241, 0.3);
 `;
 
 const ActionsSection = styled.div`
@@ -704,11 +808,62 @@ const UserProfile: React.FC = () => {
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [gameHistory, setGameHistory] = useState<GameRecordBrief[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('gameHistory');
+    if (saved) {
+      try {
+        const list = JSON.parse(saved);
+        setGameHistory(Array.isArray(list) ? list.slice(0, 5) : []);
+      } catch {
+        setGameHistory([]);
+      }
+    }
+  }, []);
 
   // 未登录或游客身份 → 跳转登录页
   if (!user || isGuest) {
     return <Navigate to="/login" replace />;
   }
+
+  const getRankFromPoints = (pts: number) => {
+    if (pts >= 2501) return 5;
+    if (pts >= 2001) return 4;
+    if (pts >= 1501) return 3;
+    if (pts >= 1001) return 2;
+    if (pts >= 501) return 1;
+    return 0;
+  };
+
+  const rankLabels = [
+    t('ladder.rankNewbie'),
+    t('ladder.rankBronze'),
+    t('ladder.rankSilver'),
+    t('ladder.rankGold'),
+    t('ladder.rankPlatinum'),
+    t('ladder.rankMaster'),
+  ];
+
+  const ladderPoints = (user.stats as { ladderPoints?: number }).ladderPoints ?? 1000;
+  const rankTier = getRankFromPoints(ladderPoints);
+
+  const isHumanWin = (game: GameRecordBrief) =>
+    game.players.some(p => p.color === 'red' && p.isWinner);
+
+  const formatMatchDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    if (diff < 86400000) return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`;
+    return d.toLocaleDateString('zh-CN');
+  };
+
+  const handleViewReplay = (gameId: string) => {
+    soundManager.buttonClick();
+    navigate('/statistics', { state: { selectedGameId: gameId } });
+  };
 
   const handleLogout = () => {
     logout();
@@ -876,6 +1031,7 @@ const UserProfile: React.FC = () => {
           
           <UserInfo>
             <UserName>{user.profile.nickname}</UserName>
+            <RankBadge $tier={rankTier}>{rankLabels[rankTier]}</RankBadge>
             <UserMeta>
               {user.profile.age && `${user.profile.age}岁`}
               {user.profile.gender && ` • ${formatGender(user.profile.gender)}`}
@@ -892,45 +1048,48 @@ const UserProfile: React.FC = () => {
 
         <StatsSection>
           <SectionTitle>{t('statistics.title') || '游戏统计'}</SectionTitle>
-          <StatsGrid>
-            <StatCard>
-              <StatValue>{user.stats.totalGames}</StatValue>
-              <StatLabel>{t('statistics.totalGames') || '总局数'}</StatLabel>
-            </StatCard>
-            <StatCard>
-              <StatValue>{user.stats.totalWins}</StatValue>
-              <StatLabel>{t('statistics.totalWins') || '胜利局数'}</StatLabel>
-            </StatCard>
-            <StatCard>
-              <StatValue>{user.stats.winRate.toFixed(1)}%</StatValue>
-              <StatLabel>{t('statistics.winRate') || '胜率'}</StatLabel>
-            </StatCard>
-            <StatCard>
-              <StatValue>{user.stats.bestScore}</StatValue>
-              <StatLabel>{t('statistics.bestScore') || '最高得分'}</StatLabel>
-            </StatCard>
-            <StatCard>
-              <StatValue>{user.stats.averageScore.toFixed(1)}</StatValue>
-              <StatLabel>{t('statistics.averageScore') || '平均得分'}</StatLabel>
-            </StatCard>
-            <StatCard>
-              <StatValue>{Math.round(user.stats.totalPlayTime / 60)}</StatValue>
-              <StatLabel>{t('statistics.averageTime') || '总时长(小时)'}</StatLabel>
-            </StatCard>
-            <StatCard>
-              <StatValue>{(user.stats as { ladderPoints?: number }).ladderPoints ?? 1000}</StatValue>
-              <StatLabel>{t('ladder.points') || '天梯积分'}</StatLabel>
-            </StatCard>
-          </StatsGrid>
-          <WinRateBar>
-            <WinRateLabel>
-              <span>{t('statistics.winRate') || '胜率'}</span>
-              <span style={{ fontWeight: 700, color: 'var(--primary-color)' }}>{user.stats.winRate.toFixed(1)}%</span>
-            </WinRateLabel>
-            <WinRateTrack>
-              <WinRateFill $percent={user.stats.winRate} />
-            </WinRateTrack>
-          </WinRateBar>
+          <HeroStats>
+            <HeroStatCard>
+              <HeroStatValue>{user.stats.winRate.toFixed(1)}%</HeroStatValue>
+              <HeroStatLabel>{t('statistics.winRate') || '胜率'}</HeroStatLabel>
+            </HeroStatCard>
+            <HeroStatCard>
+              <HeroStatValue>{ladderPoints}</HeroStatValue>
+              <HeroStatLabel>{t('ladder.points') || '天梯积分'}</HeroStatLabel>
+            </HeroStatCard>
+          </HeroStats>
+          <CompactStatsRow>
+            <CompactStat><strong>{user.stats.totalGames}</strong>{t('statistics.gamesShort') || '局'}</CompactStat>
+            <CompactStat><strong>{user.stats.totalWins}</strong>{t('statistics.winsShort') || '胜'}</CompactStat>
+          </CompactStatsRow>
+          <DetailStatsButton onClick={() => { soundManager.buttonClick(); handleViewStats(); }} onMouseEnter={() => soundManager.buttonHover()}>
+            {t('statistics.viewDetails') || '查看详细统计'}
+            <span style={{ opacity: 0.8 }}>→</span>
+          </DetailStatsButton>
+
+          <RecentMatchesSection>
+            <SectionTitle>{t('statistics.recentMatches') || '最近对局'}</SectionTitle>
+            {gameHistory.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
+                {t('statistics.noHistory') || '暂无历史对局记录'}
+              </div>
+            ) : (
+              gameHistory.map((game) => (
+                <MatchCard key={game.id} onClick={() => handleViewReplay(game.id)} onMouseEnter={() => soundManager.buttonHover()}>
+                  <MatchInfo>
+                    <MatchDate>{formatMatchDate(game.date)}</MatchDate>
+                    <MatchMeta>
+                      <ResultBadge $isWin={isHumanWin(game)}>
+                        {isHumanWin(game) ? (t('statistics.win') || '胜利') : (t('statistics.lose') || '失败')}
+                      </ResultBadge>
+                      <span>{game.moves?.length || 0} {t('statistics.totalMoves') || '步'}</span>
+                    </MatchMeta>
+                  </MatchInfo>
+                  <ViewReplayBtn>{t('statistics.viewReplay') || '查看回放'}</ViewReplayBtn>
+                </MatchCard>
+              ))
+            )}
+          </RecentMatchesSection>
         </StatsSection>
 
         <div>
@@ -1007,9 +1166,6 @@ const UserProfile: React.FC = () => {
         </div>
 
         <ActionsSection>
-          <ActionButton onClick={() => { soundManager.buttonClick(); handleViewStats(); }} onMouseEnter={() => soundManager.buttonHover()}>
-            {t('statistics.viewDetails') || '查看详细统计'}
-          </ActionButton>
           <ActionButton onClick={() => { soundManager.buttonClick(); handleEditProfile(); }} onMouseEnter={() => soundManager.buttonHover()}>
             {t('player.editProfile') || '修改个人资料'}
           </ActionButton>

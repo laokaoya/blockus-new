@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TrashIcon } from './Icons';
@@ -536,6 +536,7 @@ const SPEED_MAP: Record<string, number> = {
 
 const Statistics: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
   const [userStats, setUserStats] = useState<UserStats>({
     totalGames: 0,
@@ -591,9 +592,19 @@ const Statistics: React.FC = () => {
 
     const savedHistory = localStorage.getItem('gameHistory');
     if (savedHistory) {
-      setGameHistory(JSON.parse(savedHistory));
+      const history = JSON.parse(savedHistory);
+      setGameHistory(history);
+      const selectedId = (location.state as { selectedGameId?: string })?.selectedGameId;
+      if (selectedId && Array.isArray(history)) {
+        const game = history.find((g: GameRecord) => g.id === selectedId);
+        if (game) {
+          setSelectedGame(game);
+          setCurrentMoveIndex(-1);
+          setReplayBoard(createEmptyBoard());
+        }
+      }
     }
-  }, []);
+  }, [location.state]);
 
   // 清除播放定时器
   useEffect(() => {
