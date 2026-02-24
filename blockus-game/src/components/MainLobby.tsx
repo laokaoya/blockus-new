@@ -316,7 +316,7 @@ const MainLobby: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useLanguage();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isGuest } = useAuth();
   const { currentRoom, createRoom, addAI, setReady, startGame, isOnline } = useRoom();
   const { showToast } = useToast();
   
@@ -436,7 +436,7 @@ const MainLobby: React.FC = () => {
           <RocketIcon />
         </SidebarIcon>
         <SidebarIcon 
-          onClick={() => { soundManager.buttonClick(); navigate('/profile'); }}
+          onClick={() => { soundManager.buttonClick(); isGuest ? navigate('/login') : navigate('/profile'); }}
           data-tooltip={t('lobby.profile')}
         >
           <UserAvatar image={user?.profile.avatar}>

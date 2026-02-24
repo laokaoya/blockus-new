@@ -703,6 +703,18 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
   } = mp;
 
   const [toast, setToast] = useState<{ message: string; type?: 'error' | 'info' | 'success' } | null>(null);
+  const [loadTimeout, setLoadTimeout] = useState(false);
+  const isLoading = !gameState.players || gameState.players.length === 0;
+
+  // 游戏数据加载超时：8 秒后显示超时提示
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadTimeout(false);
+      return;
+    }
+    const timer = setTimeout(() => setLoadTimeout(true), 8000);
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   // 联机时服务端 Firebase 用户用 fb_${uid}，需兼容 profile.id 与 playerId 的匹配
   const myUserIdForCreative = user?.profile.id;
@@ -887,20 +899,47 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
   }, [rotateSelectedPiece, flipSelectedPiece]);
 
   // Add loading check
-  if (!gameState.players || gameState.players.length === 0) {
+  if (isLoading) {
     const loadingStyle: React.CSSProperties = {
       display: 'flex',
+      flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
       height: '100%',
       color: 'var(--text-primary)',
       fontSize: '1.2rem',
       fontFamily: '"Orbitron", sans-serif',
+      gap: '20px',
     };
     return (
       <GameContainer>
         <div style={loadingStyle}>
-          {t('common.loading') || 'Loading game data...'}
+          {loadTimeout ? (
+            <>
+              <div>{t('common.loadingTimeout') || 'Loading Timeout'}</div>
+              <div style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                {t('common.loadingTimeoutHint') || 'Please check your connection or go back to retry'}
+              </div>
+              <button
+                onClick={() => navigate('/', { state: { showTransition: true } })}
+                onMouseEnter={() => soundManager.buttonHover()}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--surface-border)',
+                  background: 'var(--surface-highlight)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  fontFamily: '"Rajdhani", sans-serif',
+                  fontWeight: 600,
+                }}
+              >
+                ← {t('common.backToLobby') || 'Back to Lobby'}
+              </button>
+            </>
+          ) : (
+            t('common.loading') || 'Loading game data...'
+          )}
         </div>
       </GameContainer>
     );

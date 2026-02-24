@@ -408,19 +408,24 @@ const ReadyButton = styled.button<{ $isReady: boolean }>`
   }
 `;
 
+const LOADING_TIMEOUT_MS = 10000; // 10 秒加载超时
+
 const GameRoom: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams();
-  const { currentRoom, leaveRoom, startGame, addAI, rooms, refreshRooms, removePlayer, isOnline } = useRoom();
+  const { currentRoom, leaveRoom, startGame, addAI, rooms, refreshRooms, removePlayer, isOnline, joinRoom } = useRoom();
   const { user } = useAuth();
   const { t } = useLanguage();
   const { showToast } = useToast();
   const [selectedAIDifficulty, setSelectedAIDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [isLoading, setIsLoading] = useState(true);
+  const [loadTimeout, setLoadTimeout] = useState(false);
   const retryCountRef = React.useRef(0);
+  const joinAttemptedRef = React.useRef(false);
   
   const roomId = params.roomId;
   const targetRoom = currentRoom || (roomId ? rooms.find(r => r.id === roomId) : null);
+  const amIInRoom = targetRoom && user ? targetRoom.players.some(p => p.id === user.profile.id) : false;
 
   useEffect(() => {
     const unsubscribe = socketService.on('game:started', (data: { roomId: string }) => {
@@ -433,10 +438,19 @@ const GameRoom: React.FC = () => {
     return () => unsubscribe();
   }, [params.roomId, currentRoom, rooms, navigate]);
 
+  // 加载超时：10 秒后显示超时提示
   useEffect(() => {
-    if (targetRoom && user) {
+    if (targetRoom && user) return;
+    const timer = setTimeout(() => setLoadTimeout(true), LOADING_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [targetRoom, user]);
+
+  useEffect(() => {
+    if (targetRoom && user && amIInRoom) {
       setIsLoading(false);
+      setLoadTimeout(false);
       retryCountRef.current = 0;
+      joinAttemptedRef.current = false;
       
       if (targetRoom.status === 'playing') {
         const isPlayer = targetRoom.players.some(p => p.id === user.profile.id);
@@ -448,6 +462,20 @@ const GameRoom: React.FC = () => {
       return;
     }
 
+    // 刷新后重连：有 roomId、用户、在线，但未在房间内 → 尝试加入
+    if (roomId && user && isOnline && !amIInRoom && !joinAttemptedRef.current) {
+      joinAttemptedRef.current = true;
+      joinRoom(roomId).then((ok) => {
+        if (!ok) {
+          joinAttemptedRef.current = false;
+          refreshRooms();
+        }
+      }).catch(() => {
+        joinAttemptedRef.current = false;
+        refreshRooms();
+      });
+    }
+
     if (!targetRoom && roomId && isOnline) {
       refreshRooms();
     }
@@ -455,15 +483,24 @@ const GameRoom: React.FC = () => {
     const retryDelay = Math.min(1000 * (retryCountRef.current + 1), 3000);
     const timeout = setTimeout(() => {
       retryCountRef.current++;
-      if (retryCountRef.current >= 3) {
-        navigate('/', { replace: true });
+      if (retryCountRef.current >= 5) {
+        // 不再自动跳转，让超时 UI 处理
+      } else if (isOnline && roomId && !joinAttemptedRef.current) {
+        joinAttemptedRef.current = true;
+        joinRoom(roomId).then((ok) => {
+          if (!ok) {
+            joinAttemptedRef.current = false;
+          }
+        }).catch(() => {
+          joinAttemptedRef.current = false;
+        });
       } else if (isOnline && roomId) {
         refreshRooms();
       }
     }, retryDelay);
 
     return () => clearTimeout(timeout);
-  }, [targetRoom, user, roomId, navigate, refreshRooms, isOnline]);
+  }, [targetRoom, user, roomId, navigate, refreshRooms, isOnline, amIInRoom, joinRoom]);
 
   const myPlayer = targetRoom && user ? targetRoom.players.find(p => p.id === user.profile.id) : undefined;
 
@@ -475,11 +512,32 @@ const GameRoom: React.FC = () => {
     }
   }, [targetRoom, user, myPlayer, leaveRoom, navigate]);
 
-  if (isLoading || !targetRoom || !user) {
+  // 有 roomId 但未加入房间时也显示加载（等待 joinRoom 成功或超时）
+  const showLoadingUI = isLoading || !targetRoom || !user || (roomId && !amIInRoom);
+  if (showLoadingUI) {
     return (
       <LoadingContainer>
-        <LoadingSpinner />
-        <div>{t('common.loading') || '加载中...'}</div>
+        {loadTimeout ? (
+          <>
+            <div style={{ fontSize: '1.2rem', marginBottom: '12px', color: 'var(--text-primary)' }}>
+              {t('common.loadingTimeout') || '加载超时'}
+            </div>
+            <div style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: '20px', textAlign: 'center' }}>
+              {t('common.loadingTimeoutHint') || '请检查网络连接，或返回重试'}
+            </div>
+            <BackButton
+              onClick={() => navigate('/', { replace: true })}
+              onMouseEnter={() => soundManager.buttonHover()}
+            >
+              ← {t('common.backToHome') || '返回首页'}
+            </BackButton>
+          </>
+        ) : (
+          <>
+            <LoadingSpinner />
+            <div>{t('common.loading') || '加载中...'}</div>
+          </>
+        )}
       </LoadingContainer>
     );
   }

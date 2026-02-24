@@ -1,16 +1,33 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { UserProfile as UserProfileType } from '../types/game';
+import soundManager from '../utils/soundManager';
+
+const glowPulse = keyframes`
+  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3), inset 0 0 20px rgba(99, 102, 241, 0.05); }
+  50% { box-shadow: 0 0 30px rgba(99, 102, 241, 0.5), inset 0 0 25px rgba(99, 102, 241, 0.08); }
+`;
 
 const ProfileContainer = styled.div`
-  height: 100vh;
-  padding: 20px;
+  min-height: 100vh;
+  padding: 24px;
   overflow-y: auto;
+  background: var(--bg-gradient);
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
   
   @media (min-width: 768px) {
     padding: 40px;
@@ -18,145 +35,255 @@ const ProfileContainer = styled.div`
 `;
 
 const ProfileCard = styled.div`
+  position: relative;
+  z-index: 1;
   background: var(--surface-color);
-  backdrop-filter: var(--glass-effect);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--surface-border);
-  border-radius: var(--radius-lg);
-  padding: 30px;
-  box-shadow: var(--shadow-lg);
-  max-width: 800px;
+  border-radius: 20px;
+  padding: 36px;
+  max-width: 900px;
   margin: 0 auto;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.5), transparent);
+    border-radius: 20px 20px 0 0;
+  }
   
   @media (max-width: 768px) {
-    padding: 20px;
+    padding: 24px;
   }
 `;
 
 const Header = styled.div`
   display: flex;
   align-items: center;
-  gap: 30px;
-  margin-bottom: 40px;
-  padding-bottom: 30px;
+  gap: 32px;
+  margin-bottom: 36px;
+  padding-bottom: 28px;
   border-bottom: 1px solid var(--surface-border);
   
   @media (max-width: 768px) {
     flex-direction: column;
     text-align: center;
+    gap: 24px;
+  }
+`;
+
+const AvatarWrapper = styled.div`
+  flex-shrink: 0;
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(139, 92, 246, 0.4));
+    z-index: -1;
+    opacity: 0.6;
+    filter: blur(12px);
   }
 `;
 
 const Avatar = styled.div<{ image?: string }>`
-  width: 120px;
-  height: 120px;
+  width: 128px;
+  height: 128px;
   border-radius: 50%;
   background: ${props => props.image ? `url(${props.image}) center/cover` : 'linear-gradient(135deg, #6366f1, #8b5cf6)'};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3rem;
+  font-size: 3.2rem;
   color: white;
-  font-weight: bold;
-  border: 4px solid var(--surface-border);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  font-weight: 700;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  animation: ${glowPulse} 3s ease-in-out infinite;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 `;
 
 const UserInfo = styled.div`
   flex: 1;
+  min-width: 0;
 `;
 
 const UserName = styled.h1`
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
   color: var(--text-primary);
-  font-size: 2.5rem;
+  font-size: 2.2rem;
   font-weight: 700;
+  font-family: 'Orbitron', 'Rajdhani', sans-serif;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+  letter-spacing: 1px;
+  
+  @media (max-width: 768px) {
+    font-size: 1.8rem;
+  }
 `;
 
 const UserMeta = styled.div`
   color: var(--text-secondary);
-  font-size: 1.1rem;
-  margin-bottom: 15px;
+  font-size: 1rem;
+  margin-bottom: 12px;
+  font-family: 'Rajdhani', sans-serif;
 `;
 
 const UserBio = styled.p`
   color: var(--text-muted);
-  font-size: 1.1rem;
+  font-size: 1rem;
   line-height: 1.6;
-  margin: 0;
+  margin: 0 0 16px 0;
   font-style: italic;
+  max-width: 400px;
 `;
 
 const EditButton = styled.button`
-  background: var(--surface-highlight);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
   color: var(--primary-color);
-  border: 1px solid var(--surface-border);
-  padding: 8px 20px;
-  border-radius: 20px;
-  font-size: 14px;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  padding: 10px 24px;
+  border-radius: 12px;
+  font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-weight: 500;
+  font-weight: 600;
+  font-family: 'Rajdhani', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   
   &:hover {
-    background: var(--surface-border);
-    transform: translateY(-1px);
+    background: rgba(99, 102, 241, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
   }
 `;
 
 const StatsSection = styled.div`
-  margin-bottom: 40px;
+  margin-bottom: 36px;
 `;
 
 const SectionTitle = styled.h2`
   color: var(--text-primary);
-  margin-bottom: 20px;
-  font-size: 1.8rem;
-  border-left: 4px solid var(--primary-color);
-  padding-left: 15px;
+  margin: 0 0 20px 0;
+  font-size: 1.4rem;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  
+  &::before {
+    content: '';
+    width: 4px;
+    height: 24px;
+    background: linear-gradient(180deg, var(--primary-color), #8b5cf6);
+    border-radius: 2px;
+  }
 `;
 
 const StatsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const StatCard = styled.div`
-  background: var(--surface-highlight);
-  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.04));
+  border-radius: 14px;
   padding: 20px;
   text-align: center;
-  border: 1px solid var(--surface-border);
-  transition: all 0.2s ease;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.5), transparent);
+  }
   
   &:hover {
-    border-color: var(--primary-color);
-    transform: translateY(-3px);
-    background: var(--surface-border);
+    border-color: rgba(99, 102, 241, 0.4);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
   }
 `;
 
 const StatValue = styled.div`
   font-size: 2rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--primary-color);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  font-family: 'Orbitron', sans-serif;
+  text-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
 `;
 
 const StatLabel = styled.div`
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 500;
+  letter-spacing: 1px;
+  font-weight: 600;
+  font-family: 'Rajdhani', sans-serif;
+`;
+
+const WinRateBar = styled.div`
+  margin-top: 24px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+`;
+
+const WinRateLabel = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-family: 'Rajdhani', sans-serif;
+`;
+
+const WinRateTrack = styled.div`
+  height: 10px;
+  background: var(--surface-highlight);
+  border-radius: 5px;
+  overflow: hidden;
+`;
+
+const WinRateFill = styled.div<{ $percent: number }>`
+  height: 100%;
+  width: ${p => Math.min(100, p.$percent)}%;
+  background: linear-gradient(90deg, #6366f1, #10b981);
+  border-radius: 5px;
+  transition: width 0.5s ease;
 `;
 
 const ActionsSection = styled.div`
   display: flex;
-  gap: 15px;
+  gap: 12px;
   flex-wrap: wrap;
+  margin-top: 24px;
   
   @media (max-width: 768px) {
     justify-content: center;
@@ -168,31 +295,37 @@ const ActionButton = styled.button`
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   padding: 12px 24px;
-  border-radius: 25px;
-  font-size: 16px;
+  border-radius: 12px;
+  font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-weight: 600;
+  font-family: 'Rajdhani', sans-serif;
   
   &:hover {
     background: var(--surface-border);
     border-color: var(--primary-color);
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
   }
 `;
 
 const LogoutButton = styled.button`
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   padding: 12px 24px;
-  border-radius: 25px;
-  font-size: 16px;
+  border-radius: 12px;
+  font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-weight: 600;
+  font-family: 'Rajdhani', sans-serif;
   
   &:hover {
     background: rgba(239, 68, 68, 0.2);
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
   }
 `;
 
@@ -201,16 +334,19 @@ const BackButton = styled.button`
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   padding: 10px 24px;
-  border-radius: 25px;
-  font-size: 16px;
+  border-radius: 12px;
+  font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.2s ease;
   margin-bottom: 20px;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
+  font-weight: 600;
+  font-family: 'Rajdhani', sans-serif;
   
   &:hover {
     background: var(--surface-border);
     transform: translateX(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 `;
 
@@ -421,15 +557,19 @@ const CancelButton = styled.button`
 const PasswordSection = styled.div`
   margin-top: 20px;
   padding: 20px;
-  background: var(--surface-highlight);
-  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
   border: 1px solid var(--surface-border);
 `;
 
 const PasswordTitle = styled.h3`
   color: var(--text-primary);
   margin: 0 0 16px 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 `;
 
 const PasswordForm = styled.form`
@@ -480,40 +620,53 @@ const SmallButton = styled.button`
   }
 `;
 
+const AccountPanel = styled.div`
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(139, 92, 246, 0.02));
+  border-radius: 14px;
+  padding: 20px;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  margin-bottom: 24px;
+`;
+
 const InfoRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 0;
+  gap: 12px;
+  padding: 10px 0;
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  font-family: 'Rajdhani', sans-serif;
 
   span.label {
     color: var(--text-muted);
-    min-width: 80px;
+    min-width: 90px;
+    font-weight: 500;
   }
 
   span.value {
     color: var(--text-primary);
     word-break: break-all;
+    font-weight: 600;
   }
 
   span.badge {
-    background: var(--primary-color);
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
     color: white;
-    padding: 2px 8px;
-    border-radius: 10px;
+    padding: 4px 12px;
+    border-radius: 8px;
     font-size: 0.75rem;
-    font-weight: 500;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   span.guest-badge {
     background: var(--surface-border);
     color: var(--text-secondary);
-    padding: 2px 8px;
-    border-radius: 10px;
+    padding: 4px 12px;
+    border-radius: 8px;
     font-size: 0.75rem;
-    font-weight: 500;
+    font-weight: 600;
   }
 `;
 
@@ -552,7 +705,8 @@ const UserProfile: React.FC = () => {
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  if (!user) {
+  // 未登录或游客身份 → 跳转登录页
+  if (!user || isGuest) {
     return <Navigate to="/login" replace />;
   }
 
@@ -690,7 +844,7 @@ const UserProfile: React.FC = () => {
   };
 
   const handleBackToLobby = () => {
-    navigate('/');
+    navigate('/', { state: { showTransition: true } });
   };
 
   const formatGender = (gender?: string) => {
@@ -708,15 +862,17 @@ const UserProfile: React.FC = () => {
 
   return (
     <ProfileContainer>
-      <BackButton onClick={handleBackToLobby}>
-        ← 返回大厅
+      <BackButton onClick={() => { soundManager.buttonClick(); handleBackToLobby(); }} onMouseEnter={() => soundManager.buttonHover()}>
+        ← {t('common.backToLobby') || '返回大厅'}
       </BackButton>
       
       <ProfileCard>
         <Header>
-          <Avatar image={user.profile.avatar}>
-            {!user.profile.avatar && '👤'}
-          </Avatar>
+          <AvatarWrapper>
+            <Avatar image={user.profile.avatar}>
+              {!user.profile.avatar && (user.profile.nickname ? user.profile.nickname.charAt(0).toUpperCase() : '👤')}
+            </Avatar>
+          </AvatarWrapper>
           
           <UserInfo>
             <UserName>{user.profile.nickname}</UserName>
@@ -726,47 +882,56 @@ const UserProfile: React.FC = () => {
               {user.profile.location && ` • ${user.profile.location}`}
             </UserMeta>
             {user.profile.bio && <UserBio>"{user.profile.bio}"</UserBio>}
-            <div style={{ marginTop: '15px' }}>
-              <EditButton onClick={handleEditProfile}>
-                编辑资料
+            <div style={{ marginTop: '16px' }}>
+              <EditButton onClick={() => { soundManager.buttonClick(); handleEditProfile(); }} onMouseEnter={() => soundManager.buttonHover()}>
+                {t('player.editProfile') || '编辑资料'}
               </EditButton>
             </div>
           </UserInfo>
         </Header>
 
         <StatsSection>
-          <SectionTitle>游戏统计</SectionTitle>
+          <SectionTitle>{t('statistics.title') || '游戏统计'}</SectionTitle>
           <StatsGrid>
             <StatCard>
               <StatValue>{user.stats.totalGames}</StatValue>
-              <StatLabel>总局数</StatLabel>
+              <StatLabel>{t('statistics.totalGames') || '总局数'}</StatLabel>
             </StatCard>
             <StatCard>
               <StatValue>{user.stats.totalWins}</StatValue>
-              <StatLabel>胜利局数</StatLabel>
+              <StatLabel>{t('statistics.totalWins') || '胜利局数'}</StatLabel>
             </StatCard>
             <StatCard>
               <StatValue>{user.stats.winRate.toFixed(1)}%</StatValue>
-              <StatLabel>胜率</StatLabel>
+              <StatLabel>{t('statistics.winRate') || '胜率'}</StatLabel>
             </StatCard>
             <StatCard>
               <StatValue>{user.stats.bestScore}</StatValue>
-              <StatLabel>最高得分</StatLabel>
+              <StatLabel>{t('statistics.bestScore') || '最高得分'}</StatLabel>
             </StatCard>
             <StatCard>
               <StatValue>{user.stats.averageScore.toFixed(1)}</StatValue>
-              <StatLabel>平均得分</StatLabel>
+              <StatLabel>{t('statistics.averageScore') || '平均得分'}</StatLabel>
             </StatCard>
             <StatCard>
               <StatValue>{Math.round(user.stats.totalPlayTime / 60)}</StatValue>
-              <StatLabel>总游戏时长(小时)</StatLabel>
+              <StatLabel>{t('statistics.averageTime') || '总时长(小时)'}</StatLabel>
             </StatCard>
           </StatsGrid>
+          <WinRateBar>
+            <WinRateLabel>
+              <span>{t('statistics.winRate') || '胜率'}</span>
+              <span style={{ fontWeight: 700, color: 'var(--primary-color)' }}>{user.stats.winRate.toFixed(1)}%</span>
+            </WinRateLabel>
+            <WinRateTrack>
+              <WinRateFill $percent={user.stats.winRate} />
+            </WinRateTrack>
+          </WinRateBar>
         </StatsSection>
 
         <div>
-          <SectionTitle>账户信息</SectionTitle>
-          <div style={{ marginBottom: '20px' }}>
+          <SectionTitle>{t('profile.accountInfo') || t('login.accountInfo') || '账户信息'}</SectionTitle>
+          <AccountPanel>
             <InfoRow>
               <span className="label">账户类型</span>
               {isGuest
@@ -785,10 +950,10 @@ const UserProfile: React.FC = () => {
               <span className="value">{formatDate(user.profile.createdAt)}</span>
             </InfoRow>
             <InfoRow>
-              <span className="label">最后登录</span>
+              <span className="label">{t('player.lastLogin') || '最后登录'}</span>
               <span className="value">{formatDate(user.profile.lastLoginAt)}</span>
             </InfoRow>
-          </div>
+          </AccountPanel>
 
           {firebaseUser && firebaseUser.email && (
             <PasswordSection>
@@ -838,14 +1003,14 @@ const UserProfile: React.FC = () => {
         </div>
 
         <ActionsSection>
-          <ActionButton onClick={handleViewStats}>
-            查看详细统计
+          <ActionButton onClick={() => { soundManager.buttonClick(); handleViewStats(); }} onMouseEnter={() => soundManager.buttonHover()}>
+            {t('statistics.viewDetails') || '查看详细统计'}
           </ActionButton>
-          <ActionButton onClick={handleEditProfile}>
-            修改个人资料
+          <ActionButton onClick={() => { soundManager.buttonClick(); handleEditProfile(); }} onMouseEnter={() => soundManager.buttonHover()}>
+            {t('player.editProfile') || '修改个人资料'}
           </ActionButton>
-          <LogoutButton onClick={handleLogout}>
-            退出登录
+          <LogoutButton onClick={() => { soundManager.buttonClick(); handleLogout(); }} onMouseEnter={() => soundManager.buttonHover()}>
+            {t('player.logout') || '退出登录'}
           </LogoutButton>
         </ActionsSection>
       </ProfileCard>

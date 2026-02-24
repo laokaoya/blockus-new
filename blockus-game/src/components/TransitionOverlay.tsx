@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import styled, { keyframes, css } from 'styled-components';
 import soundManager from '../utils/soundManager';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const glitchAnim = keyframes`
   0% {
@@ -119,6 +120,28 @@ const LoadingText = styled.div`
   }
 `;
 
+const SkipButton = styled.button`
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 11;
+  transition: all 0.2s ease;
+  font-family: 'Rajdhani', sans-serif;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+`;
+
 const LOADING_MESSAGES = [
   "SYSTEM SYNCHRONIZING...",
   "ESTABLISHING UPLINK...",
@@ -133,21 +156,31 @@ const LOADING_MESSAGES = [
   "INITIALIZING..."
 ];
 
+const SKIP_BUTTON_DELAY_MS = 2500;  // 2.5 秒后显示「跳过」
+const TRANSITION_TIMEOUT_MS = 6000; // 6 秒视为超时，显示返回提示
+
 const TransitionOverlay: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { t } = useLanguage();
   const [isActive, setIsActive] = useState(false);
   const [message, setMessage] = useState(LOADING_MESSAGES[0]);
+  const [showSkip, setShowSkip] = useState(false);
+  const [isTimeout, setIsTimeout] = useState(false);
 
   useEffect(() => {
     const state = location.state as { showTransition?: boolean; fromGameReturn?: boolean } | null;
     if (!state?.showTransition) {
       setIsActive(false);
+      setShowSkip(false);
+      setIsTimeout(false);
       return;
     }
 
     const randomMsg = LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
     setMessage(randomMsg);
-
+    setShowSkip(false);
+    setIsTimeout(false);
     setIsActive(true);
     soundManager.pageTransition();
 
@@ -155,17 +188,29 @@ const TransitionOverlay: React.FC = () => {
     const preserved = state?.fromGameReturn ? { fromGameReturn: true } : {};
     window.history.replaceState(preserved, '');
 
-    const timer = setTimeout(() => {
-      setIsActive(false);
-    }, 1400);
+    const timer = setTimeout(() => setIsActive(false), 1400);
+    const safety = setTimeout(() => setIsActive(false), 8000); // 兜底 8 秒强制关闭
+    const skipTimer = setTimeout(() => setShowSkip(true), SKIP_BUTTON_DELAY_MS);
+    const timeoutTimer = setTimeout(() => setIsTimeout(true), TRANSITION_TIMEOUT_MS);
 
-    // Safety: force-hide after 3s in case something goes wrong
-    const safety = setTimeout(() => {
-      setIsActive(false);
-    }, 3000);
-
-    return () => { clearTimeout(timer); clearTimeout(safety); };
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(safety);
+      clearTimeout(skipTimer);
+      clearTimeout(timeoutTimer);
+    };
   }, [location]);
+
+  const handleSkip = () => {
+    setIsActive(false);
+    setShowSkip(false);
+    setIsTimeout(false);
+  };
+
+  const handleBackOnTimeout = () => {
+    setIsActive(false);
+    navigate('/', { replace: true });
+  };
 
   if (!isActive) return null;
 
@@ -173,7 +218,14 @@ const TransitionOverlay: React.FC = () => {
     <OverlayContainer $isActive={isActive}>
       <GlitchLayer />
       <Scanline />
-      <LoadingText>{message}</LoadingText>
+      <LoadingText>{isTimeout ? 'LOAD TIMEOUT' : message}</LoadingText>
+      {isTimeout ? (
+        <SkipButton onClick={handleBackOnTimeout}>
+          {t('common.loadingTimeout')}，{t('common.backToHome')}
+        </SkipButton>
+      ) : showSkip ? (
+        <SkipButton onClick={handleSkip}>{t('common.skip') || 'Skip'}</SkipButton>
+      ) : null}
     </OverlayContainer>
   );
 };
