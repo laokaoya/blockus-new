@@ -47,7 +47,12 @@ const Container = styled.div<{ $isPhase: boolean }>`
   animation: ${slideUp} 0.4s ease-out;
   
   @media (max-width: 768px) {
-    bottom: ${props => props.$isPhase ? '100px' : '95px'};
+    bottom: ${props => props.$isPhase ? '82px' : '78px'};
+    gap: 6px;
+  }
+  @media (max-width: 480px) {
+    bottom: ${props => props.$isPhase ? '76px' : '72px'};
+    gap: 4px;
   }
 `;
 
@@ -130,8 +135,12 @@ const CardSlot = styled.button<{ $cardType: ItemCardId }>`
   }
   
   @media (max-width: 768px) {
-    width: 65px;
-    height: 85px;
+    width: 56px;
+    height: 72px;
+  }
+  @media (max-width: 480px) {
+    width: 50px;
+    height: 66px;
   }
 `;
 

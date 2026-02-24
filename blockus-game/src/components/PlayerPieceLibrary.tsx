@@ -69,6 +69,15 @@ const PieceItem = styled.div<{
   justify-content: center;
   min-width: 64px;
   height: 64px;
+  
+  @media (max-width: 768px) {
+    min-width: 52px;
+    height: 52px;
+  }
+  @media (max-width: 480px) {
+    min-width: 46px;
+    height: 46px;
+  }
   background: ${props => props.isUsed ? 'transparent' : 'var(--surface-highlight)'};
   border: 1px solid ${props => props.isSelected ? 'var(--primary-color)' : props.$hasSteel && !props.isUsed ? '#94a3b8' : 'var(--surface-border)'};
   border-radius: 8px;
@@ -95,23 +104,40 @@ const PieceItem = styled.div<{
 `;
 
 const ShapeCell = styled.div<{ isFilled: boolean; color: string }>`
-  width: 8px; /* Reduced from 10px */
-  height: 8px; /* Reduced from 10px */
+  width: 8px;
+  height: 8px;
+  
+  @media (max-width: 768px) {
+    width: 6px;
+    height: 6px;
+  }
+  @media (max-width: 480px) {
+    width: 5px;
+    height: 5px;
+  }
   background: ${props => props.isFilled ? `var(--player-${props.color}-main)` : 'transparent'};
   border-radius: 1px;
   box-shadow: ${props => props.isFilled ? `0 0 4px var(--player-${props.color}-glow)` : 'none'};
 `;
 
-// 恢复被误删的常量和组件
-const CELL_SIZE = 8; /* Reduced from 10 */
+const CELL_SIZE = 8;
 const GAP_SIZE = 1;
 
 const PieceShape = styled.div<{ rows: number; cols: number }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 60px; /* Reduced from 70px */
-  height: 60px; /* Reduced from 70px */
+  width: 60px;
+  height: 60px;
+  
+  @media (max-width: 768px) {
+    width: 48px;
+    height: 48px;
+  }
+  @media (max-width: 480px) {
+    width: 42px;
+    height: 42px;
+  }
 `;
 
 const PieceGrid = styled.div<{ rows: number; cols: number }>`
@@ -119,6 +145,15 @@ const PieceGrid = styled.div<{ rows: number; cols: number }>`
   grid-template-columns: repeat(${props => props.cols}, ${CELL_SIZE}px);
   grid-template-rows: repeat(${props => props.rows}, ${CELL_SIZE}px);
   gap: ${GAP_SIZE}px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(${props => props.cols}, 6px);
+    grid-template-rows: repeat(${props => props.rows}, 6px);
+  }
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(${props => props.cols}, 5px);
+    grid-template-rows: repeat(${props => props.rows}, 5px);
+  }
 `;
 
 const PlayerPieceLibrary: React.FC<PlayerPieceLibraryProps> = ({

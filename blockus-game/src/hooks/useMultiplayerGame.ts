@@ -52,12 +52,14 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [effectQueue, setEffectQueue] = useState<Array<{ effect: TileEffect; result: EffectResult }>>([]);
-  const [showingEffect, setShowingEffect] = useState<{ effect: TileEffect; result: EffectResult } | null>(null);
+  const [effectQueue, setEffectQueue] = useState<Array<{ effect: TileEffect; result: EffectResult; playerName?: string; playerColor?: PlayerColor }>>([]);
+  const [showingEffect, setShowingEffect] = useState<{ effect: TileEffect; result: EffectResult; playerName?: string; playerColor?: PlayerColor } | null>(null);
   const [itemPhaseTimeLeft, setItemPhaseTimeLeft] = useState(0);
   const [eventLog, setEventLog] = useState<GameEvent[]>([]);
   const [itemUseBroadcast, setItemUseBroadcast] = useState<{ playerName: string; playerColor: PlayerColor; cardName: string; targetName?: string; effectText?: string } | null>(null);
   const eventIdRef = useRef(0);
+  const gameStateRef = useRef(gameState);
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
   // 联机时服务端 Firebase 用户用 fb_${uid}，需用服务端 playerId 匹配
   const effectiveMyUserId = useMemo(() => {
@@ -241,9 +243,10 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
 
         const isUndo = !!data.undoLastMove;
 
-        // 创意模式：将服务端下发的触发效果加入展示队列（兜底：找不到时用服务端数据构造）
+        // 创意模式：将服务端下发的触发效果加入展示队列（在 setState 外执行，避免 setState 内副作用）
         if (data.triggeredEffects?.length) {
-          data.triggeredEffects.forEach(t => {
+          const mover = gameStateRef.current.players.find(p => p.color === data.move!.playerColor);
+          const newItems = data.triggeredEffects!.map(t => {
             const effect: TileEffect = findEffectById(t.effectId) ?? {
               id: t.effectId as TileEffectId,
               name: t.effectName,
@@ -251,8 +254,9 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
               type: t.tileType as 'gold' | 'purple' | 'red',
             };
             const result: EffectResult = { scoreChange: t.scoreChange, grantItemCard: t.grantItemCard, extraTurn: t.extraTurn };
-            setEffectQueue(prev => [...prev, { effect, result }]);
+            return { effect, result, playerName: mover?.name, playerColor: mover?.color as PlayerColor };
           });
+          setEffectQueue(q => [...q, ...newItems]);
         }
 
         // 应用落子到棋盘（创意模式领地扩张等效果在服务端修改了棋盘，需用 gameState.board 同步）

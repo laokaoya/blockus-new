@@ -157,6 +157,19 @@ html, body, #root {
   overflow-x: hidden; /* 防止水平滚动 */
 }
 
+/* 移动端整体缩放：缩小基础字号，使布局更紧凑 */
+@media (max-width: 768px) {
+  html {
+    font-size: 87.5%; /* 14px，缩小 rem 基准 */
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 81.25%; /* 13px，小屏进一步缩小 */
+  }
+}
+
 /* 移动端触摸优化 */
 @media (max-width: 768px) {
   * {
@@ -164,7 +177,7 @@ html, body, #root {
   }
   
   button, [role="button"] {
-    min-height: 44px; /* 确保触摸目标足够大 */
+    min-height: 40px; /* 略减以节省空间，仍保证可点 */
   }
   
   input, select, textarea {

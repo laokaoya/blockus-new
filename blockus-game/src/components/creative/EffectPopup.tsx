@@ -4,10 +4,14 @@ import React from 'react';
 import styled, { keyframes } from 'styled-components';
 import { TileEffect, SpecialTileType } from '../../types/creative';
 import { EffectResult } from '../../utils/creativeModeEngine';
+import { PlayerColor } from '../../types/game';
+import { PLAYER_COLORS } from '../../constants/pieces';
 
 interface EffectPopupProps {
   effect: TileEffect;
   result: EffectResult;
+  playerName?: string;
+  playerColor?: PlayerColor;
   onClose?: () => void;
 }
 
@@ -56,6 +60,16 @@ const Popup = styled.div<{ tileType: SpecialTileType }>`
   text-align: center;
   min-width: 280px;
   max-width: 400px;
+  
+  @media (max-width: 768px) {
+    padding: 20px 24px;
+    min-width: 240px;
+    max-width: 90vw;
+  }
+  @media (max-width: 480px) {
+    padding: 16px 20px;
+    min-width: 200px;
+  }
   box-shadow: 0 0 60px ${props => TYPE_COLORS[props.tileType].glow},
               inset 0 0 30px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(20px);
@@ -104,12 +118,18 @@ const TYPE_LABELS: Record<SpecialTileType, string> = {
   barrier: '■ BARRIER',
 };
 
-const EffectPopup: React.FC<EffectPopupProps> = ({ effect, result }) => {
+const EffectPopup: React.FC<EffectPopupProps> = ({ effect, result, playerName, playerColor }) => {
   const scoreChange = result.scoreChange;
+  const color = playerColor ? (PLAYER_COLORS[playerColor] || '#6b7280') : undefined;
 
   return (
     <Overlay>
       <Popup tileType={effect.type}>
+        {playerName && (
+          <div style={{ marginBottom: '12px', fontSize: '0.9rem', color: color || 'rgba(255,255,255,0.8)' }}>
+            <span style={{ fontWeight: 600 }}>{playerName}</span> 触发
+          </div>
+        )}
         <TypeBadge tileType={effect.type}>{TYPE_LABELS[effect.type]}</TypeBadge>
         <EffectName>{effect.name}</EffectName>
         <EffectDescription>{effect.description}</EffectDescription>

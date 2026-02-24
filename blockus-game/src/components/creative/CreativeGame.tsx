@@ -39,6 +39,8 @@ const Header = styled.div`
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
+  @media (max-width: 768px) { height: 42px; padding: 0 8px; }
+  @media (max-width: 480px) { height: 38px; padding: 0 6px; }
   background: var(--surface-color);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--surface-border);
@@ -66,6 +68,10 @@ const GameContent = styled.div`
   
   @media (max-width: 768px) {
     flex-direction: column;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0));
+  }
+  @media (max-width: 480px) {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0));
   }
 `;
 
@@ -84,11 +90,11 @@ const LeftPanel = styled.div`
   @media (max-width: 768px) {
     width: 100%;
     height: auto;
-    max-height: 90px;
+    max-height: 52px;
     flex-direction: row;
     border-right: none;
     border-bottom: 1px solid var(--surface-border);
-    padding: 6px 10px;
+    padding: 4px 6px;
     overflow-x: auto;
     overflow-y: hidden;
     background: var(--surface-color);
@@ -104,7 +110,8 @@ const BoardArea = styled.div`
   position: relative;
   padding: 20px;
   overflow: hidden;
-  @media (max-width: 768px) { padding: 8px; }
+  @media (max-width: 768px) { padding: 4px; }
+  @media (max-width: 480px) { padding: 2px; }
 `;
 
 const RightPanel = styled.div`
@@ -119,7 +126,7 @@ const RightPanel = styled.div`
   @media (max-width: 768px) {
     width: 100%;
     flex-direction: row;
-    padding: 0 10px;
+    padding: 0 6px;
     height: auto;
     order: -1;
     background: var(--surface-color);
@@ -137,10 +144,24 @@ const BottomDock = styled.div`
   display: flex;
   align-items: center;
   padding: 0 20px;
+  padding-bottom: env(safe-area-inset-bottom, 0);
   z-index: 100;
   box-shadow: var(--shadow-lg);
   flex-shrink: 0;
-  @media (max-width: 768px) { height: 90px; padding: 0 10px; }
+  @media (max-width: 768px) {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 68px;
+    padding: 0 6px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0));
+  }
+  @media (max-width: 480px) {
+    height: 62px;
+    padding: 0 4px;
+    padding-bottom: max(4px, env(safe-area-inset-bottom, 0));
+  }
 `;
 
 const PieceLibraryWrapper = styled.div`
@@ -454,7 +475,7 @@ const LocalCreativeGame: React.FC = () => {
 
           {/* 效果弹窗 */}
           {showingEffect && (
-            <EffectPopup effect={showingEffect.effect} result={showingEffect.result} />
+            <EffectPopup effect={showingEffect.effect} result={showingEffect.result} playerName={showingEffect.playerName} playerColor={showingEffect.playerColor} />
           )}
           {/* 道具使用广播 */}
           {itemUseBroadcast && (

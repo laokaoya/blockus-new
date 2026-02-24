@@ -95,8 +95,12 @@ const Dropdown = styled.div`
   animation: ${slideIn} 0.2s ease-out;
   
   @media (max-width: 768px) {
-    width: 260px;
-    max-height: 50vh;
+    width: min(280px, 90vw);
+    max-height: 45vh;
+  }
+  @media (max-width: 480px) {
+    width: min(260px, 92vw);
+    max-height: 40vh;
   }
 `;
 

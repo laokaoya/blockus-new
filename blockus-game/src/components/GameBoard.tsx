@@ -35,8 +35,12 @@ const BoardContainer = styled.div`
   aspect-ratio: 1/1;
   
   @media (max-width: 768px) {
-    max-width: 95vw;
-    max-height: min(95vw, 50vh); /* 小屏限制高度，确保拼图库可见 */
+    max-width: min(92vw, 100%);
+    max-height: min(92vw, 45vh);
+  }
+  @media (max-width: 480px) {
+    max-width: min(96vw, 100%);
+    max-height: min(96vw, 42vh);
   }
 `;
 
@@ -277,6 +281,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const touchDragActive = useRef(false);
   const lastTouchPosRef = useRef<Position | null>(null);
   const pendingTouchPosRef = useRef<Position | null>(null);
+  const activeTouchIdRef = useRef<number | null>(null);
 
   // 拖拽时最新位置（用于全局 mouseup，因释放在棋盘外时 BoardGrid.onMouseUp 不触发）
   const mousePositionRef = useRef<Position>({ x: 0, y: 0 });
@@ -364,6 +369,49 @@ const GameBoard: React.FC<GameBoardProps> = ({
       }
     };
   }, [dragMode, selectedPiece]);
+
+  // 移动端：document 级 touch 监听，手指移出棋盘底部时仍可更新位置并放置（解决底部两行无法放置）
+  useEffect(() => {
+    if (!selectedPiece) return;
+    const clientToCellClamped = (cx: number, cy: number, rect: DOMRect): Position => {
+      const inset = 3;
+      const gap = 1;
+      const innerW = rect.width - inset * 2;
+      const innerH = rect.height - inset * 2;
+      const cellW = (innerW - gap * 19) / 20;
+      const cellH = (innerH - gap * 19) / 20;
+      if (cellW <= 0 || cellH <= 0) return { x: 0, y: 0 };
+      let x = Math.floor((cx - rect.left - inset) / cellW);
+      let y = Math.floor((cy - rect.top - inset) / cellH);
+      return { x: Math.max(0, Math.min(19, x)), y: Math.max(0, Math.min(19, y)) };
+    };
+    const handleDocTouchMove = (e: TouchEvent) => {
+      if (activeTouchIdRef.current === null) return;
+      const t = Array.from(e.touches).find(touch => touch.identifier === activeTouchIdRef.current);
+      if (!t) return;
+      const board = document.querySelector('[data-board-grid]');
+      if (!board) return;
+      const rect = board.getBoundingClientRect();
+      const pos = clientToCellClamped(t.clientX, t.clientY, rect);
+      lastTouchPosRef.current = pos;
+      pendingTouchPosRef.current = pos;
+      setHoverPosition(pos);
+      e.preventDefault();
+    };
+    const handleDocTouchEnd = (e: TouchEvent) => {
+      if (activeTouchIdRef.current === null) return;
+      const t = Array.from(e.changedTouches).find(touch => touch.identifier === activeTouchIdRef.current);
+      if (t) activeTouchIdRef.current = null; // 清除，避免处理后续杂散触摸
+    };
+    document.addEventListener('touchmove', handleDocTouchMove, { passive: false });
+    document.addEventListener('touchend', handleDocTouchEnd, { capture: true });
+    document.addEventListener('touchcancel', handleDocTouchEnd, { capture: true });
+    return () => {
+      document.removeEventListener('touchmove', handleDocTouchMove);
+      document.removeEventListener('touchend', handleDocTouchEnd);
+      document.removeEventListener('touchcancel', handleDocTouchEnd);
+    };
+  }, [selectedPiece]);
 
   // Safety check
   if (!currentPlayer) {
@@ -510,10 +558,11 @@ const GameBoard: React.FC<GameBoardProps> = ({
     return null;
   };
 
-  // 移动端：影子显示在手指上方 2-3 格，避免被手指遮挡
+  // 移动端：影子显示在手指上方 2 格，避免被手指遮挡；底部三行不偏移，便于放置到底部
   const TOUCH_PREVIEW_Y_OFFSET = 2;
   const getDisplayPosition = (pos: Position, isTouch: boolean): Position => {
     if (!isTouch) return pos;
+    if (pos.y >= 17) return pos; // 底部三行不偏移，预览与放置一致
     return { x: pos.x, y: Math.max(0, pos.y - TOUCH_PREVIEW_Y_OFFSET) };
   };
 
@@ -524,6 +573,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
     touchDragActive.current = false;
     lastTouchPosRef.current = null;
     pendingTouchPosRef.current = null;
+    activeTouchIdRef.current = e.touches[0].identifier;
     if (dragMode !== 'none') {
       setDragMode('none');
       setIsDragging(false);
@@ -544,11 +594,12 @@ const GameBoard: React.FC<GameBoardProps> = ({
     e.preventDefault();
     touchDragActive.current = true;
     const pos = touchToBoardPos(e.touches[0], e.currentTarget);
-    if (!pos) return;
-    if (lastTouchPosRef.current && lastTouchPosRef.current.x === pos.x && lastTouchPosRef.current.y === pos.y) return;
-    lastTouchPosRef.current = pos;
-    pendingTouchPosRef.current = pos;
-    setHoverPosition(pos);
+    if (pos) {
+      if (lastTouchPosRef.current && lastTouchPosRef.current.x === pos.x && lastTouchPosRef.current.y === pos.y) return;
+      lastTouchPosRef.current = pos;
+      pendingTouchPosRef.current = pos;
+      setHoverPosition(pos);
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -556,15 +607,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const fingerPos = pendingTouchPosRef.current ?? lastTouchPosRef.current ?? hoverPosition;
     lastTouchPosRef.current = null;
     pendingTouchPosRef.current = null;
+    activeTouchIdRef.current = null;
     if (!selectedPiece || !fingerPos) {
       setTimeout(() => { isTouchActiveRef.current = false; }, 400);
       touchDragActive.current = false;
       return;
     }
-    // 触摸时放置位置与预览一致：使用 displayPos（手指上方 2 格），与影子显示位置对齐
-    const placePos = getDisplayPosition(fingerPos, true);
-    if (canPlaceAt(placePos.x, placePos.y)) {
-      onPiecePlace(placePos);
+    // 放置位置：使用手指实际指向的格子（fingerPos 来自 touchmove/touchEnd，手指移出棋盘时由 document 级 touchmove 用 clamp 更新）
+    if (canPlaceAt(fingerPos.x, fingerPos.y)) {
+      onPiecePlace(fingerPos);
     }
     setHoverPosition(null);
     touchDragActive.current = false;

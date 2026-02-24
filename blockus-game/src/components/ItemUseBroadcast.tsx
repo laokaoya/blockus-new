@@ -28,6 +28,14 @@ const Card = styled.div`
   border: 2px solid var(--surface-border);
   border-radius: 16px;
   padding: 20px 32px;
+  
+  @media (max-width: 768px) {
+    padding: 14px 20px;
+    border-radius: 12px;
+  }
+  @media (max-width: 480px) {
+    padding: 12px 16px;
+  }
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   animation: ${fadeInOut} 2.8s ease-out forwards;
   display: flex;
@@ -38,6 +46,17 @@ const Card = styled.div`
 const Avatar = styled.div<{ $color: string }>`
   width: 48px;
   height: 48px;
+  
+  @media (max-width: 768px) {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+  @media (max-width: 480px) {
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
+  }
   border-radius: 50%;
   background: ${p => p.$color};
   display: flex;
@@ -50,6 +69,13 @@ const Avatar = styled.div<{ $color: string }>`
 
 const Text = styled.div`
   font-size: 16px;
+  
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
+  @media (max-width: 480px) {
+    font-size: 12px;
+  }
   color: var(--text-primary);
   font-weight: 600;
 `;
@@ -93,7 +119,7 @@ const ItemUseBroadcast: React.FC<ItemUseBroadcastProps> = ({
   return (
     <Overlay>
       <Card>
-        <Avatar $color={color}>{playerName.charAt(0)}</Avatar>
+        <Avatar $color={color} title={playerName}>{playerName.charAt(0)}</Avatar>
         <Text>
           {msg.split(cardName)[0]}
           <CardName>{cardName}</CardName>

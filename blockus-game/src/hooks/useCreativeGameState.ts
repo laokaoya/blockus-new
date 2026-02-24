@@ -110,8 +110,8 @@ export function useCreativeGameState() {
   }));
 
   // 效果展示队列
-  const [effectQueue, setEffectQueue] = useState<Array<{ effect: TileEffect; result: EffectResult }>>([]);
-  const [showingEffect, setShowingEffect] = useState<{ effect: TileEffect; result: EffectResult } | null>(null);
+  const [effectQueue, setEffectQueue] = useState<Array<{ effect: TileEffect; result: EffectResult; playerName?: string; playerColor?: PlayerColor }>>([]);
+  const [showingEffect, setShowingEffect] = useState<{ effect: TileEffect; result: EffectResult; playerName?: string; playerColor?: PlayerColor } | null>(null);
   const [showLuckyWheel, setShowLuckyWheel] = useState(false);
   const [luckyWheelEffect, setLuckyWheelEffect] = useState<TileEffect | null>(null);
 
@@ -775,8 +775,8 @@ export function useCreativeGameState() {
         extraTurn = true;
       }
 
-      // 加入展示队列
-      setEffectQueue(prev => [...prev, { effect, result: effectResult }]);
+      // 加入展示队列（含触发玩家信息）
+      setEffectQueue(prev => [...prev, { effect, result: effectResult, playerName: currentPlayer.name, playerColor: currentPlayer.color }]);
     }
 
     // 下一回合
@@ -866,7 +866,15 @@ export function useCreativeGameState() {
       processItemPhaseForAI(gameState.currentPlayerIndex);
     }, 500);
 
-    const thinkingTime = Math.random() * 1500 + 2000 + itemDelay;
+    // AI 思考时间：基础 3-5 秒，中后期略长
+    const turnCount = gameState.turnCount;
+    const totalPieces = currentPlayer.pieces.length;
+    const remainingPieces = currentPlayer.pieces.filter(p => !p.isUsed).length;
+    const usedRatio = 1 - remainingPieces / totalPieces;
+    const isMidLate = turnCount > 15 || usedRatio > 0.4;
+    const baseTime = Math.random() * 2000 + 3000; // 3-5 秒
+    const bonusTime = isMidLate ? Math.random() * 1500 + 500 : 0; // 中后期额外 0.5-2 秒
+    const thinkingTime = baseTime + bonusTime + itemDelay;
 
     aiTimeoutRef.current = setTimeout(() => {
       const aiPlayer = aiPlayers.find(ai => ai.getColor() === currentPlayer.color);
@@ -1123,7 +1131,7 @@ export function useCreativeGameState() {
             // 额外回合
             if (effectResult.extraTurn) aiExtraTurn = true;
 
-            setEffectQueue(prev => [...prev, { effect, result: effectResult }]);
+            setEffectQueue(prev => [...prev, { effect, result: effectResult, playerName: currentPlayer.name, playerColor: currentPlayer.color }]);
           }
         }
 

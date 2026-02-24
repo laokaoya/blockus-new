@@ -55,7 +55,7 @@ const Container = styled.div`
 
   @media (max-width: 768px) {
     flex-direction: row;
-    gap: 15px;
+    gap: 8px;
     width: auto;
     height: 100%;
     align-items: center;
@@ -84,15 +84,19 @@ const PlayerCard = styled.div<{ color: string; $isCurrentTurn: boolean; $isThink
   }
 
   @media (max-width: 768px) {
-    min-width: 180px;
+    min-width: 120px;
     border-left: none;
     border-bottom: 4px solid ${props => {
       if (props.$isThinking) return '#ff4444';
       if (props.$isCurrentTurn) return PLAYER_COLORS[props.color];
       return 'transparent';
     }};
-    padding: 8px 12px;
+    padding: 6px 10px;
     background: ${props => props.$isCurrentTurn ? 'var(--surface-highlight)' : 'var(--surface-color)'};
+  }
+  @media (max-width: 480px) {
+    min-width: 100px;
+    padding: 4px 8px;
   }
 `;
 
@@ -137,9 +141,14 @@ const PlayerAvatar = styled.div<{ color: string; $hasSteel?: boolean }>`
   `}
 
   @media (max-width: 768px) {
-    width: 32px;
-    height: 32px;
-    font-size: 14px;
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  @media (max-width: 480px) {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
   }
 `;
 

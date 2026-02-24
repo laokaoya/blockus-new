@@ -55,8 +55,12 @@ const Header = styled.div`
   flex-shrink: 0;
 
   @media (max-width: 768px) {
-    height: 48px;
-    padding: 0 12px;
+    height: 42px;
+    padding: 0 8px;
+  }
+  @media (max-width: 480px) {
+    height: 38px;
+    padding: 0 6px;
   }
 `;
 
@@ -81,7 +85,10 @@ const GameContent = styled.div`
   
   @media (max-width: 768px) {
     flex-direction: column;
-    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0)); /* 为固定底部拼图库留空 */
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0)); /* 为固定底部拼图库留空 */
+  }
+  @media (max-width: 480px) {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0));
   }
 `;
 
@@ -104,15 +111,19 @@ const LeftPanel = styled.div`
   @media (max-width: 768px) {
     width: 100%;
     height: auto;
-    max-height: 64px;
+    max-height: 52px;
     flex-direction: row;
     border-right: none;
     border-bottom: 1px solid var(--surface-border);
-    padding: 6px 10px;
+    padding: 4px 6px;
     overflow-x: auto;
     overflow-y: hidden;
     background: var(--surface-color);
     flex-shrink: 0;
+  }
+  @media (max-width: 480px) {
+    max-height: 48px;
+    padding: 3px 4px;
   }
 `;
 
@@ -127,7 +138,10 @@ const BoardArea = styled.div`
   overflow: hidden;
 
   @media (max-width: 768px) {
-    padding: 8px;
+    padding: 4px;
+  }
+  @media (max-width: 480px) {
+    padding: 2px;
   }
 `;
 
@@ -151,26 +165,29 @@ const RightPanel = styled.div`
   @media (max-width: 768px) {
     width: 100%;
     flex-direction: row;
-    padding: 0 10px;
+    padding: 0 6px;
     height: auto;
     order: -1;
     background: var(--surface-color);
     backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--surface-border);
   }
+  @media (max-width: 480px) {
+    padding: 0 4px;
+  }
 `;
 
-const BOTTOM_DOCK_MOBILE_HEIGHT = 80;
+const BOTTOM_DOCK_MOBILE_HEIGHT = 68;
 const BottomDock = styled.div`
-  height: 100px; /* Reduced from 140px */
+  height: 100px;
   width: 100%;
-  background: var(--surface-color); /* Darker background */
+  background: var(--surface-color);
   backdrop-filter: blur(20px);
   border-top: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
   padding: 0 20px;
-  padding-bottom: env(safe-area-inset-bottom, 0); /* 移动端底部安全区 */
+  padding-bottom: env(safe-area-inset-bottom, 0);
   z-index: 100;
   box-shadow: var(--shadow-lg);
   flex-shrink: 0;
@@ -182,8 +199,13 @@ const BottomDock = styled.div`
     right: 0;
     height: ${BOTTOM_DOCK_MOBILE_HEIGHT}px;
     min-height: unset;
-    padding: 0 10px;
-    padding-bottom: max(10px, env(safe-area-inset-bottom, 0));
+    padding: 0 6px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0));
+  }
+  @media (max-width: 480px) {
+    height: 62px;
+    padding: 0 4px;
+    padding-bottom: max(4px, env(safe-area-inset-bottom, 0));
   }
 `;
 
@@ -248,12 +270,21 @@ const ActionBtn = styled.button`
   }
 
   @media (max-width: 768px) {
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
     
     svg {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+  @media (max-width: 480px) {
+    width: 30px;
+    height: 30px;
+    
+    svg {
+      width: 14px;
+      height: 14px;
     }
   }
 `;
@@ -999,7 +1030,7 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
           {isItemPhase && !isSpectateMode && isMyTurn && <ItemPhaseOverlay />}
 
           {showingEffect && (
-            <EffectPopup effect={showingEffect.effect} result={showingEffect.result} />
+            <EffectPopup effect={showingEffect.effect} result={showingEffect.result} playerName={showingEffect.playerName} playerColor={showingEffect.playerColor} />
           )}
           {itemUseBroadcast && (
             <ItemUseBroadcast

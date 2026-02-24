@@ -644,8 +644,15 @@ export class GameManager {
     if (isAITurn) {
       const aiPlayer = game.aiPlayers.get(currentPlayer.id) ?? game.hostedAIPlayers.get(currentPlayer.id);
       if (aiPlayer) {
-        // 模拟 AI 思考时间
-        const thinkingTime = Math.random() * 1000 + 1000; // 1-2秒
+        // 模拟 AI 思考时间：基础 3-5 秒，中后期略长
+        const turnCount = game.state.turnCount;
+        const usedPieces = game.players.reduce((s, p) => s + (game.playerPieces[p.id]?.filter(pc => pc.isUsed).length ?? 0), 0);
+        const totalPieces = game.players.reduce((s, p) => s + (game.playerPieces[p.id]?.length ?? 0), 0);
+        const usedRatio = totalPieces > 0 ? usedPieces / totalPieces : 0;
+        const isMidLate = turnCount > 15 || usedRatio > 0.4;
+        const baseTime = Math.random() * 2000 + 3000; // 3-5 秒
+        const bonusTime = isMidLate ? Math.random() * 1500 + 500 : 0; // 中后期额外 0.5-2 秒
+        const thinkingTime = baseTime + bonusTime;
         setTimeout(() => {
           try {
             // 再次检查游戏状态（防止思考期间游戏结束或玩家断线）
