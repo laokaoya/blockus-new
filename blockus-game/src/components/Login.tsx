@@ -259,7 +259,7 @@ function mapFirebaseError(code: string, t: (key: string) => string): string {
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { loginWithEmail, registerWithEmail, loginAsGuest, resetPassword } = useAuth();
+  const { loginWithEmail, registerWithEmail, loginAsGuest, resetPassword, isAuthenticated, isGuest } = useAuth();
   const { t } = useLanguage();
 
   const [mode, setMode] = useState<AuthMode>('login');
@@ -273,6 +273,22 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingNavigateAfterAuth, setPendingNavigateAfterAuth] = useState(false);
+
+  // 邮箱登录/注册成功后，等待 onAuthStateChanged 更新 isGuest 再跳转，避免仍显示为 guest
+  useEffect(() => {
+    if (!pendingNavigateAfterAuth) return;
+    if (isAuthenticated && !isGuest) {
+      setPendingNavigateAfterAuth(false);
+      navigate('/', { state: { showTransition: true } });
+      return;
+    }
+    const fallback = setTimeout(() => {
+      setPendingNavigateAfterAuth(false);
+      navigate('/', { state: { showTransition: true } });
+    }, 2000);
+    return () => clearTimeout(fallback);
+  }, [pendingNavigateAfterAuth, isAuthenticated, isGuest, navigate]);
 
   useEffect(() => {
     if (codeCooldown <= 0) return;
@@ -310,7 +326,7 @@ const Login: React.FC = () => {
       } else {
         await loginWithEmail(email, password);
       }
-      navigate('/', { state: { showTransition: true } });
+      setPendingNavigateAfterAuth(true);
     } catch (err: any) {
       console.error('[Login] Auth error:', err?.code, err?.message, err);
       const code = err?.code || '';
