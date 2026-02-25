@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -89,6 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+  const lastRegisteredNicknameRef = useRef<string | null>(null);
 
   // Listen for Firebase auth state changes
   useEffect(() => {
@@ -96,6 +97,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setFirebaseUser(fbUser);
 
       if (fbUser) {
+        // 强制刷新用户资料，确保 displayName 等字段为最新（注册后立即登录时可能未同步）
+        await fbUser.reload();
+
         // Firebase 用户登录：先清除可能残留的 guest 数据，避免后续 null 回调误恢复 guest
         try {
           const saved = localStorage.getItem('user');
@@ -190,7 +194,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       err.code = error;
       throw err;
     }
+    const trimmedNickname = nickname.trim();
+    lastRegisteredNicknameRef.current = trimmedNickname;
     await signInWithEmailAndPassword(auth, email, password);
+    // 注册后立即登录时，Firebase 返回的用户可能尚未包含服务端设置的 displayName，需在客户端显式更新
+    const currentUser = auth.currentUser;
+    if (currentUser && trimmedNickname) {
+      await fbUpdateProfile(currentUser, { displayName: trimmedNickname });
+    }
     // onAuthStateChanged will handle the rest
   }, []);
 

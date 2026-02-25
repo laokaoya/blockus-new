@@ -139,6 +139,8 @@ router.post('/register', async (req, res) => {
       password,
       displayName: trimmedNickname,
     });
+    // 确保 displayName 写入（部分环境下 createUser 可能未正确设置）
+    await admin.auth().updateUser(userRecord.uid, { displayName: trimmedNickname });
 
     await claimNickname(trimmedNickname, userRecord.uid);
     console.log(`[Auth] Registered: ${trimmedNickname} (${userRecord.uid})`);
