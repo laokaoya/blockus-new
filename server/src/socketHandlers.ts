@@ -98,13 +98,18 @@ export function setupSocketHandlers(
 
         // If the socket already has a Firebase-linked userId, issue a token tied to that uid
         if (socket.data.userId?.startsWith('fb_')) {
+          // 防止 Firebase 用户被 Guest_XXXX 覆盖（如多 tab/竞态导致 guest 的 login 晚到）
+          const isGuestNickname = /^Guest_\d+$/.test(nickname);
+          const effectiveNickname = isGuestNickname && socket.data.nickname && !/^Guest_\d+$/.test(socket.data.nickname)
+            ? socket.data.nickname
+            : nickname;
           const fbUid = socket.data.userId.replace('fb_', '');
-          const { token, userId } = generateTokenForFirebaseUser(fbUid, nickname, data.avatar);
+          const { token, userId } = generateTokenForFirebaseUser(fbUid, effectiveNickname, data.avatar);
           socket.data.userId = userId;
-          socket.data.nickname = nickname;
-          socket.emit('authenticated', { userId, nickname });
+          socket.data.nickname = effectiveNickname;
+          socket.emit('authenticated', { userId, nickname: effectiveNickname });
           callback({ success: true, token, userId });
-          console.log(`[Auth] Firebase user logged in: ${nickname} (${userId})`);
+          console.log(`[Auth] Firebase user logged in: ${effectiveNickname} (${userId})`);
           return;
         }
 

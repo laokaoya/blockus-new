@@ -95,7 +95,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setFirebaseUser(fbUser);
 
       if (fbUser) {
-        // Firebase user signed in — build local user state
+        // Firebase 用户登录：先清除可能残留的 guest 数据，避免后续 null 回调误恢复 guest
+        try {
+          const saved = localStorage.getItem('user');
+          if (saved) {
+            const prev = JSON.parse(saved);
+            if (prev.profile?.isGuest) {
+              localStorage.removeItem('user');
+              localStorage.removeItem('authToken');
+            }
+          }
+        } catch { /* ignore */ }
+
         const idToken = await fbUser.getIdToken(true);
         setToken(idToken);
         setIsGuest(false);
@@ -183,6 +194,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const loginAsGuest = useCallback(async (profile: UserProfile): Promise<boolean> => {
+    if (firebaseUser) return false;
     const stats = loadMergedStats();
     const guestProfile: UserProfile = {
       ...profile,
@@ -211,7 +223,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsGuest(true);
     saveUserToStorage(newUser);
     return true;
-  }, []);
+  }, [firebaseUser]);
 
   const resetPassword = useCallback(async (email: string) => {
     await sendPasswordResetEmail(auth, email);
