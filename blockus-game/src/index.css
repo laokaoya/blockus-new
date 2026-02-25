@@ -64,6 +64,20 @@
   --radius-sm: 8px;
   --shadow-lg: 0 20px 40px -5px rgba(0, 0, 0, 0.4);
   --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.3);
+
+  /* Profile 页面 */
+  --profile-card-bg: rgba(30, 41, 59, 0.7);
+  --profile-card-border: rgba(99, 102, 241, 0.15);
+  --profile-card-shadow: 0 4px 24px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  --profile-grid: rgba(99, 102, 241, 0.03);
+  --profile-overlay: radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.06) 0%, transparent 55%);
+  --profile-tile-bg: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.06));
+  --profile-tile-border: rgba(99, 102, 241, 0.2);
+  --profile-btn-bg: rgba(99, 102, 241, 0.1);
+  --profile-btn-border: rgba(99, 102, 241, 0.25);
+  --profile-btn-hover-bg: rgba(99, 102, 241, 0.18);
+  --profile-match-bg: rgba(99, 102, 241, 0.05);
+  --profile-match-border: rgba(99, 102, 241, 0.15);
 }
 
 [data-theme='light'] {
@@ -101,6 +115,20 @@
   --tile-barrier-bg: rgba(203, 213, 225, 0.6);
   --tile-barrier-border: rgba(148, 163, 184, 0.5);
   --tile-barrier-text: #475569;
+
+  /* Profile 页面 - 浅色模式高对比度 */
+  --profile-card-bg: rgba(255, 255, 255, 0.95);
+  --profile-card-border: rgba(99, 102, 241, 0.25);
+  --profile-card-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.06) inset;
+  --profile-grid: rgba(99, 102, 241, 0.06);
+  --profile-overlay: radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.04) 0%, transparent 55%);
+  --profile-tile-bg: rgba(99, 102, 241, 0.08);
+  --profile-tile-border: rgba(99, 102, 241, 0.2);
+  --profile-btn-bg: rgba(99, 102, 241, 0.1);
+  --profile-btn-border: rgba(99, 102, 241, 0.3);
+  --profile-btn-hover-bg: rgba(99, 102, 241, 0.18);
+  --profile-match-bg: rgba(99, 102, 241, 0.06);
+  --profile-match-border: rgba(99, 102, 241, 0.2);
 }
 
 body {

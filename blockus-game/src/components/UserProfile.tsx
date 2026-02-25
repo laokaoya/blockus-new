@@ -35,14 +35,14 @@ const ProfileContainer = styled.div`
   position: relative;
   -webkit-overflow-scrolling: touch;
   
-  /* 棋盘格背景 - 与游戏风格呼应 */
+  /* 棋盘格背景 - 与游戏风格呼应，浅色模式自动适配 */
   &::before {
     content: '';
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background-image: 
-      linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+      linear-gradient(var(--profile-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--profile-grid) 1px, transparent 1px);
     background-size: 24px 24px;
     pointer-events: none;
     z-index: 0;
@@ -51,7 +51,7 @@ const ProfileContainer = styled.div`
     content: '';
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.06) 0%, transparent 55%);
+    background: var(--profile-overlay);
     pointer-events: none;
     z-index: 0;
   }
@@ -64,14 +64,14 @@ const ProfileContainer = styled.div`
 const ProfileCard = styled.div`
   position: relative;
   z-index: 1;
-  background: rgba(30, 41, 59, 0.7);
+  background: var(--profile-card-bg);
   backdrop-filter: blur(24px);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  border: 1px solid var(--profile-card-border);
   border-radius: 20px;
   padding: 28px;
   max-width: 720px;
   margin: 0 auto;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  box-shadow: var(--profile-card-shadow);
   animation: ${fadeInUp} 0.4s ease-out;
   
   @media (max-width: 768px) {
@@ -169,9 +169,9 @@ const UserBio = styled.p`
 `;
 
 const EditButton = styled.button`
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
+  background: var(--profile-btn-bg);
   color: var(--primary-color);
-  border: 1px solid rgba(99, 102, 241, 0.4);
+  border: 1px solid var(--profile-btn-border);
   padding: 8px 18px;
   border-radius: 10px;
   font-size: 0.85rem;
@@ -183,7 +183,7 @@ const EditButton = styled.button`
   letter-spacing: 0.5px;
   
   &:hover {
-    background: rgba(99, 102, 241, 0.3);
+    background: var(--profile-btn-hover-bg);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
   }
@@ -216,8 +216,8 @@ const StatsGrid = styled.div`
 `;
 
 const StatTile = styled.div`
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.06));
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: var(--profile-tile-bg);
+  border: 1px solid var(--profile-tile-border);
   border-radius: 12px;
   padding: 16px;
   text-align: center;
@@ -254,8 +254,8 @@ const DetailStatsButton = styled.button`
   gap: 8px;
   width: 100%;
   padding: 12px 20px;
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  background: var(--profile-btn-bg);
+  border: 1px solid var(--profile-btn-border);
   border-radius: 10px;
   color: var(--primary-color);
   font-size: 0.9rem;
@@ -265,7 +265,7 @@ const DetailStatsButton = styled.button`
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(99, 102, 241, 0.18);
+    background: var(--profile-btn-hover-bg);
     border-color: rgba(99, 102, 241, 0.45);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
@@ -306,14 +306,14 @@ const MatchCard = styled.div`
   justify-content: space-between;
   padding: 12px 16px;
   margin-bottom: 8px;
-  background: rgba(99, 102, 241, 0.05);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: var(--profile-match-bg);
+  border: 1px solid var(--profile-match-border);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(99, 102, 241, 0.1);
+    background: var(--profile-btn-hover-bg);
     border-color: rgba(99, 102, 241, 0.35);
     transform: translateX(3px);
     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
@@ -351,13 +351,13 @@ const ResultBadge = styled.span<{ $isWin: boolean }>`
 
 const ViewReplayBtn = styled.span`
   padding: 6px 12px;
-  background: rgba(99, 102, 241, 0.15);
+  background: var(--profile-btn-bg);
   color: var(--primary-color);
   border-radius: 8px;
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  border: 1px solid var(--profile-btn-border);
 `;
 
 const ActionsSection = styled.div`
@@ -366,7 +366,7 @@ const ActionsSection = styled.div`
   flex-wrap: wrap;
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid rgba(99, 102, 241, 0.12);
+  border-top: 1px solid var(--profile-match-border);
   
   @media (max-width: 768px) {
     justify-content: center;
@@ -374,9 +374,9 @@ const ActionsSection = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background: rgba(99, 102, 241, 0.1);
+  background: var(--profile-btn-bg);
   color: var(--text-primary);
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  border: 1px solid var(--profile-btn-border);
   padding: 10px 20px;
   border-radius: 10px;
   font-size: 0.9rem;
@@ -386,7 +386,7 @@ const ActionButton = styled.button`
   font-family: 'Rajdhani', sans-serif;
   
   &:hover {
-    background: rgba(99, 102, 241, 0.2);
+    background: var(--profile-btn-hover-bg);
     border-color: rgba(99, 102, 241, 0.45);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
@@ -433,9 +433,9 @@ const DeleteAccountButton = styled.button`
 `;
 
 const BackButton = styled.button`
-  background: rgba(99, 102, 241, 0.08);
+  background: var(--profile-btn-bg);
   color: var(--text-secondary);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border: 1px solid var(--profile-btn-border);
   padding: 8px 20px;
   border-radius: 10px;
   font-size: 0.9rem;
@@ -447,7 +447,7 @@ const BackButton = styled.button`
   font-family: 'Rajdhani', sans-serif;
   
   &:hover {
-    background: rgba(99, 102, 241, 0.15);
+    background: var(--profile-btn-hover-bg);
     color: var(--text-primary);
     transform: translateX(-2px);
     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
@@ -661,9 +661,9 @@ const CancelButton = styled.button`
 const PasswordSection = styled.div`
   margin-top: 16px;
   padding: 16px;
-  background: rgba(99, 102, 241, 0.05);
+  background: var(--profile-match-bg);
   border-radius: 10px;
-  border: 1px solid rgba(99, 102, 241, 0.12);
+  border: 1px solid var(--profile-match-border);
 `;
 
 const PasswordTitle = styled.h3`
