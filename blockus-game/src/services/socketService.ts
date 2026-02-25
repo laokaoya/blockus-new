@@ -195,7 +195,7 @@ class SocketService {
     return this.emitWithCallback('room:update', { roomId, updates });
   }
 
-  addAI(roomId: string, aiDifficulty: 'easy' | 'medium' | 'hard', aiStrategy?: 'aggressive' | 'balanced' | 'defensive'): Promise<{ success: boolean; error?: string }> {
+  addAI(roomId: string, aiDifficulty: 'easy' | 'medium' | 'hard', aiStrategy?: import('../types/game').AIStrategy): Promise<{ success: boolean; error?: string }> {
     return this.emitWithCallback('room:addAI', { roomId, aiDifficulty, aiStrategy });
   }
 

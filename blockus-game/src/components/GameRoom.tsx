@@ -418,7 +418,7 @@ const GameRoom: React.FC = () => {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const [selectedAIDifficulty, setSelectedAIDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [selectedAIStrategy, setSelectedAIStrategy] = useState<'aggressive' | 'balanced' | 'defensive'>('balanced');
+  const [selectedAIStrategy, setSelectedAIStrategy] = useState<'aggressive' | 'balanced' | 'defensive' | 'expansionist' | 'blocker' | 'conservative' | 'gapMinimizer' | 'hunter'>('balanced');
   const [isLoading, setIsLoading] = useState(true);
   const [loadTimeout, setLoadTimeout] = useState(false);
   const retryCountRef = React.useRef(0);
@@ -692,12 +692,17 @@ const GameRoom: React.FC = () => {
                   </AISelect>
                   <AISelect
                     value={selectedAIStrategy}
-                    onChange={(e) => setSelectedAIStrategy(e.target.value as 'aggressive' | 'balanced' | 'defensive')}
+                    onChange={(e) => setSelectedAIStrategy(e.target.value as typeof selectedAIStrategy)}
                     onMouseEnter={() => soundManager.buttonHover()}
                   >
                     <option value="aggressive">{t('settings.strategyAggressive')}</option>
                     <option value="balanced">{t('settings.strategyBalanced')}</option>
                     <option value="defensive">{t('settings.strategyDefensive')}</option>
+                    <option value="expansionist">{t('settings.strategyExpansionist')}</option>
+                    <option value="blocker">{t('settings.strategyBlocker')}</option>
+                    <option value="conservative">{t('settings.strategyConservative')}</option>
+                    <option value="gapMinimizer">{t('settings.strategyGapMinimizer')}</option>
+                    <option value="hunter">{t('settings.strategyHunter')}</option>
                   </AISelect>
                   <AddAIButton 
                     onClick={handleAddAI} 

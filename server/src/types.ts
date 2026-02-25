@@ -16,7 +16,7 @@ export interface Piece {
 }
 
 export type AIDifficulty = 'easy' | 'medium' | 'hard';
-export type AIStrategy = 'aggressive' | 'balanced' | 'defensive';
+export type AIStrategy = 'aggressive' | 'balanced' | 'defensive' | 'expansionist' | 'blocker' | 'conservative' | 'gapMinimizer' | 'hunter';
 
 export interface GameSettings {
   boardSize: number;

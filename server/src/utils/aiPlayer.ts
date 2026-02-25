@@ -226,13 +226,24 @@ export class AIPlayer {
   }
 
   private getStrategyModifiers(): Record<string, number> {
+    const base = { center: 1.0, invasion: 1.0, blocking: 1.0, territory: 1.0, gap: 1.0, connection: 1.0 };
     switch (this.strategy) {
       case 'aggressive':
-        return { center: 1.3, invasion: 1.8, blocking: 0.5, territory: 0.4, gap: 0.7 };
+        return { ...base, center: 1.3, invasion: 1.8, blocking: 0.5, territory: 0.4, gap: 0.7 };
       case 'defensive':
-        return { center: 0.7, invasion: 0.4, blocking: 1.6, territory: 1.5, gap: 1.4 };
+        return { ...base, center: 0.7, invasion: 0.4, blocking: 1.6, territory: 1.5, gap: 1.4 };
+      case 'expansionist':
+        return { ...base, center: 1.4, invasion: 1.2, blocking: 0.6, territory: 0.5, gap: 0.7 };
+      case 'blocker':
+        return { ...base, center: 0.8, invasion: 0.5, blocking: 1.8, connection: 1.5, territory: 1.2, gap: 1.0 };
+      case 'conservative':
+        return { ...base, invasion: 0.9, blocking: 1.1, territory: 1.2 };
+      case 'gapMinimizer':
+        return { ...base, center: 0.8, invasion: 0.7, blocking: 1.0, territory: 1.6, gap: 1.8 };
+      case 'hunter':
+        return { ...base, center: 1.2, invasion: 2.0, blocking: 0.6, territory: 0.5, gap: 0.8 };
       default:
-        return { center: 1.0, invasion: 1.0, blocking: 1.0, territory: 1.0, gap: 1.0 };
+        return base;
     }
   }
 
@@ -245,7 +256,7 @@ export class AIPlayer {
         return {
           centerWeight: 0.5 * centerMult * mod.center,
           surroundingWeight: 0.3,
-          connectionWeight: 0.2,
+          connectionWeight: 0.2 * mod.connection,
           invasionWeight: 0 * mod.invasion,
           territoryWeight: 0 * mod.territory,
           blockingWeight: 0 * mod.blocking,
@@ -255,7 +266,7 @@ export class AIPlayer {
         return {
           centerWeight: 1.0 * centerMult * mod.center,
           surroundingWeight: 1.0,
-          connectionWeight: 1.0,
+          connectionWeight: 1.0 * mod.connection,
           invasionWeight: 0.8 * mod.invasion,
           territoryWeight: 0.6 * mod.territory,
           blockingWeight: 0.5 * blockingMult * mod.blocking,
@@ -265,7 +276,7 @@ export class AIPlayer {
         return {
           centerWeight: 1.2 * centerMult * mod.center,
           surroundingWeight: 1.3,
-          connectionWeight: 1.2,
+          connectionWeight: 1.2 * mod.connection,
           invasionWeight: 1.5 * mod.invasion,
           territoryWeight: 1.2 * mod.territory,
           blockingWeight: 1.0 * blockingMult * mod.blocking,
@@ -275,7 +286,7 @@ export class AIPlayer {
         return {
           centerWeight: 1.0 * mod.center,
           surroundingWeight: 1.0,
-          connectionWeight: 1.0,
+          connectionWeight: 1.0 * mod.connection,
           invasionWeight: 0.8 * mod.invasion,
           territoryWeight: 0.6 * mod.territory,
           blockingWeight: 0.5 * mod.blocking,
@@ -356,7 +367,7 @@ export class AIPlayer {
           counted.add(key);
           totalInvasion += 18;
           if (this.priorityOpponentColorIndex !== null && cell === this.priorityOpponentColorIndex) {
-            priorityInvasion += 15;
+            priorityInvasion += this.strategy === 'hunter' ? 25 : 15;
           }
         }
       }

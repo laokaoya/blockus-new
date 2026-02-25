@@ -5,10 +5,11 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useRoom } from '../contexts/RoomContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import type { AIStrategy } from '../types/game';
 
 interface GameSettings {
   aiDifficulty: 'easy' | 'medium' | 'hard';
-  aiStrategy: 'aggressive' | 'balanced' | 'defensive';
+  aiStrategy: AIStrategy;
   timeLimit: number;
   showHints: boolean;
   soundEnabled: boolean;
@@ -164,6 +165,27 @@ const OptionButton = styled.button<{ isSelected: boolean }>`
   
   @media (max-width: 768px) {
     padding: 10px 16px;
+  }
+`;
+
+const StrategySelect = styled.select`
+  padding: 12px 16px;
+  background: var(--surface-highlight);
+  color: var(--text-primary);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-family: inherit;
+  cursor: pointer;
+  width: 100%;
+  
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+  }
+  
+  option {
+    background: var(--surface-color);
   }
 `;
 
@@ -436,26 +458,19 @@ const GameSettings: React.FC = () => {
 
             <SettingItem>
               <SettingLabel>{t('settings.aiStrategy')}</SettingLabel>
-              <DifficultyOptions>
-                <OptionButton
-                  isSelected={settings.aiStrategy === 'aggressive'}
-                  onClick={() => setSettings(prev => ({ ...prev, aiStrategy: 'aggressive' }))}
-                >
-                  {t('settings.strategyAggressive')}
-                </OptionButton>
-                <OptionButton
-                  isSelected={settings.aiStrategy === 'balanced'}
-                  onClick={() => setSettings(prev => ({ ...prev, aiStrategy: 'balanced' }))}
-                >
-                  {t('settings.strategyBalanced')}
-                </OptionButton>
-                <OptionButton
-                  isSelected={settings.aiStrategy === 'defensive'}
-                  onClick={() => setSettings(prev => ({ ...prev, aiStrategy: 'defensive' }))}
-                >
-                  {t('settings.strategyDefensive')}
-                </OptionButton>
-              </DifficultyOptions>
+              <StrategySelect
+                value={settings.aiStrategy}
+                onChange={(e) => setSettings(prev => ({ ...prev, aiStrategy: e.target.value as AIStrategy }))}
+              >
+                <option value="aggressive">{t('settings.strategyAggressive')}</option>
+                <option value="balanced">{t('settings.strategyBalanced')}</option>
+                <option value="defensive">{t('settings.strategyDefensive')}</option>
+                <option value="expansionist">{t('settings.strategyExpansionist')}</option>
+                <option value="blocker">{t('settings.strategyBlocker')}</option>
+                <option value="conservative">{t('settings.strategyConservative')}</option>
+                <option value="gapMinimizer">{t('settings.strategyGapMinimizer')}</option>
+                <option value="hunter">{t('settings.strategyHunter')}</option>
+              </StrategySelect>
             </SettingItem>
 
             <SettingItem>

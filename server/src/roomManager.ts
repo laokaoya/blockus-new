@@ -281,7 +281,8 @@ export class RoomManager {
     const usedColors = room.players.map(p => p.color);
     const availableColor = PLAYER_COLORS.find(c => !usedColors.includes(c));
     const strategy = aiStrategy ?? room.gameSettings?.aiStrategy ?? 'balanced';
-    const strategyLabel = strategy === 'aggressive' ? '侵略' : strategy === 'defensive' ? '防守' : '均衡';
+    const strategyLabels: Record<string, string> = { aggressive: '侵略', balanced: '均衡', defensive: '防守', expansionist: '扩张', blocker: '封锁', conservative: '节省', gapMinimizer: '填隙', hunter: '针对' };
+    const strategyLabel = strategyLabels[strategy] ?? '均衡';
 
     const aiPlayer: RoomPlayer = {
       id: `ai_${uuidv4().substring(0, 6)}`,

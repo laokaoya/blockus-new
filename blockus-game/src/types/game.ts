@@ -113,7 +113,7 @@ export interface RoomPlayer {
   isHost: boolean;
   isAI: boolean;
   aiDifficulty?: 'easy' | 'medium' | 'hard';
-  aiStrategy?: 'aggressive' | 'balanced' | 'defensive';
+  aiStrategy?: AIStrategy;
   isReady: boolean;
   color?: PlayerColor;
   /** 断线离线，保留位置待重连 */
@@ -150,7 +150,7 @@ export interface RoomMessage {
 }
 
 // 扩展游戏设置类型
-export type AIStrategy = 'aggressive' | 'balanced' | 'defensive';
+export type AIStrategy = 'aggressive' | 'balanced' | 'defensive' | 'expansionist' | 'blocker' | 'conservative' | 'gapMinimizer' | 'hunter';
 
 export interface GameSettings {
   boardSize: number;
