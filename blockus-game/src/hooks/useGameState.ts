@@ -11,10 +11,11 @@ import soundManager from '../utils/soundManager';
 const BOARD_SIZE = 20;
 const DEFAULT_TURN_TIME_LIMIT = 60; // 默认时间限制改为60秒
 
-// 游戏设置接口
+// 游戏设置接口（与 types/game 保持一致，支持快速模式随机策略）
 interface GameSettings {
   aiDifficulty: 'easy' | 'medium' | 'hard';
-  aiStrategy?: 'aggressive' | 'balanced' | 'defensive';
+  aiStrategy?: import('../types/game').AIStrategy;
+  aiStrategies?: import('../types/game').AIStrategy[];
   timeLimit: number;
   showHints: boolean;
 }

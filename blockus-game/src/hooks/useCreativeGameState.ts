@@ -56,7 +56,8 @@ function buildItemEffectDetail(
 
 interface GameSettings {
   aiDifficulty: 'easy' | 'medium' | 'hard';
-  aiStrategy?: 'aggressive' | 'balanced' | 'defensive';
+  aiStrategy?: import('../types/game').AIStrategy;
+  aiStrategies?: import('../types/game').AIStrategy[];
   timeLimit: number;
   showHints: boolean;
 }
