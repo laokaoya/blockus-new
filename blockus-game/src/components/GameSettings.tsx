@@ -8,6 +8,7 @@ import { useToast } from '../contexts/ToastContext';
 
 interface GameSettings {
   aiDifficulty: 'easy' | 'medium' | 'hard';
+  aiStrategy: 'aggressive' | 'balanced' | 'defensive';
   timeLimit: number;
   showHints: boolean;
   soundEnabled: boolean;
@@ -338,6 +339,7 @@ const GameSettings: React.FC = () => {
   
   const [settings, setSettings] = useState<GameSettings>({
     aiDifficulty: 'medium',
+    aiStrategy: 'balanced',
     timeLimit: 60,
     showHints: true,
     soundEnabled: true
@@ -370,6 +372,7 @@ const GameSettings: React.FC = () => {
         {
           turnTimeLimit: settings.timeLimit,
           aiDifficulty: settings.aiDifficulty,
+          aiStrategy: settings.aiStrategy,
           showHints: settings.showHints,
           soundEnabled: settings.soundEnabled,
           privateRoom: false,
@@ -378,9 +381,9 @@ const GameSettings: React.FC = () => {
       );
 
       // 单机模式：自动补齐为 1 人类 + 3 AI（会显示在房间列表）
-      await addAI(room.id, settings.aiDifficulty);
-      await addAI(room.id, settings.aiDifficulty);
-      await addAI(room.id, settings.aiDifficulty);
+      await addAI(room.id, settings.aiDifficulty, settings.aiStrategy);
+      await addAI(room.id, settings.aiDifficulty, settings.aiStrategy);
+      await addAI(room.id, settings.aiDifficulty, settings.aiStrategy);
 
       navigate(`/room/${room.id}`, { state: { showTransition: true } });
     } catch (error) {
@@ -427,6 +430,30 @@ const GameSettings: React.FC = () => {
                   onClick={() => handleDifficultyChange('hard')}
                 >
                   {t('settings.hard')}
+                </OptionButton>
+              </DifficultyOptions>
+            </SettingItem>
+
+            <SettingItem>
+              <SettingLabel>{t('settings.aiStrategy')}</SettingLabel>
+              <DifficultyOptions>
+                <OptionButton
+                  isSelected={settings.aiStrategy === 'aggressive'}
+                  onClick={() => setSettings(prev => ({ ...prev, aiStrategy: 'aggressive' }))}
+                >
+                  {t('settings.strategyAggressive')}
+                </OptionButton>
+                <OptionButton
+                  isSelected={settings.aiStrategy === 'balanced'}
+                  onClick={() => setSettings(prev => ({ ...prev, aiStrategy: 'balanced' }))}
+                >
+                  {t('settings.strategyBalanced')}
+                </OptionButton>
+                <OptionButton
+                  isSelected={settings.aiStrategy === 'defensive'}
+                  onClick={() => setSettings(prev => ({ ...prev, aiStrategy: 'defensive' }))}
+                >
+                  {t('settings.strategyDefensive')}
                 </OptionButton>
               </DifficultyOptions>
             </SettingItem>

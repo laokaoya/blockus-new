@@ -195,8 +195,8 @@ class SocketService {
     return this.emitWithCallback('room:update', { roomId, updates });
   }
 
-  addAI(roomId: string, aiDifficulty: 'easy' | 'medium' | 'hard'): Promise<{ success: boolean; error?: string }> {
-    return this.emitWithCallback('room:addAI', { roomId, aiDifficulty });
+  addAI(roomId: string, aiDifficulty: 'easy' | 'medium' | 'hard', aiStrategy?: 'aggressive' | 'balanced' | 'defensive'): Promise<{ success: boolean; error?: string }> {
+    return this.emitWithCallback('room:addAI', { roomId, aiDifficulty, aiStrategy });
   }
 
   removePlayer(roomId: string, playerId: string): Promise<{ success: boolean; error?: string }> {

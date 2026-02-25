@@ -342,7 +342,7 @@ export function setupSocketHandlers(
         return callback({ success: false, error: 'NOT_AUTHENTICATED' });
       }
 
-      const result = roomManager.addAI(data.roomId, socket.data.userId, data.aiDifficulty);
+      const result = roomManager.addAI(data.roomId, socket.data.userId, data.aiDifficulty, data.aiStrategy);
       if (!result.success) {
         return callback({ success: false, error: result.error });
       }
@@ -535,6 +535,7 @@ export function setupSocketHandlers(
              });
           }
         },
+        room.gameSettings,
         room.gameMode || 'classic',
         // AI 使用道具卡回调
         (roomId, result) => {

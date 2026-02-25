@@ -89,12 +89,36 @@ export const en = {
     green: 'Green',
     human: 'Human',
     computer: 'Computer',
+    nickname: 'Nickname',
+    editProfile: 'Edit Profile',
+    logout: 'Log Out',
+    accountInfo: 'Account Info',
+    lastLogin: 'Last Login',
+  },
+
+  // Profile page
+  profile: {
+    accountInfo: 'Account Info',
+    deleteAccount: 'Delete Account',
+    deleteConfirm: 'This action cannot be undone. All account data and game history will be permanently deleted. Enter your password to confirm:',
+    deletePassword: 'Current Password',
+    deletePasswordPlaceholder: 'Enter password',
+    deletePasswordRequired: 'Please enter your password to confirm',
+    deleteWrongPassword: 'Wrong password',
+    deleteRequiresReauth: 'Please sign in again and try',
+    deleteFailed: 'Failed to delete account. Please try again.',
+    deleting: 'Deleting...',
+    confirmDelete: 'Confirm Delete',
   },
 
   // Game settings
   settings: {
     title: 'Game Settings',
     aiDifficulty: 'AI Difficulty',
+    aiStrategy: 'AI Strategy',
+    strategyAggressive: 'Aggressive',
+    strategyBalanced: 'Balanced',
+    strategyDefensive: 'Defensive',
     easy: 'Easy',
     medium: 'Medium',
     hard: 'Hard',

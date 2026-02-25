@@ -56,6 +56,7 @@ function buildItemEffectDetail(
 
 interface GameSettings {
   aiDifficulty: 'easy' | 'medium' | 'hard';
+  aiStrategy?: 'aggressive' | 'balanced' | 'defensive';
   timeLimit: number;
   showHints: boolean;
 }
@@ -85,7 +86,7 @@ export function useCreativeGameState() {
       const saved = localStorage.getItem('gameSettings');
       if (saved) return JSON.parse(saved);
     } catch { /* ignore */ }
-    return { aiDifficulty: 'medium', timeLimit: 60, showHints: true };
+    return { aiDifficulty: 'medium', aiStrategy: 'balanced', timeLimit: 60, showHints: true };
   });
 
   const getCurrentLanguage = (): string => localStorage.getItem('language') || 'zh';
@@ -155,13 +156,14 @@ export function useCreativeGameState() {
   // ==================== 初始化 ====================
 
   useEffect(() => {
+    const strategy = gameSettings.aiStrategy ?? 'balanced';
     const ais = [
-      new AIPlayer('yellow', gameSettings.aiDifficulty),
-      new AIPlayer('blue', gameSettings.aiDifficulty),
-      new AIPlayer('green', gameSettings.aiDifficulty),
+      new AIPlayer('yellow', gameSettings.aiDifficulty, 'red', strategy),
+      new AIPlayer('blue', gameSettings.aiDifficulty, 'red', strategy),
+      new AIPlayer('green', gameSettings.aiDifficulty, 'red', strategy),
     ];
     setAiPlayers(ais);
-  }, [gameSettings.aiDifficulty]);
+  }, [gameSettings.aiDifficulty, gameSettings.aiStrategy]);
 
   function initializeGameState(): GameState {
     const lang = getCurrentLanguage();

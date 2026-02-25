@@ -16,11 +16,13 @@ export interface Piece {
 }
 
 export type AIDifficulty = 'easy' | 'medium' | 'hard';
+export type AIStrategy = 'aggressive' | 'balanced' | 'defensive';
 
 export interface GameSettings {
   boardSize: number;
   turnTimeLimit: number;
   aiDifficulty: AIDifficulty;
+  aiStrategy?: AIStrategy;
   timeLimit: number;
   showHints: boolean;
   soundEnabled: boolean;
@@ -35,6 +37,7 @@ export interface RoomPlayer {
   isHost: boolean;
   isAI: boolean;
   aiDifficulty?: AIDifficulty;
+  aiStrategy?: AIStrategy;
   isReady: boolean;
   color?: PlayerColor;
   /** 断线离线，保留位置待重连 */
@@ -134,7 +137,7 @@ export interface ClientToServerEvents {
   'room:join': (data: { roomId: string; password?: string }, callback: (response: { success: boolean; room?: GameRoom; error?: string }) => void) => void;
   'room:leave': (data: { roomId: string }, callback: (response: { success: boolean; error?: string }) => void) => void;
   'room:update': (data: { roomId: string; updates: Partial<GameRoom> }, callback: (response: { success: boolean; error?: string }) => void) => void;
-  'room:addAI': (data: { roomId: string; aiDifficulty: AIDifficulty }, callback: (response: { success: boolean; error?: string }) => void) => void;
+  'room:addAI': (data: { roomId: string; aiDifficulty: AIDifficulty; aiStrategy?: AIStrategy }, callback: (response: { success: boolean; error?: string }) => void) => void;
   'room:removePlayer': (data: { roomId: string; playerId: string }, callback: (response: { success: boolean; error?: string }) => void) => void;
   'room:chat': (data: { roomId: string; content: string }) => void;
   'room:ready': (data: { roomId: string; isReady: boolean }, callback: (response: { success: boolean; error?: string }) => void) => void;

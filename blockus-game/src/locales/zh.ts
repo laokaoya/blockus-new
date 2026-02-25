@@ -175,11 +175,29 @@ export const zh = {
     notSet: '未设置',
   },
 
+  // 个人资料页
+  profile: {
+    accountInfo: '账户信息',
+    deleteAccount: '注销账号',
+    deleteConfirm: '注销后无法恢复，账号、游戏记录及数据将被永久删除。请输入密码确认：',
+    deletePassword: '当前密码',
+    deletePasswordPlaceholder: '请输入密码',
+    deletePasswordRequired: '请输入密码以确认注销',
+    deleteWrongPassword: '密码错误',
+    deleteRequiresReauth: '请重新登录后再试',
+    deleteFailed: '注销失败，请重试',
+    deleting: '注销中...',
+    confirmDelete: '确认注销',
+  },
 
   // 游戏设置
   settings: {
     title: '游戏设置',
     aiDifficulty: 'AI难度',
+    aiStrategy: 'AI策略',
+    strategyAggressive: '侵略',
+    strategyBalanced: '均衡',
+    strategyDefensive: '防守',
     easy: '简单',
     medium: '中等',
     hard: '困难',

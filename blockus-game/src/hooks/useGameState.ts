@@ -14,6 +14,7 @@ const DEFAULT_TURN_TIME_LIMIT = 60; // 默认时间限制改为60秒
 // 游戏设置接口
 interface GameSettings {
   aiDifficulty: 'easy' | 'medium' | 'hard';
+  aiStrategy?: 'aggressive' | 'balanced' | 'defensive';
   timeLimit: number;
   showHints: boolean;
 }
@@ -50,6 +51,7 @@ export function useGameState() {
     } catch { /* ignore corrupt data */ }
     return {
       aiDifficulty: 'medium',
+      aiStrategy: 'balanced',
       timeLimit: 60,
       showHints: true
     };
@@ -71,13 +73,14 @@ export function useGameState() {
   
   // 初始化AI玩家
   useEffect(() => {
+    const strategy = gameSettings.aiStrategy ?? 'balanced';
     const ais = [
-      new AIPlayer('yellow', gameSettings.aiDifficulty),
-      new AIPlayer('blue', gameSettings.aiDifficulty),
-      new AIPlayer('green', gameSettings.aiDifficulty)
+      new AIPlayer('yellow', gameSettings.aiDifficulty, 'red', strategy),
+      new AIPlayer('blue', gameSettings.aiDifficulty, 'red', strategy),
+      new AIPlayer('green', gameSettings.aiDifficulty, 'red', strategy)
     ];
     setAiPlayers(ais);
-  }, [gameSettings.aiDifficulty]);
+  }, [gameSettings.aiDifficulty, gameSettings.aiStrategy]);
   
   // 初始化游戏状态
   function initializeGameState(): GameState {

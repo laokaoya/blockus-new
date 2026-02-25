@@ -21,11 +21,14 @@ const glowPulse = keyframes`
 `;
 
 const ProfileContainer = styled.div`
-  min-height: 100vh;
-  padding: 24px;
+  height: 100vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  padding-bottom: 48px;
   background: var(--bg-gradient);
   position: relative;
+  -webkit-overflow-scrolling: touch;
   
   &::before {
     content: '';
@@ -38,6 +41,7 @@ const ProfileContainer = styled.div`
   
   @media (min-width: 768px) {
     padding: 40px;
+    padding-bottom: 60px;
   }
 `;
 
@@ -433,6 +437,26 @@ const LogoutButton = styled.button`
   }
 `;
 
+const DeleteAccountButton = styled.button`
+  background: rgba(127, 29, 29, 0.15);
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+  font-family: 'Rajdhani', sans-serif;
+  
+  &:hover {
+    background: rgba(220, 38, 38, 0.2);
+    border-color: rgba(220, 38, 38, 0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+  }
+`;
+
 const BackButton = styled.button`
   background: var(--surface-highlight);
   color: var(--text-primary);
@@ -785,7 +809,7 @@ const AlertMessage = styled.div<{ type?: 'success' | 'error' }>`
 
 const UserProfile: React.FC = () => {
   const navigate = useNavigate();
-  const { user, firebaseUser, isGuest, logout, updateProfile } = useAuth();
+  const { user, firebaseUser, isGuest, logout, deleteAccount, updateProfile } = useAuth();
   const { t } = useLanguage();
   const { showToast } = useToast();
   
@@ -809,6 +833,12 @@ const UserProfile: React.FC = () => {
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [gameHistory, setGameHistory] = useState<GameRecordBrief[]>([]);
+
+  // 注销账号
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('gameHistory');
@@ -998,6 +1028,33 @@ const UserProfile: React.FC = () => {
     navigate('/statistics');
   };
 
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError(null);
+    if (!deletePassword.trim()) {
+      setDeleteError(t('profile.deletePasswordRequired') || '请输入密码以确认注销');
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await deleteAccount(deletePassword);
+      setShowDeleteModal(false);
+      setDeletePassword('');
+      navigate('/login');
+    } catch (err: any) {
+      const code = err?.code || '';
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        setDeleteError(t('profile.deleteWrongPassword') || '密码错误');
+      } else if (code === 'auth/requires-recent-login') {
+        setDeleteError(t('profile.deleteRequiresReauth') || '请重新登录后再试');
+      } else {
+        setDeleteError(t('profile.deleteFailed') || '注销失败，请重试');
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleBackToLobby = () => {
     navigate('/', { state: { showTransition: true } });
   };
@@ -1172,6 +1229,11 @@ const UserProfile: React.FC = () => {
           <LogoutButton onClick={() => { soundManager.buttonClick(); handleLogout(); }} onMouseEnter={() => soundManager.buttonHover()}>
             {t('player.logout') || '退出登录'}
           </LogoutButton>
+          {firebaseUser?.email && (
+            <DeleteAccountButton onClick={() => { soundManager.buttonClick(); setShowDeleteModal(true); setDeleteError(null); setDeletePassword(''); }} onMouseEnter={() => soundManager.buttonHover()}>
+              {t('profile.deleteAccount') || '注销账号'}
+            </DeleteAccountButton>
+          )}
         </ActionsSection>
       </ProfileCard>
       
@@ -1280,6 +1342,40 @@ const UserProfile: React.FC = () => {
                   {isSubmitting ? '保存中...' : '保存'}
                 </SaveButton>
               </ButtonGroup>
+            </Form>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {/* 注销账号确认模态框 */}
+      {showDeleteModal && (
+        <ModalOverlay>
+          <ModalContent>
+            <ModalTitle style={{ color: '#dc2626' }}>{t('profile.deleteAccount') || '注销账号'}</ModalTitle>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: 1.6 }}>
+              {t('profile.deleteConfirm') || '注销后无法恢复，账号、游戏记录及数据将被永久删除。请输入密码确认：'}
+            </p>
+            <Form onSubmit={handleDeleteAccount}>
+              <FormGroup>
+                <Label htmlFor="delete-password">{t('profile.deletePassword') || '当前密码'}</Label>
+                <PasswordInput
+                  id="delete-password"
+                  type="password"
+                  value={deletePassword}
+                  onChange={e => setDeletePassword(e.target.value)}
+                  placeholder={t('profile.deletePasswordPlaceholder') || '请输入密码'}
+                  autoComplete="current-password"
+                />
+              </FormGroup>
+              {deleteError && <AlertMessage type="error">{deleteError}</AlertMessage>}
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+                <CancelButton type="button" onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }} style={{ flex: 1 }}>
+                  {t('common.cancel') || '取消'}
+                </CancelButton>
+                <DeleteAccountButton type="submit" disabled={isDeleting} style={{ flex: 1 }}>
+                  {isDeleting ? (t('profile.deleting') || '注销中...') : (t('profile.confirmDelete') || '确认注销')}
+                </DeleteAccountButton>
+              </div>
             </Form>
           </ModalContent>
         </ModalOverlay>

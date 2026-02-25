@@ -6,6 +6,9 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   updateProfile as fbUpdateProfile,
+  deleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   User as FirebaseUser,
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
@@ -24,6 +27,7 @@ interface AuthContextType {
   loginAsGuest: (profile: UserProfile) => Promise<boolean>;
   resetPassword: (email: string) => Promise<void>;
   logout: () => void;
+  deleteAccount: (password: string) => Promise<void>;
   updateProfile: (profile: Partial<UserProfile>) => void;
   updateStats: (stats: Partial<UserStats>) => void;
 }
@@ -224,6 +228,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('authToken');
   }, []);
 
+  const deleteAccount = useCallback(async (password: string) => {
+    if (!firebaseUser?.email) throw new Error('需要邮箱账号才能注销');
+    const credential = EmailAuthProvider.credential(firebaseUser.email, password);
+    await reauthenticateWithCredential(firebaseUser, credential);
+    await deleteUser(firebaseUser);
+    localStorage.removeItem('user');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('gameHistory');
+    socketService.disconnect();
+    setUser(null);
+    setFirebaseUser(null);
+    setToken(null);
+    setIsGuest(false);
+  }, [firebaseUser]);
+
   const updateProfile = useCallback((profile: Partial<UserProfile>) => {
     setUser(prev => {
       if (!prev) return prev;
@@ -264,6 +283,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loginAsGuest,
     resetPassword,
     logout,
+    deleteAccount,
     updateProfile,
     updateStats,
   };

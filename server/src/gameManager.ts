@@ -1,4 +1,4 @@
-import { GameState, GameMove, PlayerColor, RoomPlayer, Piece, Position } from './types';
+import { GameState, GameMove, PlayerColor, RoomPlayer, Piece, Position, GameSettings } from './types';
 import { GameMode } from './types';
 import { AIPlayer } from './utils/aiPlayer';
 import { PIECE_SHAPES, PIECE_COUNTS } from './constants/pieces';
@@ -34,6 +34,7 @@ interface ActiveGame {
   onAIItemUsed?: (roomId: string, result: { gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string; effectDetail?: string }) => void;
   timeoutCounts: Record<string, number>;
   gameMode: GameMode;
+  gameSettings?: GameSettings;
 }
 
 export class GameManager {
@@ -48,6 +49,7 @@ export class GameManager {
     onTimeUpdate: (roomId: string, timeLeft: number) => void,
     onAIMove: (roomId: string, move: GameMove, gameState: GameState, triggeredEffects?: Array<{ effectId: string; effectName: string; tileType: string; tileX?: number; tileY?: number; scoreChange: number; grantItemCard?: boolean; extraTurn?: boolean }>) => void,
     onAISettle: (roomId: string, playerId: string) => void,
+    gameSettings?: GameSettings,
     gameMode: GameMode = 'classic',
     onAIItemUsed?: (roomId: string, result: { gameState: GameState; pieceIdUnused?: string; pieceIdRemoved?: string; targetPlayerId?: string; cardType?: string; usedByPlayerId?: string; effectDetail?: string }) => void,
   ): { gameState: GameState; playerColors: Record<string, PlayerColor> } {
@@ -64,6 +66,9 @@ export class GameManager {
     const aiPlayers = new Map<string, AIPlayer>();
     const timeoutCounts: Record<string, number> = {};
 
+    const humanPlayer = players.find(p => !p.isAI);
+    const priorityOpponentColor = humanPlayer ? (humanPlayer.color || PLAYER_COLORS[players.indexOf(humanPlayer)]) : undefined;
+
     players.forEach((player, index) => {
       const color = player.color || PLAYER_COLORS[index];
       playerColorMap[player.id] = color;
@@ -72,9 +77,10 @@ export class GameManager {
       // 初始化拼图
       playerPieces[player.id] = this.createPiecesForColor(color);
 
-      // 初始化 AI
+      // 初始化 AI，传入玩家颜色以优先侵入玩家领地，以及策略
       if (player.isAI) {
-        aiPlayers.set(player.id, new AIPlayer(color, player.aiDifficulty || 'medium'));
+        const strategy = player.aiStrategy ?? gameSettings?.aiStrategy ?? 'balanced';
+        aiPlayers.set(player.id, new AIPlayer(color, player.aiDifficulty || 'medium', priorityOpponentColor, strategy));
       }
       timeoutCounts[player.id] = 0;
     });
@@ -129,6 +135,7 @@ export class GameManager {
       onAIItemUsed,
       timeoutCounts,
       gameMode,
+      gameSettings,
     };
 
     this.games.set(roomId, game);
@@ -963,7 +970,10 @@ export class GameManager {
       const color = game.playerColorMap[playerId];
       if (color && !game.hostedAIPlayers.has(playerId)) {
         const aiDifficulty = player.aiDifficulty || 'medium';
-        game.hostedAIPlayers.set(playerId, new AIPlayer(color, aiDifficulty));
+        const strategy = player.aiStrategy ?? game.gameSettings?.aiStrategy ?? 'balanced';
+        const humanPlayer = game.players.find(p => !p.isAI && !p.isOffline);
+        const priorityColor = humanPlayer ? game.playerColorMap[humanPlayer.id] : undefined;
+        game.hostedAIPlayers.set(playerId, new AIPlayer(color, aiDifficulty, priorityColor, strategy));
       }
     }
   }

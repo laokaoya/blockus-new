@@ -13,7 +13,7 @@ interface RoomContextType {
   joinRoom: (roomId: string, password?: string) => Promise<boolean>;
   leaveRoom: (roomId?: string) => Promise<void>;
   updateRoom: (roomId: string, updates: Partial<GameRoom>) => Promise<boolean>;
-  addAI: (roomId: string, aiDifficulty: 'easy' | 'medium' | 'hard') => Promise<boolean>;
+  addAI: (roomId: string, aiDifficulty: 'easy' | 'medium' | 'hard', aiStrategy?: 'aggressive' | 'balanced' | 'defensive') => Promise<boolean>;
   removePlayer: (roomId: string, playerId: string) => Promise<boolean>;
   addPlayerToRoom: (roomId: string, player: RoomPlayer) => void;
   removePlayerFromRoom: (roomId: string, playerId: string) => void;
@@ -305,12 +305,14 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     return true;
   }, []);
 
-  const addAI = useCallback(async (roomId: string, aiDifficulty: 'easy' | 'medium' | 'hard'): Promise<boolean> => {
+  const addAI = useCallback(async (roomId: string, aiDifficulty: 'easy' | 'medium' | 'hard', aiStrategy?: 'aggressive' | 'balanced' | 'defensive'): Promise<boolean> => {
     if (socketService.isConnected) {
-      const result = await socketService.addAI(roomId, aiDifficulty);
+      const result = await socketService.addAI(roomId, aiDifficulty, aiStrategy);
       return result.success;
     }
     // 离线模式：本地添加AI
+    const strategy = aiStrategy ?? 'balanced';
+    const strategyLabel = strategy === 'aggressive' ? '侵略' : strategy === 'defensive' ? '防守' : '均衡';
     const colors: Array<'red' | 'yellow' | 'blue' | 'green'> = ['red', 'yellow', 'blue', 'green'];
     setCurrentRoom(prev => {
       if (!prev || prev.id !== roomId || prev.players.length >= 4) return prev;
@@ -320,10 +322,11 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         ...prev,
         players: [...prev.players, {
           id: `ai_${Date.now()}`,
-          nickname: `AI (${aiDifficulty})`,
+          nickname: `AI (${aiDifficulty}·${strategyLabel})`,
           isHost: false,
           isAI: true,
           aiDifficulty,
+          aiStrategy: strategy,
           isReady: true,
           color: availableColor,
         }],

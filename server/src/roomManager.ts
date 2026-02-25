@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { GameRoom, RoomPlayer, GameSettings, AIDifficulty, PlayerColor } from './types';
+import { GameRoom, RoomPlayer, GameSettings, AIDifficulty, AIStrategy, PlayerColor } from './types';
 
 const PLAYER_COLORS: PlayerColor[] = ['red', 'yellow', 'blue', 'green'];
 
@@ -272,7 +272,7 @@ export class RoomManager {
   }
 
   // 添加 AI 玩家
-  addAI(roomId: string, requesterId: string, aiDifficulty: AIDifficulty): { success: boolean; error?: string; room?: GameRoom } {
+  addAI(roomId: string, requesterId: string, aiDifficulty: AIDifficulty, aiStrategy?: AIStrategy): { success: boolean; error?: string; room?: GameRoom } {
     const room = this.rooms.get(roomId);
     if (!room) return { success: false, error: 'ROOM_NOT_FOUND' };
     if (room.hostId !== requesterId) return { success: false, error: 'NOT_HOST' };
@@ -280,13 +280,16 @@ export class RoomManager {
 
     const usedColors = room.players.map(p => p.color);
     const availableColor = PLAYER_COLORS.find(c => !usedColors.includes(c));
+    const strategy = aiStrategy ?? room.gameSettings?.aiStrategy ?? 'balanced';
+    const strategyLabel = strategy === 'aggressive' ? '侵略' : strategy === 'defensive' ? '防守' : '均衡';
 
     const aiPlayer: RoomPlayer = {
       id: `ai_${uuidv4().substring(0, 6)}`,
-      nickname: `AI (${aiDifficulty})`,
+      nickname: `AI (${aiDifficulty}·${strategyLabel})`,
       isHost: false,
       isAI: true,
       aiDifficulty,
+      aiStrategy: strategy,
       isReady: true,
       color: availableColor,
     };

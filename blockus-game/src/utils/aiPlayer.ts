@@ -1,6 +1,6 @@
 // AI玩家算法
 
-import { Piece, Position, PlayerColor } from '../types/game';
+import { Piece, Position, PlayerColor, AIStrategy } from '../types/game';
 import { SpecialTile, ItemCard, CreativePlayerState } from '../types/creative';
 import { canPlacePiece } from './gameEngine';
 import { getUniqueTransformations } from './pieceTransformations';
@@ -33,11 +33,15 @@ export class AIPlayer {
   private color: PlayerColor;
   private colorIndex: number;
   private difficulty: 'easy' | 'medium' | 'hard';
-  
-  constructor(color: PlayerColor, difficulty: 'easy' | 'medium' | 'hard' = 'medium') {
+  private strategy: AIStrategy;
+  private priorityOpponentColorIndex: number | null;
+
+  constructor(color: PlayerColor, difficulty: 'easy' | 'medium' | 'hard' = 'medium', priorityOpponentColor?: PlayerColor, strategy: AIStrategy = 'balanced') {
     this.color = color;
     this.colorIndex = this.getColorIndex(color);
     this.difficulty = difficulty;
+    this.strategy = strategy;
+    this.priorityOpponentColorIndex = priorityOpponentColor ? this.getColorIndex(priorityOpponentColor) : null;
   }
   
   public getColor(): PlayerColor {
@@ -162,13 +166,17 @@ export class AIPlayer {
     const { shape } = piece;
     const weights = this.getDifficultyWeights(gamePhase);
     
-    score += this.getCenterDistanceScore(x, y, board.length) * weights.centerWeight;
+    score += this.getCenterDistanceScore(x, y, board.length, shape) * weights.centerWeight;
     score += this.getSurroundingScore(board, x, y, shape) * weights.surroundingWeight;
     score += this.getConnectionScore(board, x, y, shape) * weights.connectionWeight;
     score += this.getExpansionScore(board, x, y, shape) * weights.expansionWeight;
     score += this.getPieceSizeBonus(piece, gamePhase) * weights.pieceSizeWeight;
     score += this.getBlockingScore(board, x, y, shape) * weights.blockingWeight;
     score += this.getEdgeControlScore(board, x, y, shape, gamePhase) * weights.edgeControlWeight;
+    score += this.getInvasionScore(board, piece, x, y, shape) * weights.invasionWeight;
+    score += this.getTerritoryConservationPenalty(board, x, y, shape, gamePhase) * weights.territoryWeight;
+    score += this.getCompleteBlockScore(board, x, y, shape) * weights.blockingWeight;
+    score += this.getGapMinimizationPenalty(board, x, y, shape) * weights.gapWeight;
 
     if (creativeCtx) {
       score += this.getSpecialTileScore(shape, position, creativeCtx) * weights.specialTileWeight;
@@ -178,54 +186,226 @@ export class AIPlayer {
     return score;
   }
 
+  private getMyCorner(boardSize: number): { x: number; y: number } {
+    switch (this.colorIndex) {
+      case 1: return { x: 0, y: 0 };
+      case 2: return { x: boardSize - 1, y: 0 };
+      case 3: return { x: boardSize - 1, y: boardSize - 1 };
+      case 4: return { x: 0, y: boardSize - 1 };
+      default: return { x: 0, y: 0 };
+    }
+  }
+
+  private isUnderThreat(board: number[][]): boolean {
+    const edges = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    for (let y = 0; y < board.length; y++) {
+      for (let x = 0; x < board[y].length; x++) {
+        if (board[y][x] !== this.colorIndex) continue;
+        for (const [dx, dy] of edges) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < board.length && ny >= 0 && ny < board[0].length) {
+            const cell = board[ny][nx];
+            if (cell > 0 && cell !== this.colorIndex) return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /** 侵入对手领地：对角接触对手即加分，不区分大小块。优先侵入玩家（红色）领地 */
+  private getInvasionScore(board: number[][], piece: Piece, x: number, y: number, shape: number[][]): number {
+    let totalInvasion = 0;
+    let priorityInvasion = 0;
+    const corners = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+    const counted = new Set<string>();
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (shape[row][col] === 0) continue;
+        const bx = x + col, by = y + row;
+        for (const [dx, dy] of corners) {
+          const cx = bx + dx, cy = by + dy;
+          if (cx < 0 || cx >= board.length || cy < 0 || cy >= board[0].length) continue;
+          const cell = board[cy][cx];
+          if (cell <= 0 || cell === this.colorIndex) continue;
+          const key = `${cx},${cy}`;
+          if (counted.has(key)) continue;
+          counted.add(key);
+          totalInvasion += 18;
+          if (this.priorityOpponentColorIndex !== null && cell === this.priorityOpponentColorIndex) {
+            priorityInvasion += 15;
+          }
+        }
+      }
+    }
+    return totalInvasion + priorityInvasion;
+  }
+
+  /** 领地保守：己方领地未被侵犯时，不急于填充，保留拼图用于侵入/阻挡 */
+  private getTerritoryConservationPenalty(board: number[][], x: number, y: number, shape: number[][], gamePhase: GamePhase): number {
+    if (this.isUnderThreat(board)) return 0;
+    const boardSize = board.length;
+    const myCorner = this.getMyCorner(boardSize);
+    let inOwnTerritory = 0;
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (shape[row][col] === 0) continue;
+        const bx = x + col, by = y + row;
+        const distToCorner = Math.abs(bx - myCorner.x) + Math.abs(by - myCorner.y);
+        if (distToCorner <= 6) inOwnTerritory++;
+      }
+    }
+    if (inOwnTerritory === 0) return 0;
+    const totalCells = shape.flat().filter(c => c === 1).length;
+    if (inOwnTerritory < totalCells) return 0;
+    return -20 * (gamePhase === 'early' ? 1.5 : gamePhase === 'mid' ? 1.0 : 0.5);
+  }
+
+  /** 完全阻挡：对手试图侵犯时，优先封死其所有入口 */
+  private getCompleteBlockScore(board: number[][], x: number, y: number, shape: number[][]): number {
+    if (!this.isUnderThreat(board)) return 0;
+    let blockValue = 0;
+    const corners = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+    const edges = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (shape[row][col] === 0) continue;
+        const bx = x + col, by = y + row;
+        for (const [dx, dy] of corners) {
+          const cx = bx + dx, cy = by + dy;
+          if (cx < 0 || cx >= board.length || cy < 0 || cy >= board[0].length) continue;
+          if (board[cy][cx] !== 0) continue;
+          const hasOpponentCorner = corners.some(([odx, ody]) => {
+            const ox = cx + odx, oy = cy + ody;
+            if (ox < 0 || ox >= board.length || oy < 0 || oy >= board[0].length) return false;
+            return board[oy][ox] > 0 && board[oy][ox] !== this.colorIndex;
+          });
+          const noOpponentEdge = edges.every(([ex, ey]) => {
+            const ox = cx + ex, oy = cy + ey;
+            if (ox < 0 || ox >= board.length || oy < 0 || oy >= board[0].length) return true;
+            return board[oy][ox] === 0 || board[oy][ox] === this.colorIndex;
+          });
+          if (hasOpponentCorner && noOpponentEdge) blockValue += 35;
+        }
+      }
+    }
+    return blockValue;
+  }
+
+  /** 减少留给对手的空隙：惩罚制造大量可被对手利用的角连接点 */
+  private getGapMinimizationPenalty(board: number[][], x: number, y: number, shape: number[][]): number {
+    const tempBoard = board.map(r => [...r]);
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (shape[row][col] === 1) tempBoard[y + row][x + col] = this.colorIndex;
+      }
+    }
+    let dangerousGaps = 0;
+    const corners = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+    const edges = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    const counted = new Set<string>();
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (shape[row][col] === 0) continue;
+        const bx = x + col, by = y + row;
+        for (const [dx, dy] of corners) {
+          const cx = bx + dx, cy = by + dy;
+          const key = `${cx},${cy}`;
+          if (counted.has(key)) continue;
+          if (cx < 0 || cx >= board.length || cy < 0 || cy >= board[0].length) continue;
+          if (tempBoard[cy][cx] !== 0) continue;
+          const hasOpponentCorner = corners.some(([odx, ody]) => {
+            const ox = cx + odx, oy = cy + ody;
+            if (ox < 0 || ox >= board.length || oy < 0 || oy >= board[0].length) return false;
+            return tempBoard[oy][ox] > 0 && tempBoard[oy][ox] !== this.colorIndex;
+          });
+          const noOurEdge = edges.every(([ex, ey]) => {
+            const ox = cx + ex, oy = cy + ey;
+            if (ox < 0 || ox >= board.length || oy < 0 || oy >= board[0].length) return true;
+            return tempBoard[oy][ox] !== this.colorIndex;
+          });
+          if (hasOpponentCorner && noOurEdge) {
+            counted.add(key);
+            dangerousGaps++;
+          }
+        }
+      }
+    }
+    return -dangerousGaps * 8;
+  }
+
+  private getStrategyModifiers(): Record<string, number> {
+    switch (this.strategy) {
+      case 'aggressive':
+        return { center: 1.3, invasion: 1.8, blocking: 0.5, territory: 0.4, gap: 0.7 };
+      case 'defensive':
+        return { center: 0.7, invasion: 0.4, blocking: 1.6, territory: 1.5, gap: 1.4 };
+      default:
+        return { center: 1.0, invasion: 1.0, blocking: 1.0, territory: 1.0, gap: 1.0 };
+    }
+  }
+
   private getDifficultyWeights(gamePhase: GamePhase) {
     const phaseMultipliers = this.getPhaseMultipliers(gamePhase);
+    const mod = this.getStrategyModifiers();
 
     switch (this.difficulty) {
       case 'easy':
         return {
-          centerWeight: 0.5 * phaseMultipliers.center,
+          centerWeight: 0.5 * phaseMultipliers.center * mod.center,
           surroundingWeight: 0.3,
           connectionWeight: 0.2,
           expansionWeight: 0.1 * phaseMultipliers.expansion,
           pieceSizeWeight: 0.3 * phaseMultipliers.pieceSize,
-          blockingWeight: 0.0,
+          blockingWeight: 0.0 * mod.blocking,
+          invasionWeight: 0.0 * mod.invasion,
+          territoryWeight: 0.0 * mod.territory,
+          gapWeight: 0.0 * mod.gap,
           specialTileWeight: 0.3,
           edgeControlWeight: 0.0,
           barrierPenaltyWeight: 0.2,
         };
       case 'medium':
         return {
-          centerWeight: 1.0 * phaseMultipliers.center,
+          centerWeight: 1.0 * phaseMultipliers.center * mod.center,
           surroundingWeight: 1.0,
           connectionWeight: 1.0,
           expansionWeight: 0.8 * phaseMultipliers.expansion,
           pieceSizeWeight: 0.6 * phaseMultipliers.pieceSize,
-          blockingWeight: 0.5 * phaseMultipliers.blocking,
+          blockingWeight: 0.5 * phaseMultipliers.blocking * mod.blocking,
+          invasionWeight: 0.8 * mod.invasion,
+          territoryWeight: 0.6 * mod.territory,
+          gapWeight: 0.7 * mod.gap,
           specialTileWeight: 1.0,
           edgeControlWeight: 0.4,
           barrierPenaltyWeight: 0.5,
         };
       case 'hard':
         return {
-          centerWeight: 1.2 * phaseMultipliers.center,
+          centerWeight: 1.2 * phaseMultipliers.center * mod.center,
           surroundingWeight: 1.3,
           connectionWeight: 1.2,
           expansionWeight: 1.5 * phaseMultipliers.expansion,
           pieceSizeWeight: 0.8 * phaseMultipliers.pieceSize,
-          blockingWeight: 1.0 * phaseMultipliers.blocking,
+          blockingWeight: 1.0 * phaseMultipliers.blocking * mod.blocking,
+          invasionWeight: 1.5 * mod.invasion,
+          territoryWeight: 1.2 * mod.territory,
+          gapWeight: 1.2 * mod.gap,
           specialTileWeight: 1.8,
           edgeControlWeight: 0.7,
           barrierPenaltyWeight: 0.8,
         };
       default:
         return {
-          centerWeight: 1.0,
+          centerWeight: 1.0 * mod.center,
           surroundingWeight: 1.0,
           connectionWeight: 1.0,
           expansionWeight: 0.8,
           pieceSizeWeight: 0.6,
-          blockingWeight: 0.5,
+          blockingWeight: 0.5 * mod.blocking,
+          invasionWeight: 0.8 * mod.invasion,
+          territoryWeight: 0.6 * mod.territory,
+          gapWeight: 0.7 * mod.gap,
           specialTileWeight: 1.0,
           edgeControlWeight: 0.4,
           barrierPenaltyWeight: 0.5,
@@ -236,22 +416,37 @@ export class AIPlayer {
   private getPhaseMultipliers(gamePhase: GamePhase) {
     switch (gamePhase) {
       case 'early':
-        return { center: 1.3, expansion: 1.5, pieceSize: 1.3, blocking: 0.3 };
+        return { center: 1.8, expansion: 1.5, pieceSize: 1.3, blocking: 0.3 };
       case 'mid':
         return { center: 1.0, expansion: 1.0, pieceSize: 1.0, blocking: 1.2 };
       case 'late':
-        return { center: 0.5, expansion: 0.6, pieceSize: 0.5, blocking: 1.5 };
+        return { center: 0.4, expansion: 0.6, pieceSize: 0.5, blocking: 1.5 };
     }
   }
   
-  private getCenterDistanceScore(x: number, y: number, boardSize: number): number {
-    const centerX = Math.floor(boardSize / 2);
-    const centerY = Math.floor(boardSize / 2);
-    const distanceToCenter = Math.sqrt(
-      Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
-    );
+  private getCenterDistanceScore(x: number, y: number, boardSize: number, shape?: number[][]): number {
+    let cx = x, cy = y;
+    if (shape) {
+      let sumX = 0, sumY = 0, count = 0;
+      for (let row = 0; row < shape.length; row++) {
+        for (let col = 0; col < shape[row].length; col++) {
+          if (shape[row][col] === 1) {
+            sumX += x + col;
+            sumY += y + row;
+            count++;
+          }
+        }
+      }
+      if (count > 0) {
+        cx = sumX / count;
+        cy = sumY / count;
+      }
+    }
+    const centerX = (boardSize - 1) / 2;
+    const centerY = (boardSize - 1) / 2;
+    const distanceToCenter = Math.sqrt(Math.pow(cx - centerX, 2) + Math.pow(cy - centerY, 2));
     const maxDistance = Math.sqrt(Math.pow(boardSize / 2, 2) * 2);
-    return Math.max(0, (maxDistance - distanceToCenter)) * 15;
+    return Math.max(0, (maxDistance - distanceToCenter)) * 20;
   }
   
   private getSurroundingScore(board: number[][], x: number, y: number, shape: number[][]): number {

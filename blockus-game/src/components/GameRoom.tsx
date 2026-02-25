@@ -418,6 +418,7 @@ const GameRoom: React.FC = () => {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const [selectedAIDifficulty, setSelectedAIDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [selectedAIStrategy, setSelectedAIStrategy] = useState<'aggressive' | 'balanced' | 'defensive'>('balanced');
   const [isLoading, setIsLoading] = useState(true);
   const [loadTimeout, setLoadTimeout] = useState(false);
   const retryCountRef = React.useRef(0);
@@ -556,7 +557,7 @@ const GameRoom: React.FC = () => {
 
   const handleAddAI = async () => {
     soundManager.buttonClick();
-    await addAI(targetRoom.id, selectedAIDifficulty);
+    await addAI(targetRoom.id, selectedAIDifficulty, selectedAIStrategy);
   };
 
   const handleToggleReady = async () => {
@@ -688,6 +689,15 @@ const GameRoom: React.FC = () => {
                     <option value="easy">{t('settings.easy')}</option>
                     <option value="medium">{t('settings.medium')}</option>
                     <option value="hard">{t('settings.hard')}</option>
+                  </AISelect>
+                  <AISelect
+                    value={selectedAIStrategy}
+                    onChange={(e) => setSelectedAIStrategy(e.target.value as 'aggressive' | 'balanced' | 'defensive')}
+                    onMouseEnter={() => soundManager.buttonHover()}
+                  >
+                    <option value="aggressive">{t('settings.strategyAggressive')}</option>
+                    <option value="balanced">{t('settings.strategyBalanced')}</option>
+                    <option value="defensive">{t('settings.strategyDefensive')}</option>
                   </AISelect>
                   <AddAIButton 
                     onClick={handleAddAI} 
