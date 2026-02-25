@@ -156,14 +156,15 @@ export function useCreativeGameState() {
   // ==================== 初始化 ====================
 
   useEffect(() => {
-    const strategy = gameSettings.aiStrategy ?? 'balanced';
+    const defaultStrategy = gameSettings.aiStrategy ?? 'balanced';
+    const strategies = gameSettings.aiStrategies ?? [defaultStrategy, defaultStrategy, defaultStrategy];
     const ais = [
-      new AIPlayer('yellow', gameSettings.aiDifficulty, 'red', strategy),
-      new AIPlayer('blue', gameSettings.aiDifficulty, 'red', strategy),
-      new AIPlayer('green', gameSettings.aiDifficulty, 'red', strategy),
+      new AIPlayer('yellow', gameSettings.aiDifficulty, 'red', strategies[0] ?? defaultStrategy),
+      new AIPlayer('blue', gameSettings.aiDifficulty, 'red', strategies[1] ?? defaultStrategy),
+      new AIPlayer('green', gameSettings.aiDifficulty, 'red', strategies[2] ?? defaultStrategy),
     ];
     setAiPlayers(ais);
-  }, [gameSettings.aiDifficulty, gameSettings.aiStrategy]);
+  }, [gameSettings.aiDifficulty, gameSettings.aiStrategy, gameSettings.aiStrategies]);
 
   function initializeGameState(): GameState {
     const lang = getCurrentLanguage();

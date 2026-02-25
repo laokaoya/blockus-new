@@ -71,16 +71,17 @@ export function useGameState() {
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeoutCountRef = useRef<Record<string, number>>({});
   
-  // 初始化AI玩家
+  // 初始化AI玩家（快速模式支持每个 AI 随机策略）
   useEffect(() => {
-    const strategy = gameSettings.aiStrategy ?? 'balanced';
+    const defaultStrategy = gameSettings.aiStrategy ?? 'balanced';
+    const strategies = gameSettings.aiStrategies ?? [defaultStrategy, defaultStrategy, defaultStrategy];
     const ais = [
-      new AIPlayer('yellow', gameSettings.aiDifficulty, 'red', strategy),
-      new AIPlayer('blue', gameSettings.aiDifficulty, 'red', strategy),
-      new AIPlayer('green', gameSettings.aiDifficulty, 'red', strategy)
+      new AIPlayer('yellow', gameSettings.aiDifficulty, 'red', strategies[0] ?? defaultStrategy),
+      new AIPlayer('blue', gameSettings.aiDifficulty, 'red', strategies[1] ?? defaultStrategy),
+      new AIPlayer('green', gameSettings.aiDifficulty, 'red', strategies[2] ?? defaultStrategy)
     ];
     setAiPlayers(ais);
-  }, [gameSettings.aiDifficulty, gameSettings.aiStrategy]);
+  }, [gameSettings.aiDifficulty, gameSettings.aiStrategy, gameSettings.aiStrategies]);
   
   // 初始化游戏状态
   function initializeGameState(): GameState {

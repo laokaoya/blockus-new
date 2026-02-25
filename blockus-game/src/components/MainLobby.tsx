@@ -9,6 +9,7 @@ import GameRulesModal from './GameRulesModal';
 import RoomList from './RoomList';
 import LadderBoard from './LadderBoard';
 import soundManager from '../utils/soundManager';
+import { getRandomAIStrategy } from '../types/game';
 import { SettingsIcon, UserIcon, BookIcon, RocketIcon, LogoutIcon } from './Icons';
 
 interface UserStats {
@@ -382,7 +383,8 @@ const MainLobby: React.FC = () => {
   const handleQuickClassic = async () => {
     soundManager.buttonClick();
     if (!user || isQuickStarting) return;
-    const settings = { aiDifficulty: 'medium' as const, timeLimit: 60, showHints: true, soundEnabled: true };
+    const strategies = [getRandomAIStrategy(), getRandomAIStrategy(), getRandomAIStrategy()];
+    const settings = { aiDifficulty: 'medium' as const, aiStrategies: strategies, timeLimit: 60, showHints: true, soundEnabled: true };
     localStorage.setItem('gameSettings', JSON.stringify(settings));
     if (!isOnline) {
       navigate('/game', { state: { showTransition: true } });
@@ -398,9 +400,9 @@ const MainLobby: React.FC = () => {
         { skipSetCurrentRoom: true }
       );
       if (!room) throw new Error('创建失败');
-      await addAI(room.id, settings.aiDifficulty);
-      await addAI(room.id, settings.aiDifficulty);
-      await addAI(room.id, settings.aiDifficulty);
+      await addAI(room.id, settings.aiDifficulty, strategies[0]);
+      await addAI(room.id, settings.aiDifficulty, strategies[1]);
+      await addAI(room.id, settings.aiDifficulty, strategies[2]);
       await setReady(room.id, true);
       const ok = await startGame(room.id);
       if (ok) {
@@ -419,7 +421,8 @@ const MainLobby: React.FC = () => {
   const handleQuickCreative = async () => {
     soundManager.buttonClick();
     if (!user || isQuickStarting) return;
-    const settings = { aiDifficulty: 'medium' as const, timeLimit: 60, showHints: true, soundEnabled: true };
+    const strategies = [getRandomAIStrategy(), getRandomAIStrategy(), getRandomAIStrategy()];
+    const settings = { aiDifficulty: 'medium' as const, aiStrategies: strategies, timeLimit: 60, showHints: true, soundEnabled: true };
     localStorage.setItem('gameSettings', JSON.stringify(settings));
     if (!isOnline) {
       navigate('/creative', { state: { showTransition: true } });
@@ -435,9 +438,9 @@ const MainLobby: React.FC = () => {
         { skipSetCurrentRoom: true }
       );
       if (!room) throw new Error('创建失败');
-      await addAI(room.id, settings.aiDifficulty);
-      await addAI(room.id, settings.aiDifficulty);
-      await addAI(room.id, settings.aiDifficulty);
+      await addAI(room.id, settings.aiDifficulty, strategies[0]);
+      await addAI(room.id, settings.aiDifficulty, strategies[1]);
+      await addAI(room.id, settings.aiDifficulty, strategies[2]);
       await setReady(room.id, true);
       const ok = await startGame(room.id);
       if (ok) {

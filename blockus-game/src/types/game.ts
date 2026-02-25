@@ -152,11 +152,16 @@ export interface RoomMessage {
 // 扩展游戏设置类型
 export type AIStrategy = 'aggressive' | 'balanced' | 'defensive' | 'expansionist' | 'blocker' | 'conservative' | 'gapMinimizer' | 'hunter';
 
+const AI_STRATEGIES: AIStrategy[] = ['aggressive', 'balanced', 'defensive', 'expansionist', 'blocker', 'conservative', 'gapMinimizer', 'hunter'];
+export const getRandomAIStrategy = (): AIStrategy => AI_STRATEGIES[Math.floor(Math.random() * AI_STRATEGIES.length)];
+
 export interface GameSettings {
   boardSize: number;
   turnTimeLimit: number;
   aiDifficulty: 'easy' | 'medium' | 'hard';
   aiStrategy?: AIStrategy;
+  /** 快速模式：每个 AI 使用不同随机策略 */
+  aiStrategies?: AIStrategy[];
   timeLimit: number;
   showHints: boolean;
   soundEnabled: boolean;
