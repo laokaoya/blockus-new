@@ -16,74 +16,80 @@ interface GameRecordBrief {
 }
 
 const glowPulse = keyframes`
-  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3), inset 0 0 20px rgba(99, 102, 241, 0.05); }
-  50% { box-shadow: 0 0 30px rgba(99, 102, 241, 0.5), inset 0 0 25px rgba(99, 102, 241, 0.08); }
+  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
+  50% { box-shadow: 0 0 28px rgba(99, 102, 241, 0.45); }
+`;
+
+const fadeInUp = keyframes`
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 `;
 
 const ProfileContainer = styled.div`
-  height: 100vh;
+  min-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px;
-  padding-bottom: 48px;
+  padding: 20px;
+  padding-bottom: 40px;
   background: var(--bg-gradient);
   position: relative;
   -webkit-overflow-scrolling: touch;
   
+  /* 棋盘格背景 - 与游戏风格呼应 */
   &::before {
     content: '';
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 50%);
+    background-image: 
+      linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  &::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.06) 0%, transparent 55%);
     pointer-events: none;
     z-index: 0;
   }
   
   @media (min-width: 768px) {
-    padding: 40px;
-    padding-bottom: 60px;
+    padding: 32px;
   }
 `;
 
 const ProfileCard = styled.div`
   position: relative;
   z-index: 1;
-  background: var(--surface-color);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--surface-border);
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(99, 102, 241, 0.15);
   border-radius: 20px;
-  padding: 36px;
-  max-width: 900px;
+  padding: 28px;
+  max-width: 720px;
   margin: 0 auto;
-  margin-bottom: 32px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.5), transparent);
-    border-radius: 20px 20px 0 0;
-  }
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  animation: ${fadeInUp} 0.4s ease-out;
   
   @media (max-width: 768px) {
-    padding: 24px;
+    padding: 20px;
   }
 `;
 
+/* 紧凑头部：头像 + 信息一行 */
 const Header = styled.div`
   display: flex;
   align-items: center;
-  gap: 32px;
-  margin-bottom: 36px;
-  padding-bottom: 28px;
-  border-bottom: 1px solid var(--surface-border);
+  gap: 20px;
+  margin-bottom: 24px;
   
   @media (max-width: 768px) {
     flex-direction: column;
     text-align: center;
-    gap: 24px;
+    gap: 16px;
   }
 `;
 
@@ -94,74 +100,81 @@ const AvatarWrapper = styled.div`
   &::after {
     content: '';
     position: absolute;
-    inset: -4px;
+    inset: -3px;
     border-radius: 50%;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(139, 92, 246, 0.4));
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(139, 92, 246, 0.35));
     z-index: -1;
-    opacity: 0.6;
-    filter: blur(12px);
+    opacity: 0.7;
+    filter: blur(10px);
   }
 `;
 
 const Avatar = styled.div<{ image?: string }>`
-  width: 128px;
-  height: 128px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   background: ${props => props.image ? `url(${props.image}) center/cover` : 'linear-gradient(135deg, #6366f1, #8b5cf6)'};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3.2rem;
+  font-size: 2rem;
   color: white;
   font-weight: 700;
-  border: 3px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  animation: ${glowPulse} 3s ease-in-out infinite;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  animation: ${glowPulse} 4s ease-in-out infinite;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 `;
 
 const UserInfo = styled.div`
   flex: 1;
   min-width: 0;
-`;
-
-const UserName = styled.h1`
-  margin: 0 0 8px 0;
-  color: var(--text-primary);
-  font-size: 2.2rem;
-  font-weight: 700;
-  font-family: 'Orbitron', 'Rajdhani', sans-serif;
-  text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
-  letter-spacing: 1px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
   
   @media (max-width: 768px) {
-    font-size: 1.8rem;
+    justify-content: center;
   }
 `;
 
-const UserMeta = styled.div`
-  color: var(--text-secondary);
-  font-size: 1rem;
-  margin-bottom: 12px;
+const UserName = styled.h1`
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-family: 'Orbitron', 'Rajdhani', sans-serif;
+  letter-spacing: 0.5px;
+  
+  @media (max-width: 768px) {
+    font-size: 1.4rem;
+  }
+`;
+
+const UserMeta = styled.span`
+  color: var(--text-muted);
+  font-size: 0.9rem;
   font-family: 'Rajdhani', sans-serif;
 `;
 
 const UserBio = styled.p`
   color: var(--text-muted);
-  font-size: 1rem;
-  line-height: 1.6;
-  margin: 0 0 16px 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 8px 0 0 0;
   font-style: italic;
-  max-width: 400px;
+  width: 100%;
+  max-width: 360px;
 `;
 
 const EditButton = styled.button`
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
   color: var(--primary-color);
   border: 1px solid rgba(99, 102, 241, 0.4);
-  padding: 10px 24px;
-  border-radius: 12px;
-  font-size: 0.95rem;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s ease;
   font-weight: 600;
@@ -170,100 +183,104 @@ const EditButton = styled.button`
   letter-spacing: 0.5px;
   
   &:hover {
-    background: rgba(99, 102, 241, 0.25);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    background: rgba(99, 102, 241, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
   }
 `;
 
 const StatsSection = styled.div`
-  margin-bottom: 36px;
+  margin-bottom: 20px;
 `;
 
 const SectionTitle = styled.h2`
-  color: var(--text-primary);
-  margin: 0 0 20px 0;
-  font-size: 1.4rem;
+  color: var(--text-secondary);
+  margin: 0 0 14px 0;
+  font-size: 0.8rem;
   font-family: 'Orbitron', sans-serif;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 2px;
-  display: flex;
-  align-items: center;
+`;
+
+/* 4 格统计 - 游戏棋子风格 */
+const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
+  margin-bottom: 20px;
   
-  &::before {
-    content: '';
-    width: 4px;
-    height: 24px;
-    background: linear-gradient(180deg, var(--primary-color), #8b5cf6);
-    border-radius: 2px;
+  @media (max-width: 600px) {
+    grid-template-columns: repeat(2, 1fr);
   }
 `;
 
-/* 核心指标紧凑行 */
-const CompactStatsRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-  margin: 16px 0 20px;
-  padding: 12px 20px;
-  background: rgba(0, 0, 0, 0.15);
+const StatTile = styled.div`
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.06));
+  border: 1px solid rgba(99, 102, 241, 0.2);
   border-radius: 12px;
-  border: 1px solid var(--surface-border);
-`;
-
-const CompactStat = styled.span`
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-  font-family: 'Rajdhani', sans-serif;
-  font-weight: 600;
+  padding: 16px;
+  text-align: center;
+  transition: all 0.2s ease;
   
-  strong {
-    color: var(--primary-color);
-    margin-right: 4px;
+  &:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
   }
 `;
 
-/* 详细统计入口按钮 */
+const StatValue = styled.div`
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  font-family: 'Orbitron', sans-serif;
+  line-height: 1.2;
+`;
+
+const StatLabel = styled.div`
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
 const DetailStatsButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 14px 24px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
-  border: 1px solid rgba(99, 102, 241, 0.4);
-  border-radius: 12px;
+  padding: 12px 20px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 10px;
   color: var(--primary-color);
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   font-family: 'Rajdhani', sans-serif;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.2s ease;
   
   &:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.25));
-    border-color: rgba(99, 102, 241, 0.6);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.25);
+    background: rgba(99, 102, 241, 0.18);
+    border-color: rgba(99, 102, 241, 0.45);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
   }
 `;
 
-/* 游戏化：段位徽章 */
 const RankBadge = styled.div<{ $tier: number }>`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  padding: 4px 12px;
   border-radius: 20px;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-top: 8px;
+  letter-spacing: 0.5px;
   background: ${p => {
     const gradients: Record<number, string> = {
       0: 'linear-gradient(135deg, #94a3b8, #64748b)',
@@ -276,74 +293,30 @@ const RankBadge = styled.div<{ $tier: number }>`
     return gradients[p.$tier] || gradients[0];
   }};
   color: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.2);
 `;
 
-/* 游戏化：核心数据突出区 */
-const HeroStats = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 0;
-`;
-
-const HeroStatCard = styled.div`
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.1));
-  border: 1px solid rgba(99, 102, 241, 0.35);
-  border-radius: 16px;
-  padding: 24px;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
-  }
-`;
-
-const HeroStatValue = styled.div`
-  font-size: 2.5rem;
-  font-weight: 800;
-  color: var(--primary-color);
-  font-family: 'Orbitron', sans-serif;
-  text-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
-`;
-
-const HeroStatLabel = styled.div`
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  margin-top: 4px;
-  font-weight: 600;
-`;
-
-/* 最近对局 */
 const RecentMatchesSection = styled.div`
-  margin-top: 28px;
+  margin-top: 20px;
 `;
 
 const MatchCard = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
-  margin-bottom: 10px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.03));
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(99, 102, 241, 0.12);
-    border-color: rgba(99, 102, 241, 0.4);
-    transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.35);
+    transform: translateX(3px);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
   }
 `;
 
@@ -355,43 +328,45 @@ const MatchInfo = styled.div`
 const MatchDate = styled.div`
   font-weight: 600;
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 `;
 
 const MatchMeta = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 4px;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
 `;
 
 const ResultBadge = styled.span<{ $isWin: boolean }>`
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.7rem;
   font-weight: 700;
   background: ${p => p.$isWin ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'};
   color: ${p => p.$isWin ? '#10b981' : '#ef4444'};
 `;
 
 const ViewReplayBtn = styled.span`
-  padding: 8px 16px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
+  padding: 6px 12px;
+  background: rgba(99, 102, 241, 0.15);
   color: var(--primary-color);
-  border-radius: 10px;
-  font-size: 0.85rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  border: 1px solid rgba(99, 102, 241, 0.25);
 `;
 
 const ActionsSection = styled.div`
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 24px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(99, 102, 241, 0.12);
   
   @media (max-width: 768px) {
     justify-content: center;
@@ -399,51 +374,51 @@ const ActionsSection = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background: var(--surface-highlight);
+  background: rgba(99, 102, 241, 0.1);
   color: var(--text-primary);
-  border: 1px solid var(--surface-border);
-  padding: 12px 24px;
-  border-radius: 12px;
-  font-size: 0.95rem;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
   font-weight: 600;
   font-family: 'Rajdhani', sans-serif;
   
   &:hover {
-    background: var(--surface-border);
-    border-color: var(--primary-color);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.45);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
   }
 `;
 
 const LogoutButton = styled.button`
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  padding: 12px 24px;
-  border-radius: 12px;
-  font-size: 0.95rem;
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
   font-weight: 600;
   font-family: 'Rajdhani', sans-serif;
   
   &:hover {
-    background: rgba(239, 68, 68, 0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    background: rgba(239, 68, 68, 0.15);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
   }
 `;
 
 const DeleteAccountButton = styled.button`
-  background: rgba(127, 29, 29, 0.15);
-  color: #dc2626;
-  border: 1px solid rgba(220, 38, 38, 0.4);
-  padding: 12px 24px;
-  border-radius: 12px;
-  font-size: 0.9rem;
+  background: rgba(127, 29, 29, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s ease;
   font-weight: 600;
@@ -458,23 +433,24 @@ const DeleteAccountButton = styled.button`
 `;
 
 const BackButton = styled.button`
-  background: var(--surface-highlight);
-  color: var(--text-primary);
-  border: 1px solid var(--surface-border);
-  padding: 10px 24px;
-  border-radius: 12px;
-  font-size: 0.95rem;
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--text-secondary);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  padding: 8px 20px;
+  border-radius: 10px;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   backdrop-filter: blur(8px);
   font-weight: 600;
   font-family: 'Rajdhani', sans-serif;
   
   &:hover {
-    background: var(--surface-border);
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--text-primary);
     transform: translateX(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
   }
 `;
 
@@ -683,21 +659,21 @@ const CancelButton = styled.button`
 `;
 
 const PasswordSection = styled.div`
-  margin-top: 20px;
-  padding: 20px;
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 12px;
-  border: 1px solid var(--surface-border);
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: 10px;
+  border: 1px solid rgba(99, 102, 241, 0.12);
 `;
 
 const PasswordTitle = styled.h3`
-  color: var(--text-primary);
-  margin: 0 0 16px 0;
-  font-size: 1rem;
+  color: var(--text-secondary);
+  margin: 0 0 12px 0;
+  font-size: 0.75rem;
   font-family: 'Orbitron', sans-serif;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
 `;
 
 const PasswordForm = styled.form`
@@ -745,56 +721,6 @@ const SmallButton = styled.button`
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
-  }
-`;
-
-const AccountPanel = styled.div`
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(139, 92, 246, 0.02));
-  border-radius: 14px;
-  padding: 20px;
-  border: 1px solid rgba(99, 102, 241, 0.15);
-  margin-bottom: 24px;
-`;
-
-const InfoRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 0;
-  color: var(--text-secondary);
-  font-size: 0.95rem;
-  font-family: 'Rajdhani', sans-serif;
-
-  span.label {
-    color: var(--text-muted);
-    min-width: 90px;
-    font-weight: 500;
-  }
-
-  span.value {
-    color: var(--text-primary);
-    word-break: break-all;
-    font-weight: 600;
-  }
-
-  span.badge {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 8px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  span.guest-badge {
-    background: var(--surface-border);
-    color: var(--text-secondary);
-    padding: 4px 12px;
-    border-radius: 8px;
-    font-size: 0.75rem;
-    font-weight: 600;
   }
 `;
 
@@ -1089,36 +1015,40 @@ const UserProfile: React.FC = () => {
           <UserInfo>
             <UserName>{user.profile.nickname}</UserName>
             <RankBadge $tier={rankTier}>{rankLabels[rankTier]}</RankBadge>
-            <UserMeta>
-              {user.profile.age && `${user.profile.age}岁`}
-              {user.profile.gender && ` • ${formatGender(user.profile.gender)}`}
-              {user.profile.location && ` • ${user.profile.location}`}
-            </UserMeta>
+            {(user.profile.age || user.profile.gender || user.profile.location) && (
+              <UserMeta>
+                {user.profile.age && `${user.profile.age}岁`}
+                {user.profile.gender && ` • ${formatGender(user.profile.gender)}`}
+                {user.profile.location && ` • ${user.profile.location}`}
+              </UserMeta>
+            )}
             {user.profile.bio && <UserBio>"{user.profile.bio}"</UserBio>}
-            <div style={{ marginTop: '16px' }}>
-              <EditButton onClick={() => { soundManager.buttonClick(); handleEditProfile(); }} onMouseEnter={() => soundManager.buttonHover()}>
-                {t('player.editProfile') || '编辑资料'}
-              </EditButton>
-            </div>
+            <EditButton onClick={() => { soundManager.buttonClick(); handleEditProfile(); }} onMouseEnter={() => soundManager.buttonHover()}>
+              {t('player.editProfile') || '编辑资料'}
+            </EditButton>
           </UserInfo>
         </Header>
 
         <StatsSection>
           <SectionTitle>{t('statistics.title') || '游戏统计'}</SectionTitle>
-          <HeroStats>
-            <HeroStatCard>
-              <HeroStatValue>{user.stats.winRate.toFixed(1)}%</HeroStatValue>
-              <HeroStatLabel>{t('statistics.winRate') || '胜率'}</HeroStatLabel>
-            </HeroStatCard>
-            <HeroStatCard>
-              <HeroStatValue>{ladderPoints}</HeroStatValue>
-              <HeroStatLabel>{t('ladder.points') || '天梯积分'}</HeroStatLabel>
-            </HeroStatCard>
-          </HeroStats>
-          <CompactStatsRow>
-            <CompactStat><strong>{user.stats.totalGames}</strong>{t('statistics.gamesShort') || '局'}</CompactStat>
-            <CompactStat><strong>{user.stats.totalWins}</strong>{t('statistics.winsShort') || '胜'}</CompactStat>
-          </CompactStatsRow>
+          <StatsGrid>
+            <StatTile>
+              <StatValue>{user.stats.winRate.toFixed(1)}%</StatValue>
+              <StatLabel>{t('statistics.winRate') || '胜率'}</StatLabel>
+            </StatTile>
+            <StatTile>
+              <StatValue>{ladderPoints}</StatValue>
+              <StatLabel>{t('ladder.points') || '天梯积分'}</StatLabel>
+            </StatTile>
+            <StatTile>
+              <StatValue>{user.stats.totalGames}</StatValue>
+              <StatLabel>{t('statistics.gamesShort') || '局'}</StatLabel>
+            </StatTile>
+            <StatTile>
+              <StatValue>{user.stats.totalWins}</StatValue>
+              <StatLabel>{t('statistics.winsShort') || '胜'}</StatLabel>
+            </StatTile>
+          </StatsGrid>
           <DetailStatsButton onClick={() => { soundManager.buttonClick(); handleViewStats(); }} onMouseEnter={() => soundManager.buttonHover()}>
             {t('statistics.viewDetails') || '查看详细统计'}
             <span style={{ opacity: 0.8 }}>→</span>
@@ -1127,7 +1057,7 @@ const UserProfile: React.FC = () => {
           <RecentMatchesSection>
             <SectionTitle>{t('statistics.recentMatches') || '最近对局'}</SectionTitle>
             {gameHistory.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
+              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                 {t('statistics.noHistory') || '暂无历史对局记录'}
               </div>
             ) : (
@@ -1149,33 +1079,7 @@ const UserProfile: React.FC = () => {
           </RecentMatchesSection>
         </StatsSection>
 
-        <div>
-          <SectionTitle>{t('profile.accountInfo') || t('login.accountInfo') || '账户信息'}</SectionTitle>
-          <AccountPanel>
-            <InfoRow>
-              <span className="label">账户类型</span>
-              {isGuest
-                ? <span className="guest-badge">访客</span>
-                : <span className="badge">邮箱用户</span>
-              }
-            </InfoRow>
-            {user.profile.email && (
-              <InfoRow>
-                <span className="label">邮箱</span>
-                <span className="value">{user.profile.email}</span>
-              </InfoRow>
-            )}
-            <InfoRow>
-              <span className="label">注册时间</span>
-              <span className="value">{formatDate(user.profile.createdAt)}</span>
-            </InfoRow>
-            <InfoRow>
-              <span className="label">{t('player.lastLogin') || '最后登录'}</span>
-              <span className="value">{formatDate(user.profile.lastLoginAt)}</span>
-            </InfoRow>
-          </AccountPanel>
-
-          {firebaseUser && firebaseUser.email && (
+        {firebaseUser && firebaseUser.email && (
             <PasswordSection>
               <PasswordTitle>安全设置</PasswordTitle>
               {!showPasswordForm ? (
@@ -1220,7 +1124,6 @@ const UserProfile: React.FC = () => {
               {passwordMsg && !showPasswordForm && <AlertMessage type={passwordMsg.type} style={{ marginTop: '10px' }}>{passwordMsg.text}</AlertMessage>}
             </PasswordSection>
           )}
-        </div>
 
         <ActionsSection>
           <ActionButton onClick={() => { soundManager.buttonClick(); handleEditProfile(); }} onMouseEnter={() => soundManager.buttonHover()}>
