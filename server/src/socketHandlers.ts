@@ -2,6 +2,7 @@ import { Server, Socket } from 'socket.io';
 import { RoomManager } from './roomManager';
 import { GameManager } from './gameManager';
 import { verifyToken, verifyFirebaseToken, generateToken, generateTokenForFirebaseUser } from './auth';
+import { claimNickname } from './auth/nicknameService';
 import { ServerToClientEvents, ClientToServerEvents, TokenPayload } from './types';
 
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -71,6 +72,8 @@ export function setupSocketHandlers(
       if (fbDecoded) {
         socket.data.userId = `fb_${fbDecoded.uid}`;
         socket.data.nickname = fbDecoded.name || fbDecoded.email?.split('@')[0] || 'Player';
+        // 老用户首次连接时同步昵称到 Firestore，以便重名检测
+        claimNickname(socket.data.nickname, fbDecoded.uid).catch(() => {});
         return next();
       }
     }

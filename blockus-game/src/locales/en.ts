@@ -291,6 +291,7 @@ export const en = {
     loginFailed: 'Login failed, please try again',
     registerFailed: 'Registration failed, please try again',
     emailAlreadyInUse: 'This email is already registered',
+    nicknameTaken: 'This nickname is already taken, please choose another',
     wrongPassword: 'Incorrect password',
     userNotFound: 'No account found with this email',
     tooManyRequests: 'Too many attempts. Please try again later.',

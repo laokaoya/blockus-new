@@ -14,6 +14,7 @@ import {
 import { auth } from '../config/firebase';
 import { User, UserProfile, UserStats } from '../types/game';
 import socketService from '../services/socketService';
+import { registerWithServer } from '../services/authApi';
 
 interface AuthContextType {
   user: User | null;
@@ -22,7 +23,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   isGuest: boolean;
-  registerWithEmail: (email: string, password: string, nickname: string) => Promise<void>;
+  registerWithEmail: (email: string, password: string, nickname: string, verificationCode: string) => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
   loginAsGuest: (profile: UserProfile) => Promise<boolean>;
   resetPassword: (email: string) => Promise<void>;
@@ -182,9 +183,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const registerWithEmail = useCallback(async (email: string, password: string, nickname: string) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await fbUpdateProfile(cred.user, { displayName: nickname });
+  const registerWithEmail = useCallback(async (email: string, password: string, nickname: string, verificationCode: string) => {
+    const { success, error } = await registerWithServer(email, password, nickname, verificationCode);
+    if (!success) {
+      const err = new Error(error || 'REGISTER_FAILED') as Error & { code?: string };
+      err.code = error;
+      throw err;
+    }
+    await signInWithEmailAndPassword(auth, email, password);
     // onAuthStateChanged will handle the rest
   }, []);
 

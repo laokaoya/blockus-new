@@ -374,6 +374,7 @@ export const zh = {
     loginFailed: '登录失败，请重试',
     registerFailed: '注册失败，请重试',
     emailAlreadyInUse: '该邮箱已被注册',
+    nicknameTaken: '该昵称已被占用，请换一个',
     wrongPassword: '密码错误',
     userNotFound: '该邮箱未注册',
     tooManyRequests: '操作过于频繁，请稍后再试',

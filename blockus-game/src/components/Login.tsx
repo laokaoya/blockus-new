@@ -4,7 +4,7 @@ import styled, { keyframes } from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { UserProfile } from '../types/game';
-import { sendVerificationCode as apiSendCode, verifyCode as apiVerifyCode } from '../services/authApi';
+import { sendVerificationCode as apiSendCode } from '../services/authApi';
 
 type AuthMode = 'login' | 'register' | 'reset';
 
@@ -244,9 +244,12 @@ const GuestNicknameRow = styled.div`
   > div { flex: 1; }
 `;
 
-function mapFirebaseError(code: string, t: (key: string) => string): string {
+function mapAuthError(code: string, t: (key: string) => string): string {
   switch (code) {
-    case 'auth/email-already-in-use': return t('login.emailAlreadyInUse');
+    case 'NICKNAME_TAKEN': return t('login.nicknameTaken');
+    case 'CODE_INVALID': return t('login.codeInvalid');
+    case 'auth/email-already-in-use':
+    case 'EMAIL_ALREADY_IN_USE': return t('login.emailAlreadyInUse');
     case 'auth/wrong-password':
     case 'auth/invalid-credential': return t('login.wrongPassword');
     case 'auth/user-not-found': return t('login.userNotFound');
@@ -316,13 +319,7 @@ const Login: React.FC = () => {
     setIsSubmitting(true);
     try {
       if (mode === 'register') {
-        const { valid } = await apiVerifyCode(email.trim(), verificationCode.trim());
-        if (!valid) {
-          setError(t('login.codeInvalid'));
-          setIsSubmitting(false);
-          return;
-        }
-        await registerWithEmail(email, password, nickname.trim());
+        await registerWithEmail(email, password, nickname.trim(), verificationCode.trim());
       } else {
         await loginWithEmail(email, password);
       }
@@ -330,7 +327,7 @@ const Login: React.FC = () => {
     } catch (err: any) {
       console.error('[Login] Auth error:', err?.code, err?.message, err);
       const code = err?.code || '';
-      setError(mapFirebaseError(code, t));
+      setError(mapAuthError(code, t));
     } finally {
       setIsSubmitting(false);
     }
@@ -350,7 +347,7 @@ const Login: React.FC = () => {
       setSuccess(t('login.resetPasswordSent'));
     } catch (err: any) {
       const code = err?.code || '';
-      setError(mapFirebaseError(code, t));
+      setError(mapAuthError(code, t));
     } finally {
       setIsSubmitting(false);
     }
