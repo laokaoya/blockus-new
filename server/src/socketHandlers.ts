@@ -70,10 +70,11 @@ export function setupSocketHandlers(
       // Then try Firebase ID token
       const fbDecoded = await verifyFirebaseToken(token);
       if (fbDecoded) {
+        const nickname = fbDecoded.name || fbDecoded.email?.split('@')[0] || 'Player';
         socket.data.userId = `fb_${fbDecoded.uid}`;
-        socket.data.nickname = fbDecoded.name || fbDecoded.email?.split('@')[0] || 'Player';
+        socket.data.nickname = nickname;
         // 老用户首次连接时同步昵称到 Firestore，以便重名检测
-        claimNickname(socket.data.nickname, fbDecoded.uid).catch(() => {});
+        claimNickname(nickname, fbDecoded.uid).catch(() => {});
         return next();
       }
     }
