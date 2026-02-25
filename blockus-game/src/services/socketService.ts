@@ -54,9 +54,19 @@ class SocketService {
   // 连接到服务器；token 为字符串或返回新 token 的函数（用于 Firebase 用户，重连时自动刷新）
   connect(token?: string | TokenProvider): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      if (this.socket?.connected) {
+      // 若已有连接但传入 Firebase tokenProvider（如从 guest 切到邮箱登录），需断开重连以在握手时带上 Firebase token
+      const isFirebaseUser = typeof token === 'function';
+      const needsReconnect = this.socket?.connected && isFirebaseUser;
+      if (this.socket?.connected && !needsReconnect) {
         resolve();
         return;
+      }
+      if (needsReconnect) {
+        const oldSocket = this.socket;
+        this.socket = null;
+        this._isConnected = false;
+        oldSocket?.removeAllListeners();
+        oldSocket?.disconnect();
       }
 
       let authToken: string | undefined;
