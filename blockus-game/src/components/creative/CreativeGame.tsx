@@ -456,6 +456,7 @@ const LocalCreativeGame: React.FC = () => {
           gameState={gameState}
           onPlayAgain={handleReset}
           onBackToMenu={handleBackToLobby}
+          mode="creative"
         />
       ) : (
         <GameContainer>

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TrashIcon } from './Icons';
+import { exportGameRecords } from '../services/gameRecordsApi';
 
 interface GameRecord {
   id: string;
@@ -196,10 +197,27 @@ const ClearHistoryButton = styled.button`
   font-size: 0.9rem;
   font-weight: 500;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: var(--surface-highlight);
     color: var(--text-primary);
+  }
+`;
+
+const ExportHistoryButton = styled.button`
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+
+  &:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
   }
 `;
 
@@ -769,13 +787,18 @@ const Statistics: React.FC = () => {
             </StatsCard>
 
             <StatsCard>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid var(--surface-border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid var(--surface-border)', flexWrap: 'wrap', gap: 8 }}>
                 <CardTitle style={{ margin: 0, fontSize: '1.2rem', textAlign: 'left' }}>{t('statistics.gameHistory')}</CardTitle>
-                {gameHistory.length > 0 && (
-                  <ClearHistoryButton onClick={clearGameHistory}>
-                    {t('statistics.clearHistory')}
-                  </ClearHistoryButton>
-                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <ExportHistoryButton onClick={exportGameRecords}>
+                    {t('statistics.exportRecords')}
+                  </ExportHistoryButton>
+                  {gameHistory.length > 0 && (
+                    <ClearHistoryButton onClick={clearGameHistory}>
+                      {t('statistics.clearHistory')}
+                    </ClearHistoryButton>
+                  )}
+                </div>
               </div>
               <HistoryList>
                 {gameHistory.length === 0 ? (

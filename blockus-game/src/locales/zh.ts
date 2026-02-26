@@ -258,6 +258,7 @@ export const zh = {
     play: '播放',
     pause: '暂停',
     clearHistory: '清除记录',
+    exportRecords: '导出对局',
     clearConfirm: '确定要清除所有历史对局记录吗？此操作不可恢复。',
     viewDetails: '查看详细统计',
     showFinalBoard: '查看最终棋盘',

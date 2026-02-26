@@ -8,12 +8,15 @@ import { PLAYER_COLORS } from '../constants/pieces';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import soundManager from '../utils/soundManager';
+import { saveGameRecord } from '../services/gameRecordsApi';
 
 interface GameOverProps {
   players: Player[];
   gameState: GameState;
   onPlayAgain: () => void;
   onBackToMenu: () => void;
+  /** 对局模式，用于服务端存储 */
+  mode?: 'classic' | 'creative' | 'multiplayer';
 }
 
 // --- Animations ---
@@ -426,11 +429,12 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' }>`
   }
 `;
 
-const GameOver: React.FC<GameOverProps> = ({ 
+const GameOver: React.FC<GameOverProps> = ({
   players, 
   gameState,
   onPlayAgain, 
-  onBackToMenu 
+  onBackToMenu,
+  mode: modeProp,
 }) => {
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -513,10 +517,26 @@ const GameOver: React.FC<GameOverProps> = ({
       history.unshift(gameRecord);
       if (history.length > 50) history.splice(50);
       localStorage.setItem('gameHistory', JSON.stringify(history));
+
+      // 同步保存到服务端（静默失败）
+      const mode = modeProp ?? (gameState.creativeState ? 'creative' : 'classic');
+      saveGameRecord({
+        ...gameRecord,
+        mode,
+        players: players.map(p => ({
+          id: p.id,
+          name: p.name,
+          color: p.color,
+          score: p.score,
+          isWinner: p.score === maxScore,
+          isAI: p.isAI,
+        })),
+        userId: user?.profile.id,
+      });
     } catch (e) {
       console.warn('Failed to persist game data to localStorage:', e);
     }
-  }, [players, gameState, user, updateStats]);
+  }, [players, gameState, user, updateStats, modeProp]);
   
   const handleBackToLobby = () => {
     soundManager.buttonClick();

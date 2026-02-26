@@ -5,6 +5,9 @@ node_modules/
 # Build output
 build/
 dist/
+
+# Server data (game records)
+server/data/
 **/build/
 **/dist/
 

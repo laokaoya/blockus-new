@@ -379,19 +379,19 @@ export class AIPlayer {
     }
     ourClusterCount = this.countClusters(board, this.colorIndex);
     const opponentCenters = new Map<number, { cx: number; cy: number; count: number }>();
-    for (const [c, s] of opponentSums) {
+    Array.from(opponentSums.entries()).forEach(([c, s]) => {
       if (s.count > 0) {
         opponentCenters.set(c, { cx: s.sx / s.count, cy: s.sy / s.count, count: s.count });
       }
-    }
+    });
     let leadingOpponent = 0;
     let maxCount = 0;
-    for (const [c, n] of opponentCellCounts) {
+    Array.from(opponentCellCounts.entries()).forEach(([c, n]) => {
       if (n > maxCount) {
         maxCount = n;
         leadingOpponent = c;
       }
-    }
+    });
     return { opponentExpansionSpots, opponentCenters, leadingOpponent, ourExpansionSpots, ourCellCount, ourClusterCount, opponentCellCounts, threatLevel };
   }
 
@@ -430,8 +430,8 @@ export class AIPlayer {
     const bs = board.length;
     const boardCenter = (bs - 1) / 2;
     let blockValue = 0;
-    for (const [colorIdx, spots] of analysis.opponentExpansionSpots) {
-      if (spots.size === 0) continue;
+    Array.from(analysis.opponentExpansionSpots.entries()).forEach(([colorIdx, spots]) => {
+      if (spots.size === 0) return;
       const humanBonus = this.humanColorIndices.has(colorIdx) ? 1.4 : 1.0;
       const gatewayBonus = spots.size <= 5 ? 1 + 0.6 * (1 - spots.size / 6) : 1;  // 关口：对手扩张点少时阻挡更值
       const center = analysis.opponentCenters.get(colorIdx);
@@ -454,7 +454,7 @@ export class AIPlayer {
           }
         }
       }
-    }
+    });
     return blockValue;
   }
 

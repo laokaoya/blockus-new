@@ -989,6 +989,7 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
           gameState={gameState} 
           onPlayAgain={handleQuitGame}
           onBackToMenu={handleBackToLobby}
+          mode="multiplayer"
         />
       ) : (
         <GameContainer>

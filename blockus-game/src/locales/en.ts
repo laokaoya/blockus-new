@@ -179,6 +179,7 @@ export const en = {
     play: 'Play',
     pause: 'Pause',
     clearHistory: 'Clear History',
+    exportRecords: 'Export Records',
     clearConfirm: 'Are you sure you want to clear all game history? This action cannot be undone.',
     viewDetails: 'View Detailed Statistics',
     showFinalBoard: 'Show Final Board',

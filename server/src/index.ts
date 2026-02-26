@@ -9,6 +9,7 @@ import { GameManager } from './gameManager';
 import { setupSocketHandlers } from './socketHandlers';
 import { ServerToClientEvents, ClientToServerEvents } from './types';
 import authRoutes from './auth/routes';
+import gameRecordsRoutes from './routes/gameRecords';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
@@ -23,6 +24,7 @@ if (IS_PRODUCTION) {
 }
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+app.use('/api/games', gameRecordsRoutes);
 
 const httpServer = createServer(app);
 
