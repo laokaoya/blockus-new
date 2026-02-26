@@ -53,12 +53,18 @@ const Container = styled.div`
   gap: 8px;
   width: 100%;
 
+  /* 移动端：2x2 网格，无左右滑动，自适应屏幕 */
   @media (max-width: 768px) {
-    flex-direction: row;
-    gap: 8px;
-    width: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
     height: 100%;
-    align-items: center;
+    overflow: hidden;
+  }
+  @media (max-width: 480px) {
+    gap: 4px;
   }
 `;
 
@@ -84,19 +90,19 @@ const PlayerCard = styled.div<{ color: string; $isCurrentTurn: boolean; $isThink
   }
 
   @media (max-width: 768px) {
-    min-width: 120px;
+    min-width: 0;
+    width: 100%;
     border-left: none;
     border-bottom: 4px solid ${props => {
       if (props.$isThinking) return '#ff4444';
       if (props.$isCurrentTurn) return PLAYER_COLORS[props.color];
       return 'transparent';
     }};
-    padding: 6px 10px;
+    padding: 4px 6px;
     background: ${props => props.$isCurrentTurn ? 'var(--surface-highlight)' : 'var(--surface-color)'};
   }
   @media (max-width: 480px) {
-    min-width: 100px;
-    padding: 4px 8px;
+    padding: 3px 4px;
   }
 `;
 
@@ -141,14 +147,14 @@ const PlayerAvatar = styled.div<{ color: string; $hasSteel?: boolean }>`
   `}
 
   @media (max-width: 768px) {
-    width: 28px;
-    height: 28px;
-    font-size: 12px;
-  }
-  @media (max-width: 480px) {
     width: 24px;
     height: 24px;
     font-size: 11px;
+  }
+  @media (max-width: 480px) {
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
   }
 `;
 
@@ -169,7 +175,10 @@ const PlayerName = styled.div`
   text-overflow: ellipsis;
 
   @media (max-width: 768px) {
-    font-size: 14px;
+    font-size: 12px;
+  }
+  @media (max-width: 480px) {
+    font-size: 11px;
   }
 `;
 
@@ -187,7 +196,10 @@ const PlayerStatus = styled.div<{ $isCurrentTurn: boolean; $isSettled: boolean; 
   gap: 4px;
 
   @media (max-width: 768px) {
-    font-size: 11px;
+    font-size: 10px;
+  }
+  @media (max-width: 480px) {
+    font-size: 9px;
   }
 `;
 
@@ -199,7 +211,10 @@ const ScoreBadge = styled.div`
   font-family: 'Rajdhani', sans-serif;
 
   @media (max-width: 768px) {
-    font-size: 16px;
+    font-size: 14px;
+  }
+  @media (max-width: 480px) {
+    font-size: 12px;
   }
 `;
 

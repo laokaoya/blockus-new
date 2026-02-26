@@ -68,10 +68,10 @@ const GameContent = styled.div`
   
   @media (max-width: 768px) {
     flex-direction: column;
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0));
+    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0));
   }
   @media (max-width: 480px) {
-    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0));
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0));
   }
 `;
 
@@ -90,15 +90,18 @@ const LeftPanel = styled.div`
   @media (max-width: 768px) {
     width: 100%;
     height: auto;
-    max-height: 52px;
-    flex-direction: row;
+    max-height: 96px;
+    display: flex;
     border-right: none;
     border-bottom: 1px solid var(--surface-border);
-    padding: 4px 6px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    padding: 6px 8px;
+    overflow: hidden;
     background: var(--surface-color);
     flex-shrink: 0;
+  }
+  @media (max-width: 480px) {
+    max-height: 88px;
+    padding: 4px 6px;
   }
 `;
 
@@ -110,8 +113,8 @@ const BoardArea = styled.div`
   position: relative;
   padding: 20px;
   overflow: hidden;
-  @media (max-width: 768px) { padding: 4px; }
-  @media (max-width: 480px) { padding: 2px; }
+  @media (max-width: 768px) { padding: 2px; }
+  @media (max-width: 480px) { padding: 1px; }
 `;
 
 const RightPanel = styled.div`
@@ -153,12 +156,12 @@ const BottomDock = styled.div`
     bottom: 0;
     left: 0;
     right: 0;
-    height: 68px;
+    height: 78px;
     padding: 0 6px;
     padding-bottom: max(6px, env(safe-area-inset-bottom, 0));
   }
   @media (max-width: 480px) {
-    height: 62px;
+    height: 72px;
     padding: 0 4px;
     padding-bottom: max(4px, env(safe-area-inset-bottom, 0));
   }
@@ -176,22 +179,32 @@ const PieceLibraryWrapper = styled.div`
 const PieceActions = styled.div<{ $visible: boolean }>`
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 0 12px 0 0;
+  gap: 4px;
+  padding: 0 8px 0 0;
   border-right: 1px solid var(--surface-border);
-  margin-right: 12px;
-  height: 70%;
+  margin-right: 8px;
+  height: 100%;
   justify-content: center;
   opacity: ${props => props.$visible ? 1 : 0.3};
   pointer-events: ${props => props.$visible ? 'auto' : 'none'};
   transition: opacity 0.2s ease;
   flex-shrink: 0;
+  @media (max-width: 768px) {
+    padding: 0 6px 0 0;
+    margin-right: 6px;
+    gap: 3px;
+  }
+  @media (max-width: 480px) {
+    padding: 0 4px 0 0;
+    margin-right: 4px;
+    gap: 2px;
+  }
 `;
 
 const ActionBtn = styled.button`
   width: 42px;
   height: 42px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid var(--surface-border);
   background: var(--surface-highlight);
   color: var(--text-primary);
@@ -205,6 +218,18 @@ const ActionBtn = styled.button`
   svg { width: 20px; height: 20px; }
   &:hover { background: var(--surface-border); border-color: var(--text-muted); }
   &:active { transform: scale(0.9); background: var(--surface-border); }
+  @media (max-width: 768px) {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    svg { width: 16px; height: 16px; }
+  }
+  @media (max-width: 480px) {
+    width: 28px;
+    height: 28px;
+    border-radius: 5px;
+    svg { width: 14px; height: 14px; }
+  }
 `;
 
 const BackButton = styled.button`

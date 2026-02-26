@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import styled, { keyframes } from 'styled-components';
 import { useRoom, ChatMessage } from '../contexts/RoomContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -188,33 +189,43 @@ const SendButton = styled.button`
   }
 `;
 
-const ToggleButton = styled.button<{ isOpen: boolean; hasUnread: boolean }>`
+const ToggleButton = styled.button<{ isOpen: boolean; hasUnread: boolean; $inline?: boolean }>`
+  ${props => !props.$inline ? `
   position: absolute;
   right: 20px;
   bottom: 120px;
-  width: 48px;
-  height: 48px;
+  z-index: 89;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  opacity: ${props.isOpen ? 0 : 1};
+  pointer-events: ${props.isOpen ? 'none' : 'auto'};
+  transform: ${props.isOpen ? 'scale(0.8)' : 'scale(1)'};
+  @media (max-width: 768px) {
+    bottom: 100px;
+  }
+  ` : `
+  position: static;
+  flex-shrink: 0;
+  `}
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: var(--surface-color);
-  backdrop-filter: blur(10px);
+  background: var(--surface-highlight);
   border: 1px solid var(--surface-border);
   color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 89;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  
-  opacity: ${props => props.isOpen ? 0 : 1};
-  pointer-events: ${props => props.isOpen ? 'none' : 'auto'};
-  transform: ${props => props.isOpen ? 'scale(0.8)' : 'scale(1)'};
+  transition: all 0.2s ease;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
 
   &:hover {
-    background: rgba(30, 41, 59, 0.8);
-    transform: translateY(-2px);
-    border-color: var(--primary-color);
+    background: var(--surface-border);
+    transform: translateY(-1px);
   }
 
   ${props => props.hasUnread && `
@@ -223,27 +234,27 @@ const ToggleButton = styled.button<{ isOpen: boolean; hasUnread: boolean }>`
       position: absolute;
       top: 0;
       right: 0;
-      width: 12px;
-      height: 12px;
+      width: 10px;
+      height: 10px;
       background: #ef4444;
       border-radius: 50%;
-      border: 2px solid rgba(15, 23, 42, 1);
-      animation: pulse 2s infinite;
+      border: 2px solid var(--surface-color);
     }
   `}
 
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-    70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-  }
-
   @media (max-width: 768px) {
-    bottom: 100px;
+    width: 34px;
+    height: 34px;
+    svg { width: 16px; height: 16px; }
+  }
+  @media (max-width: 480px) {
+    width: 30px;
+    height: 30px;
+    svg { width: 14px; height: 14px; }
   }
 `;
 
-const ChatIcon = () => (
+export const ChatIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M21 11.5C21.0039 12.8199 20.6951 14.1219 20.1 15.3C19.3944 16.7118 18.3098 17.8992 16.9674 18.7293C15.6251 19.5594 14.0782 19.9994 12.5 20C11.1801 20.0035 9.87812 19.6951 8.7 19.1L3 21L4.9 15.3C4.30493 14.1219 3.99656 12.8199 4 11.5C4.00061 9.92179 4.44061 8.37488 5.27072 7.03258C6.10083 5.69028 7.28825 4.6056 8.7 3.90003C9.87812 3.30496 11.1801 2.99659 12.5 3.00003H13C15.0843 3.11502 17.053 3.99479 18.5291 5.47089C20.0052 6.94699 20.885 8.91568 21 11V11.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
@@ -256,11 +267,24 @@ const SendIcon = () => (
   </svg>
 );
 
-const ChatBox: React.FC = () => {
+export interface ChatBoxProps {
+  /** 受控模式：由父组件控制开关，对话图标放在顶部 header */
+  isOpen?: boolean;
+  onOpen?: () => void;
+  onClose?: () => void;
+  /** 是否在 header 内联显示图标（不渲染浮动按钮） */
+  placement?: 'header' | 'floating';
+}
+
+const ChatBox: React.FC<ChatBoxProps> = ({ isOpen: controlledOpen, onOpen, onClose, placement = 'floating' }) => {
   const { chatMessages, sendChatMessage } = useRoom();
   const { user } = useAuth();
   const { t } = useLanguage();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined && onClose !== undefined;
+  const isOpen = isControlled ? controlledOpen : internalOpen;
+  const openChat = () => { if (isControlled && onOpen) onOpen(); else setInternalOpen(true); };
+  const closeChat = () => { if (isControlled && onClose) onClose(); else setInternalOpen(false); };
   const [inputValue, setInputValue] = useState('');
   const [hasUnread, setHasUnread] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -298,24 +322,30 @@ const ChatBox: React.FC = () => {
     }
   };
 
+  const headerButton = (
+    <ToggleButton 
+      $inline={placement === 'header'}
+      isOpen={isOpen} 
+      onClick={() => { openChat(); soundManager.buttonClick(); }}
+      hasUnread={hasUnread}
+      title="Chat"
+    >
+      <ChatIcon />
+    </ToggleButton>
+  );
+
   return (
     <>
-      <ToggleButton 
-        isOpen={isOpen} 
-        onClick={() => {
-          setIsOpen(true);
-          soundManager.buttonClick();
-        }}
-        hasUnread={hasUnread}
-        title="Chat"
-      >
-        <ChatIcon />
-      </ToggleButton>
+      {placement === 'floating' && headerButton}
+      {placement === 'header' && typeof document !== 'undefined' && (() => {
+        const slot = document.getElementById('chat-header-slot');
+        return slot ? createPortal(headerButton, slot) : null;
+      })()}
 
       <ChatContainer isOpen={isOpen}>
         <ChatHeader>
           <span>CHAT ROOM</span>
-          <CloseButton onClick={() => setIsOpen(false)}>×</CloseButton>
+          <CloseButton onClick={() => { closeChat(); soundManager.buttonClick(); }}>×</CloseButton>
         </ChatHeader>
         
         <MessagesArea>

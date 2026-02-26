@@ -66,8 +66,8 @@ export class GameManager {
     const aiPlayers = new Map<string, AIPlayer>();
     const timeoutCounts: Record<string, number> = {};
 
-    const humanPlayer = players.find(p => !p.isAI);
-    const priorityOpponentColor = humanPlayer ? (humanPlayer.color || PLAYER_COLORS[players.indexOf(humanPlayer)]) : undefined;
+    const humanPlayers = players.filter(p => !p.isAI);
+    const humanColors = humanPlayers.map((p, i) => p.color || PLAYER_COLORS[players.indexOf(p)]);
 
     players.forEach((player, index) => {
       const color = player.color || PLAYER_COLORS[index];
@@ -77,10 +77,10 @@ export class GameManager {
       // 初始化拼图
       playerPieces[player.id] = this.createPiecesForColor(color);
 
-      // 初始化 AI，传入玩家颜色以优先侵入玩家领地，以及策略
+      // 初始化 AI，传入所有真人颜色以优先阻挡/侵入真人，以及策略
       if (player.isAI) {
         const strategy = player.aiStrategy ?? gameSettings?.aiStrategy ?? 'balanced';
-        aiPlayers.set(player.id, new AIPlayer(color, player.aiDifficulty || 'medium', priorityOpponentColor, strategy));
+        aiPlayers.set(player.id, new AIPlayer(color, player.aiDifficulty || 'medium', humanColors, strategy));
       }
       timeoutCounts[player.id] = 0;
     });
@@ -971,9 +971,11 @@ export class GameManager {
       if (color && !game.hostedAIPlayers.has(playerId)) {
         const aiDifficulty = player.aiDifficulty || 'medium';
         const strategy = player.aiStrategy ?? game.gameSettings?.aiStrategy ?? 'balanced';
-        const humanPlayer = game.players.find(p => !p.isAI && !p.isOffline);
-        const priorityColor = humanPlayer ? game.playerColorMap[humanPlayer.id] : undefined;
-        game.hostedAIPlayers.set(playerId, new AIPlayer(color, aiDifficulty, priorityColor, strategy));
+        const humanColors = game.players
+          .filter(p => !p.isAI && !p.isOffline)
+          .map(p => game.playerColorMap[p.id])
+          .filter(Boolean);
+        game.hostedAIPlayers.set(playerId, new AIPlayer(color, aiDifficulty, humanColors, strategy));
       }
     }
   }

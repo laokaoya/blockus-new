@@ -1,9 +1,10 @@
 // AI玩家算法
 
-import { Piece, Position, PlayerColor, AIStrategy } from '../types/game';
+import { Piece, Position, PlayerColor, AIStrategy, Player } from '../types/game';
 import { SpecialTile, ItemCard, CreativePlayerState } from '../types/creative';
 import { canPlacePiece } from './gameEngine';
 import { getUniqueTransformations } from './pieceTransformations';
+import { iterativeDeepeningSearch, type SearchState, type MoveEvaluator } from './minimaxSearch';
 
 export type GamePhase = 'early' | 'mid' | 'late';
 
@@ -34,14 +35,15 @@ export class AIPlayer {
   private colorIndex: number;
   private difficulty: 'easy' | 'medium' | 'hard';
   private strategy: AIStrategy;
-  private priorityOpponentColorIndex: number | null;
+  private humanColorIndices: Set<number>;
 
-  constructor(color: PlayerColor, difficulty: 'easy' | 'medium' | 'hard' = 'medium', priorityOpponentColor?: PlayerColor, strategy: AIStrategy = 'balanced') {
+  constructor(color: PlayerColor, difficulty: 'easy' | 'medium' | 'hard' = 'medium', humanColors: PlayerColor | PlayerColor[] = [], strategy: AIStrategy = 'balanced') {
     this.color = color;
     this.colorIndex = this.getColorIndex(color);
     this.difficulty = difficulty;
     this.strategy = strategy;
-    this.priorityOpponentColorIndex = priorityOpponentColor ? this.getColorIndex(priorityOpponentColor) : null;
+    const arr = Array.isArray(humanColors) ? humanColors : (humanColors ? [humanColors] : []);
+    this.humanColorIndices = new Set(arr.map(c => this.getColorIndex(c)));
   }
   
   public getColor(): PlayerColor {
@@ -55,11 +57,20 @@ export class AIPlayer {
     return colorMap[color];
   }
   
-  public makeMove(board: number[][], pieces: Piece[]): { piece: Piece; position: Position } | null {
+  /** 供 Minimax 使用的落子评估（经典模式） */
+  public evaluateMove(board: number[][], piece: Piece, position: Position, gamePhase: GamePhase): number {
+    return this.evaluatePositionFull(board, piece, position, null, gamePhase);
+  }
+
+  public makeMove(
+    board: number[][],
+    pieces: Piece[],
+    fullState?: { players: Player[]; currentPlayerIndex: number; turnCount: number }
+  ): { piece: Piece; position: Position } | null {
     const totalPieces = pieces.length;
     const remaining = pieces.filter(p => !p.isUsed).length;
     const classicPhase = determineGamePhase(totalPieces - remaining, remaining, totalPieces);
-    return this.makeMoveInternal(board, pieces, null, classicPhase);
+    return this.makeMoveInternal(board, pieces, null, classicPhase, fullState);
   }
 
   public makeMoveCreative(
@@ -75,9 +86,29 @@ export class AIPlayer {
     pieces: Piece[],
     creativeCtx: CreativeContext | null,
     gamePhase: GamePhase,
+    fullState?: { players: Player[]; currentPlayerIndex: number; turnCount: number },
   ): { piece: Piece; position: Position } | null {
     const availablePieces = pieces.filter(p => !p.isUsed);
     if (availablePieces.length === 0) return null;
+
+    // hard 难度 + 经典模式 + 有完整状态：使用 Minimax+Alpha-Beta
+    if (
+      this.difficulty === 'hard' &&
+      !creativeCtx &&
+      fullState &&
+      fullState.players.length === 4
+    ) {
+      const searchState: SearchState = {
+        board: board.map(r => [...r]),
+        piecesByPlayer: fullState.players.map(p => p.pieces.map(pi => ({ ...pi }))),
+        currentPlayerIndex: fullState.currentPlayerIndex,
+        turnNumber: fullState.turnCount,
+      };
+      const evaluator: MoveEvaluator = (b, piece, pos, colorIdx, phase) =>
+        colorIdx === this.colorIndex ? this.evaluateMove(b, piece, pos, phase) : 0;
+      const move = iterativeDeepeningSearch(searchState, this.colorIndex, evaluator, 2, 6);
+      if (move) return move;
+    }
     
     const piecesByType: { [key: number]: Piece[] } = {};
     availablePieces.forEach(piece => {
@@ -171,12 +202,20 @@ export class AIPlayer {
     score += this.getConnectionScore(board, x, y, shape) * weights.connectionWeight;
     score += this.getExpansionScore(board, x, y, shape) * weights.expansionWeight;
     score += this.getPieceSizeBonus(piece, gamePhase) * weights.pieceSizeWeight;
+    score += this.getBlockHumanScore(board, x, y, shape) * weights.blockHumanWeight;
     score += this.getBlockingScore(board, x, y, shape) * weights.blockingWeight;
     score += this.getEdgeControlScore(board, x, y, shape, gamePhase) * weights.edgeControlWeight;
     score += this.getInvasionScore(board, piece, x, y, shape) * weights.invasionWeight;
     score += this.getTerritoryConservationPenalty(board, x, y, shape, gamePhase) * weights.territoryWeight;
     score += this.getCompleteBlockScore(board, x, y, shape) * weights.blockingWeight;
     score += this.getGapMinimizationPenalty(board, x, y, shape) * weights.gapWeight;
+
+    // 填隙策略：避免过早使用 1～2 格的小块，应优先用大块填隙；残局时允许小块
+    if (this.strategy === 'gapMinimizer' && gamePhase !== 'late') {
+      const cellCount = shape.reduce((sum, row) => sum + row.filter(c => c === 1).length, 0);
+      if (cellCount <= 2) score -= 40;
+      else if (cellCount <= 3) score -= 15;
+    }
 
     if (creativeCtx) {
       score += this.getSpecialTileScore(shape, position, creativeCtx) * weights.specialTileWeight;
@@ -213,10 +252,10 @@ export class AIPlayer {
     return false;
   }
 
-  /** 侵入对手领地：对角接触对手即加分，不区分大小块。优先侵入玩家（红色）领地 */
+  /** 侵入对手领地：对角接触对手即加分；接触真人额外加分（阻挡真人） */
   private getInvasionScore(board: number[][], piece: Piece, x: number, y: number, shape: number[][]): number {
     let totalInvasion = 0;
-    let priorityInvasion = 0;
+    let humanInvasion = 0;
     const corners = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
     const counted = new Set<string>();
     for (let row = 0; row < shape.length; row++) {
@@ -231,14 +270,57 @@ export class AIPlayer {
           const key = `${cx},${cy}`;
           if (counted.has(key)) continue;
           counted.add(key);
-          totalInvasion += 18;
-          if (this.priorityOpponentColorIndex !== null && cell === this.priorityOpponentColorIndex) {
-            priorityInvasion += this.strategy === 'hunter' ? 25 : 15;
+          totalInvasion += 12;
+          if (this.humanColorIndices.has(cell)) {
+            humanInvasion += this.strategy === 'hunter' ? 35 : 25;
           }
         }
       }
     }
-    return totalInvasion + priorityInvasion;
+    return totalInvasion + humanInvasion;
+  }
+
+  /** 阻挡真人：占据真人可落子的角位，使其无法扩张 */
+  private getBlockHumanScore(board: number[][], x: number, y: number, shape: number[][]): number {
+    if (this.humanColorIndices.size === 0) return 0;
+    const tempBoard = board.map(r => [...r]);
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (shape[row][col] === 1) tempBoard[y + row][x + col] = this.colorIndex;
+      }
+    }
+    let blockValue = 0;
+    const corners = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+    const edges = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    const counted = new Set<string>();
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (shape[row][col] === 0) continue;
+        const bx = x + col, by = y + row;
+        for (const [dx, dy] of corners) {
+          const cx = bx + dx, cy = by + dy;
+          const key = `${cx},${cy}`;
+          if (counted.has(key)) continue;
+          if (cx < 0 || cx >= board.length || cy < 0 || cy >= board[0].length) continue;
+          if (tempBoard[cy][cx] !== 0) continue;
+          const hasHumanCorner = corners.some(([odx, ody]) => {
+            const ox = cx + odx, oy = cy + ody;
+            if (ox < 0 || ox >= board.length || oy < 0 || oy >= board[0].length) return false;
+            return this.humanColorIndices.has(tempBoard[oy][ox]);
+          });
+          const noHumanEdge = edges.every(([ex, ey]) => {
+            const ox = cx + ex, oy = cy + ey;
+            if (ox < 0 || ox >= board.length || oy < 0 || oy >= board[0].length) return true;
+            return tempBoard[oy][ox] !== this.colorIndex;
+          });
+          if (hasHumanCorner && noHumanEdge) {
+            counted.add(key);
+            blockValue += 30;
+          }
+        }
+      }
+    }
+    return blockValue;
   }
 
   /** 领地保守：己方领地未被侵犯时，不急于填充，保留拼图用于侵入/阻挡 */
@@ -335,22 +417,22 @@ export class AIPlayer {
   }
 
   private getStrategyModifiers(): Record<string, number> {
-    const base = { center: 1.0, invasion: 1.0, blocking: 1.0, territory: 1.0, gap: 1.0, expansion: 1.0, connection: 1.0, pieceSize: 1.0 };
+    const base = { center: 1.0, invasion: 1.0, blocking: 1.0, territory: 1.0, gap: 1.0, expansion: 1.0, connection: 1.0, pieceSize: 1.0, blockHuman: 1.0 };
     switch (this.strategy) {
       case 'aggressive':
-        return { ...base, center: 1.3, invasion: 1.8, blocking: 0.5, territory: 0.4, gap: 0.7 };
+        return { ...base, center: 1.0, expansion: 1.2, invasion: 1.5, blocking: 0.5, territory: 0.4, gap: 0.6, blockHuman: 1.3 };
       case 'defensive':
-        return { ...base, center: 0.7, invasion: 0.4, blocking: 1.6, territory: 1.5, gap: 1.4 };
+        return { ...base, center: 0.6, expansion: 1.4, invasion: 0.3, blocking: 1.4, territory: 1.3, gap: 1.2, blockHuman: 1.2 };
       case 'expansionist':
-        return { ...base, center: 1.4, expansion: 1.5, invasion: 1.2, blocking: 0.6, territory: 0.5, gap: 0.7 };
+        return { ...base, center: 1.0, expansion: 1.8, invasion: 1.0, blocking: 0.5, territory: 0.5, gap: 0.6, blockHuman: 0.8 };
       case 'blocker':
-        return { ...base, center: 0.8, invasion: 0.5, blocking: 1.8, connection: 1.5, territory: 1.2, gap: 1.0 };
+        return { ...base, center: 0.6, expansion: 1.2, invasion: 0.5, blocking: 1.6, connection: 1.3, territory: 1.0, gap: 0.8, blockHuman: 1.6 };
       case 'conservative':
-        return { ...base, center: 1.0, invasion: 0.9, blocking: 1.1, territory: 1.2, pieceSize: 0.4 };
+        return { ...base, expansion: 1.3, invasion: 0.8, blocking: 1.0, territory: 1.1, pieceSize: 0.4, blockHuman: 1.0 };
       case 'gapMinimizer':
-        return { ...base, center: 0.8, invasion: 0.7, blocking: 1.0, territory: 1.6, gap: 1.8 };
+        return { ...base, center: 0.6, expansion: 1.5, invasion: 0.6, blocking: 0.9, territory: 1.4, gap: 1.6, blockHuman: 1.2 };
       case 'hunter':
-        return { ...base, center: 1.2, invasion: 2.0, blocking: 0.6, territory: 0.5, gap: 0.8 };
+        return { ...base, center: 1.0, expansion: 1.2, invasion: 1.8, blocking: 0.5, territory: 0.4, gap: 0.7, blockHuman: 1.5 };
       default:
         return base;
     }
@@ -363,11 +445,12 @@ export class AIPlayer {
     switch (this.difficulty) {
       case 'easy':
         return {
-          centerWeight: 0.5 * phaseMultipliers.center * mod.center,
+          centerWeight: 0.3 * phaseMultipliers.center * mod.center,
           surroundingWeight: 0.3,
-          connectionWeight: 0.2 * mod.connection,
-          expansionWeight: 0.1 * phaseMultipliers.expansion * mod.expansion,
+          connectionWeight: 0.3 * mod.connection,
+          expansionWeight: 0.2 * phaseMultipliers.expansion * mod.expansion,
           pieceSizeWeight: 0.3 * phaseMultipliers.pieceSize * mod.pieceSize,
+          blockHumanWeight: 0.2 * mod.blockHuman,
           blockingWeight: 0.0 * mod.blocking,
           invasionWeight: 0.0 * mod.invasion,
           territoryWeight: 0.0 * mod.territory,
@@ -378,45 +461,48 @@ export class AIPlayer {
         };
       case 'medium':
         return {
-          centerWeight: 1.0 * phaseMultipliers.center * mod.center,
-          surroundingWeight: 1.0,
+          centerWeight: 0.5 * phaseMultipliers.center * mod.center,
+          surroundingWeight: 0.8,
           connectionWeight: 1.0 * mod.connection,
-          expansionWeight: 0.8 * phaseMultipliers.expansion * mod.expansion,
+          expansionWeight: 2.5 * phaseMultipliers.expansion * mod.expansion,
           pieceSizeWeight: 0.6 * phaseMultipliers.pieceSize * mod.pieceSize,
-          blockingWeight: 0.5 * phaseMultipliers.blocking * mod.blocking,
-          invasionWeight: 0.8 * mod.invasion,
-          territoryWeight: 0.6 * mod.territory,
-          gapWeight: 0.7 * mod.gap,
+          blockHumanWeight: 1.2 * mod.blockHuman,
+          blockingWeight: 0.4 * phaseMultipliers.blocking * mod.blocking,
+          invasionWeight: 0.6 * mod.invasion,
+          territoryWeight: 0.4 * mod.territory,
+          gapWeight: 0.5 * mod.gap,
           specialTileWeight: 1.0,
           edgeControlWeight: 0.4,
           barrierPenaltyWeight: 0.5,
         };
       case 'hard':
         return {
-          centerWeight: 1.2 * phaseMultipliers.center * mod.center,
-          surroundingWeight: 1.3,
+          centerWeight: 0.4 * phaseMultipliers.center * mod.center,
+          surroundingWeight: 1.0,
           connectionWeight: 1.2 * mod.connection,
-          expansionWeight: 1.5 * phaseMultipliers.expansion * mod.expansion,
+          expansionWeight: 3.5 * phaseMultipliers.expansion * mod.expansion,
           pieceSizeWeight: 0.8 * phaseMultipliers.pieceSize * mod.pieceSize,
-          blockingWeight: 1.0 * phaseMultipliers.blocking * mod.blocking,
-          invasionWeight: 1.5 * mod.invasion,
-          territoryWeight: 1.2 * mod.territory,
-          gapWeight: 1.2 * mod.gap,
+          blockHumanWeight: 1.8 * mod.blockHuman,
+          blockingWeight: 0.6 * phaseMultipliers.blocking * mod.blocking,
+          invasionWeight: 1.0 * mod.invasion,
+          territoryWeight: 0.5 * mod.territory,
+          gapWeight: 0.8 * mod.gap,
           specialTileWeight: 1.8,
           edgeControlWeight: 0.7,
           barrierPenaltyWeight: 0.8,
         };
       default:
         return {
-          centerWeight: 1.0 * mod.center,
-          surroundingWeight: 1.0,
+          centerWeight: 0.5 * mod.center,
+          surroundingWeight: 0.8,
           connectionWeight: 1.0 * mod.connection,
-          expansionWeight: 0.8 * mod.expansion,
+          expansionWeight: 2.5 * phaseMultipliers.expansion * mod.expansion,
           pieceSizeWeight: 0.6 * mod.pieceSize,
-          blockingWeight: 0.5 * mod.blocking,
-          invasionWeight: 0.8 * mod.invasion,
-          territoryWeight: 0.6 * mod.territory,
-          gapWeight: 0.7 * mod.gap,
+          blockHumanWeight: 1.2 * mod.blockHuman,
+          blockingWeight: 0.4 * mod.blocking,
+          invasionWeight: 0.6 * mod.invasion,
+          territoryWeight: 0.4 * mod.territory,
+          gapWeight: 0.5 * mod.gap,
           specialTileWeight: 1.0,
           edgeControlWeight: 0.4,
           barrierPenaltyWeight: 0.5,
@@ -427,11 +513,11 @@ export class AIPlayer {
   private getPhaseMultipliers(gamePhase: GamePhase) {
     switch (gamePhase) {
       case 'early':
-        return { center: 1.8, expansion: 1.5, pieceSize: 1.3, blocking: 0.3 };
+        return { center: 1.5, expansion: 1.8, pieceSize: 1.4, blocking: 0.3 };
       case 'mid':
-        return { center: 1.0, expansion: 1.0, pieceSize: 1.0, blocking: 1.2 };
+        return { center: 1.0, expansion: 1.4, pieceSize: 1.0, blocking: 1.2 };
       case 'late':
-        return { center: 0.4, expansion: 0.6, pieceSize: 0.5, blocking: 1.5 };
+        return { center: 0.4, expansion: 1.0, pieceSize: 0.5, blocking: 1.5 };
     }
   }
   
@@ -565,7 +651,7 @@ export class AIPlayer {
       }
     }
 
-    return newCornerSpots * 6;
+    return newCornerSpots * 8;
   }
 
   private getPieceSizeBonus(piece: Piece, gamePhase: GamePhase): number {

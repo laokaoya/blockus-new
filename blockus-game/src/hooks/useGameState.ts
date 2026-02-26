@@ -349,7 +349,11 @@ export function useGameState() {
         return;
       }
       
-      const move = aiPlayer.makeMove(gameState.board, currentPlayer.pieces);
+      const move = aiPlayer.makeMove(gameState.board, currentPlayer.pieces, {
+        players: gameState.players,
+        currentPlayerIndex: gameState.currentPlayerIndex,
+        turnCount: gameState.turnCount,
+      });
       
       if (move) {
         const colorIndex = gameState.currentPlayerIndex + 1;

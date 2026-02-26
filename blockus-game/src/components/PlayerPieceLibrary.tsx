@@ -71,12 +71,12 @@ const PieceItem = styled.div<{
   height: 64px;
   
   @media (max-width: 768px) {
-    min-width: 52px;
-    height: 52px;
+    min-width: 58px;
+    height: 58px;
   }
   @media (max-width: 480px) {
-    min-width: 46px;
-    height: 46px;
+    min-width: 52px;
+    height: 52px;
   }
   background: ${props => props.isUsed ? 'transparent' : 'var(--surface-highlight)'};
   border: 1px solid ${props => props.isSelected ? 'var(--primary-color)' : props.$hasSteel && !props.isUsed ? '#94a3b8' : 'var(--surface-border)'};
@@ -108,12 +108,12 @@ const ShapeCell = styled.div<{ isFilled: boolean; color: string }>`
   height: 8px;
   
   @media (max-width: 768px) {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
   }
   @media (max-width: 480px) {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
   }
   background: ${props => props.isFilled ? `var(--player-${props.color}-main)` : 'transparent'};
   border-radius: 1px;
@@ -131,12 +131,12 @@ const PieceShape = styled.div<{ rows: number; cols: number }>`
   height: 60px;
   
   @media (max-width: 768px) {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
   }
   @media (max-width: 480px) {
-    width: 42px;
-    height: 42px;
+    width: 46px;
+    height: 46px;
   }
 `;
 
@@ -147,12 +147,12 @@ const PieceGrid = styled.div<{ rows: number; cols: number }>`
   gap: ${GAP_SIZE}px;
   
   @media (max-width: 768px) {
-    grid-template-columns: repeat(${props => props.cols}, 6px);
-    grid-template-rows: repeat(${props => props.rows}, 6px);
+    grid-template-columns: repeat(${props => props.cols}, 7px);
+    grid-template-rows: repeat(${props => props.rows}, 7px);
   }
   @media (max-width: 480px) {
-    grid-template-columns: repeat(${props => props.cols}, 5px);
-    grid-template-rows: repeat(${props => props.rows}, 5px);
+    grid-template-columns: repeat(${props => props.cols}, 6px);
+    grid-template-rows: repeat(${props => props.rows}, 6px);
   }
 `;
 

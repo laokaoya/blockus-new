@@ -34,13 +34,18 @@ const BoardContainer = styled.div`
   max-height: 80vh;
   aspect-ratio: 1/1;
   
+  /* 移动端：保证方形；拼图栏放大后棋盘略小以平衡 */
   @media (max-width: 768px) {
-    max-width: min(92vw, 100%);
-    max-height: min(92vw, 45vh);
+    width: min(90vw, 86vh);
+    height: min(90vw, 86vh);
+    max-width: min(90vw, 86vh);
+    max-height: min(90vw, 86vh);
   }
   @media (max-width: 480px) {
-    max-width: min(96vw, 100%);
-    max-height: min(96vw, 42vh);
+    width: min(92vw, 88vh);
+    height: min(92vw, 88vh);
+    max-width: min(92vw, 88vh);
+    max-height: min(92vw, 88vh);
   }
 `;
 
@@ -613,9 +618,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
       touchDragActive.current = false;
       return;
     }
-    // 放置位置：使用手指实际指向的格子（fingerPos 来自 touchmove/touchEnd，手指移出棋盘时由 document 级 touchmove 用 clamp 更新）
-    if (canPlaceAt(fingerPos.x, fingerPos.y)) {
-      onPiecePlace(fingerPos);
+    // 放置位置：触摸时预览在 displayPos（手指上方 2 格），放置也应使用 displayPos，保证「所见即所得」
+    const placePos = getDisplayPosition(fingerPos, true);
+    if (canPlaceAt(placePos.x, placePos.y)) {
+      onPiecePlace(placePos);
     }
     setHoverPosition(null);
     touchDragActive.current = false;
