@@ -563,12 +563,13 @@ const GameBoard: React.FC<GameBoardProps> = ({
     return null;
   };
 
-  // 移动端：影子显示在手指上方 2 格，避免被手指遮挡；底部三行不偏移，便于放置到底部
-  const TOUCH_PREVIEW_Y_OFFSET = 2;
-  const getDisplayPosition = (pos: Position, isTouch: boolean): Position => {
-    if (!isTouch) return pos;
-    if (pos.y >= 17) return pos; // 底部三行不偏移，预览与放置一致
-    return { x: pos.x, y: Math.max(0, pos.y - TOUCH_PREVIEW_Y_OFFSET) };
+  // 移动端：手指应在拼图最下方格子再往下 1.5 格，即 anchor.y = finger.y - pieceHeight
+  const getDisplayPosition = (pos: Position, isTouch: boolean, shape: number[][]): Position => {
+    if (!isTouch || !selectedPiece) return pos;
+    const pieceH = shape.length;
+    const anchorY = pos.y - pieceH; // 使拼图底部在 finger.y-1，手指在底部+1.5格
+    const clampedY = Math.max(0, Math.min(20 - pieceH, anchorY));
+    return { x: pos.x, y: clampedY };
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -618,8 +619,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
       touchDragActive.current = false;
       return;
     }
-    // 放置位置：触摸时预览在 displayPos（手指上方 2 格），放置也应使用 displayPos，保证「所见即所得」
-    const placePos = getDisplayPosition(fingerPos, true);
+    // 放置位置：触摸时手指在拼图底部下方 1.5 格，放置使用 displayPos
+    const placePos = getDisplayPosition(fingerPos, true, selectedPiece.shape);
     if (canPlaceAt(placePos.x, placePos.y)) {
       onPiecePlace(placePos);
     }
@@ -741,12 +742,12 @@ const GameBoard: React.FC<GameBoardProps> = ({
         {selectedPiece && (() => {
           const pos = dragMode === 'dragging' ? mousePosition : hoverPosition;
           if (!pos || pos.x < 0 || pos.y < 0) return null; // 棋盘外开始的拖拽不显示预览
+          const shape = selectedPiece.shape;
           const isTouch = isTouchActiveRef.current;
-          const displayPos = getDisplayPosition(pos, isTouch);
+          const displayPos = getDisplayPosition(pos, isTouch, shape);
           // 触摸时预览在 displayPos 绘制，判定和放置也应用 displayPos，否则影子与判定位置不一致
           const checkPos = isTouch ? displayPos : pos;
           const valid = canPlaceAt(checkPos.x, checkPos.y);
-          const shape = selectedPiece.shape;
           const cells: React.ReactNode[] = [];
           for (let dy = 0; dy < shape.length; dy++) {
             for (let dx = 0; dx < (shape[dy]?.length ?? 0); dx++) {

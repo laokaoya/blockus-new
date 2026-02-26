@@ -54,13 +54,16 @@ const Header = styled.div`
   z-index: 50;
   flex-shrink: 0;
 
+  /* 移动端：加大高度避免按键超出边框，自适应 */
   @media (max-width: 768px) {
-    height: 42px;
-    padding: 0 8px;
+    min-height: 50px;
+    height: max(50px, 10vh);
+    padding: 0 10px;
   }
   @media (max-width: 480px) {
-    height: 38px;
-    padding: 0 6px;
+    min-height: 48px;
+    height: max(48px, 9vh);
+    padding: 0 8px;
   }
 `;
 
@@ -85,10 +88,10 @@ const GameContent = styled.div`
   
   @media (max-width: 768px) {
     flex-direction: column;
-    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0)); /* 为固定底部拼图库留空 */
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0)); /* 为固定底部拼图库留空 */
   }
   @media (max-width: 480px) {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0));
+    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0));
   }
 `;
 
@@ -108,23 +111,23 @@ const LeftPanel = styled.div`
     width: 220px;
   }
 
-  /* 移动端：容纳 2x2 玩家网格，无左右滑动 */
+  /* 移动端：单行玩家栏，缩小与棋盘空隙 */
   @media (max-width: 768px) {
     width: 100%;
     height: auto;
     min-height: 0;
-    max-height: 96px;
+    max-height: 44px;
     display: flex;
     border-right: none;
     border-bottom: 1px solid var(--surface-border);
-    padding: 6px 8px;
+    padding: 4px 6px;
     overflow: hidden;
     background: var(--surface-color);
     flex-shrink: 0;
   }
   @media (max-width: 480px) {
-    max-height: 88px;
-    padding: 4px 6px;
+    max-height: 40px;
+    padding: 3px 4px;
   }
 `;
 
@@ -138,12 +141,12 @@ const BoardArea = styled.div`
   padding: 20px;
   overflow: hidden;
 
-  /* 移动端：最小空隙 */
+  /* 移动端：最小空隙，缩小与玩家栏距离 */
   @media (max-width: 768px) {
-    padding: 2px;
+    padding: 1px 2px;
   }
   @media (max-width: 480px) {
-    padding: 1px;
+    padding: 0 1px;
   }
 `;
 
@@ -179,7 +182,6 @@ const RightPanel = styled.div`
   }
 `;
 
-const BOTTOM_DOCK_MOBILE_HEIGHT = 78;
 const BottomDock = styled.div`
   height: 100px;
   width: 100%;
@@ -194,20 +196,22 @@ const BottomDock = styled.div`
   box-shadow: var(--shadow-lg);
   flex-shrink: 0;
 
+  /* 移动端：加大高度，自适应屏幕 */
   @media (max-width: 768px) {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: ${BOTTOM_DOCK_MOBILE_HEIGHT}px;
-    min-height: unset;
-    padding: 0 6px;
-    padding-bottom: max(6px, env(safe-area-inset-bottom, 0));
+    min-height: 84px;
+    height: max(84px, 14vh);
+    padding: 0 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0));
   }
   @media (max-width: 480px) {
-    height: 72px;
-    padding: 0 4px;
-    padding-bottom: max(4px, env(safe-area-inset-bottom, 0));
+    min-height: 78px;
+    height: max(78px, 13vh);
+    padding: 0 6px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0));
   }
 `;
 
@@ -316,6 +320,15 @@ const BackButton = styled.button`
   &:hover {
     background: var(--surface-border);
     transform: translateX(-2px);
+  }
+
+  @media (max-width: 768px) {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+  @media (max-width: 480px) {
+    padding: 5px 10px;
+    font-size: 0.8rem;
   }
 `;
 

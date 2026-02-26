@@ -39,13 +39,21 @@ const Header = styled.div`
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  @media (max-width: 768px) { height: 42px; padding: 0 8px; }
-  @media (max-width: 480px) { height: 38px; padding: 0 6px; }
   background: var(--surface-color);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--surface-border);
   z-index: 50;
   flex-shrink: 0;
+  @media (max-width: 768px) {
+    min-height: 50px;
+    height: max(50px, 10vh);
+    padding: 0 10px;
+  }
+  @media (max-width: 480px) {
+    min-height: 48px;
+    height: max(48px, 9vh);
+    padding: 0 8px;
+  }
 `;
 
 const HeaderLeft = styled.div`
@@ -68,10 +76,10 @@ const GameContent = styled.div`
   
   @media (max-width: 768px) {
     flex-direction: column;
-    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0));
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0));
   }
   @media (max-width: 480px) {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0));
+    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0));
   }
 `;
 
@@ -90,18 +98,18 @@ const LeftPanel = styled.div`
   @media (max-width: 768px) {
     width: 100%;
     height: auto;
-    max-height: 96px;
+    max-height: 44px;
     display: flex;
     border-right: none;
     border-bottom: 1px solid var(--surface-border);
-    padding: 6px 8px;
+    padding: 4px 6px;
     overflow: hidden;
     background: var(--surface-color);
     flex-shrink: 0;
   }
   @media (max-width: 480px) {
-    max-height: 88px;
-    padding: 4px 6px;
+    max-height: 40px;
+    padding: 3px 4px;
   }
 `;
 
@@ -113,8 +121,8 @@ const BoardArea = styled.div`
   position: relative;
   padding: 20px;
   overflow: hidden;
-  @media (max-width: 768px) { padding: 2px; }
-  @media (max-width: 480px) { padding: 1px; }
+  @media (max-width: 768px) { padding: 1px 2px; }
+  @media (max-width: 480px) { padding: 0 1px; }
 `;
 
 const RightPanel = styled.div`
@@ -156,14 +164,16 @@ const BottomDock = styled.div`
     bottom: 0;
     left: 0;
     right: 0;
-    height: 78px;
-    padding: 0 6px;
-    padding-bottom: max(6px, env(safe-area-inset-bottom, 0));
+    min-height: 84px;
+    height: max(84px, 14vh);
+    padding: 0 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0));
   }
   @media (max-width: 480px) {
-    height: 72px;
-    padding: 0 4px;
-    padding-bottom: max(4px, env(safe-area-inset-bottom, 0));
+    min-height: 78px;
+    height: max(78px, 13vh);
+    padding: 0 6px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0));
   }
 `;
 
@@ -247,6 +257,14 @@ const BackButton = styled.button`
   align-items: center;
   gap: 8px;
   &:hover { background: var(--surface-border); transform: translateX(-2px); }
+  @media (max-width: 768px) {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+  @media (max-width: 480px) {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+  }
 `;
 
 const ModeBadge = styled.div`

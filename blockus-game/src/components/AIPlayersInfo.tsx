@@ -53,18 +53,15 @@ const Container = styled.div`
   gap: 8px;
   width: 100%;
 
-  /* 移动端：2x2 网格，无左右滑动，自适应屏幕 */
+  /* 移动端：单行，头像+分数，紧凑 */
   @media (max-width: 768px) {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    gap: 4px;
     width: 100%;
     height: 100%;
     overflow: hidden;
-  }
-  @media (max-width: 480px) {
-    gap: 4px;
   }
 `;
 
@@ -78,9 +75,7 @@ const PlayerCard = styled.div<{ color: string; $isCurrentTurn: boolean; $isThink
     return 'transparent';
   }};
   transition: all 0.3s ease;
-  cursor: pointer; /* Add pointer cursor */
-  
-  /* 紧凑布局 */
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -89,20 +84,24 @@ const PlayerCard = styled.div<{ color: string; $isCurrentTurn: boolean; $isThink
     background: var(--surface-highlight);
   }
 
+  /* 移动端：仅头像+分数，单行紧凑 */
   @media (max-width: 768px) {
+    flex: 1;
     min-width: 0;
-    width: 100%;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 6px;
     border-left: none;
-    border-bottom: 4px solid ${props => {
+    border-bottom: 3px solid ${props => {
       if (props.$isThinking) return '#ff4444';
       if (props.$isCurrentTurn) return PLAYER_COLORS[props.color];
       return 'transparent';
     }};
-    padding: 4px 6px;
     background: ${props => props.$isCurrentTurn ? 'var(--surface-highlight)' : 'var(--surface-color)'};
   }
   @media (max-width: 480px) {
     padding: 3px 4px;
+    gap: 4px;
   }
 `;
 
@@ -111,6 +110,11 @@ const PlayerHeader = styled.div`
   align-items: center;
   gap: 10px;
   flex: 1;
+
+  @media (max-width: 768px) {
+    flex: none;
+    gap: 6px;
+  }
 `;
 
 const steelShine = keyframes`
@@ -147,14 +151,14 @@ const PlayerAvatar = styled.div<{ color: string; $hasSteel?: boolean }>`
   `}
 
   @media (max-width: 768px) {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  @media (max-width: 480px) {
     width: 24px;
     height: 24px;
     font-size: 11px;
-  }
-  @media (max-width: 480px) {
-    width: 20px;
-    height: 20px;
-    font-size: 10px;
   }
 `;
 
@@ -164,6 +168,10 @@ const PlayerInfo = styled.div`
   flex-direction: column;
   gap: 0;
   min-width: 0;
+
+  @media (max-width: 768px) {
+    display: none; /* 移动端只显示头像+分数 */
+  }
 `;
 
 const PlayerName = styled.div`
@@ -211,10 +219,10 @@ const ScoreBadge = styled.div`
   font-family: 'Rajdhani', sans-serif;
 
   @media (max-width: 768px) {
-    font-size: 14px;
+    font-size: 13px;
   }
   @media (max-width: 480px) {
-    font-size: 12px;
+    font-size: 11px;
   }
 `;
 
