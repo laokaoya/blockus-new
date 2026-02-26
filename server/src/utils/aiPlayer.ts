@@ -360,12 +360,16 @@ export class AIPlayer {
     score += this.getGapMinimizationPenalty(board, x, y, shape) * weights.gapWeight;
 
     // 阶段化：早期/中期避免过早用小块，优先大块扩张；残局允许小块填隙
+    const cellCount = shape.reduce((sum, row) => sum + row.filter(c => c === 1).length, 0);
     if (gamePhase !== 'late') {
-      const cellCount = shape.reduce((sum, row) => sum + row.filter(c => c === 1).length, 0);
       if (cellCount <= 2) score -= 35;
       else if (cellCount <= 3) score -= 12;
     }
-    
+    // 保留桥块（1格、2格、3格折角）到中后期，可救命
+    if (this.isBridgePiece(piece) && gamePhase !== 'late') {
+      score -= gamePhase === 'early' ? 55 : 40;
+    }
+
     return score;
   }
   
@@ -493,6 +497,13 @@ export class AIPlayer {
     const distanceToCenter = Math.sqrt(Math.pow(cx - centerX, 2) + Math.pow(cy - centerY, 2));
     const maxDistance = Math.sqrt(Math.pow(boardSize / 2, 2) * 2);
     return Math.max(0, (maxDistance - distanceToCenter)) * 20;
+  }
+
+  /** 是否桥块：1格、2格、3格折角(L形)，可填隙救命 */
+  private isBridgePiece(piece: Piece): boolean {
+    if (piece.type === 1 || piece.type === 2) return true;
+    if (piece.type === 3 && piece.shape.length === 2) return true;
+    return false;
   }
 
   private getMyCorner(boardSize: number): { x: number; y: number } {
