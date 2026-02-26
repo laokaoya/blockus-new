@@ -17,6 +17,7 @@ interface BoardAnalysis {
   ourClusterCount: number;
   opponentCellCounts: Map<number, number>;
   threatLevel: number;
+  ourRank: number;  // 1-4，用于避免多名 AI 同时挤入领先者领地
 }
 
 export class AIPlayer {
@@ -25,7 +26,7 @@ export class AIPlayer {
   private difficulty: 'easy' | 'medium' | 'hard';
   private strategy: AIStrategy;
   private humanColorIndices: Set<number>;
-
+  
   constructor(color: PlayerColor, difficulty: 'easy' | 'medium' | 'hard' = 'medium', humanColors: PlayerColor[] = [], strategy: AIStrategy = 'balanced') {
     this.color = color;
     this.colorIndex = this.getColorIndex(color);
@@ -154,10 +155,23 @@ export class AIPlayer {
   }
 
   // AI的主要决策函数：综合评分所有可放置位置，选择最优
-  public makeMove(board: number[][], pieces: Piece[]): { piece: Piece; position: Position } | null {
+  public makeMove(board: number[][], pieces: Piece[], turnCount?: number): { piece: Piece; position: Position } | null {
     const availablePieces = pieces.filter(p => !p.isUsed);
     if (availablePieces.length === 0) return null;
 
+    const turnNum = turnCount ?? 0;
+    const usedCount = pieces.length - availablePieces.length;
+    // 每个 AI 最开始的两块：从五格拼图随机抽，选最向中心拓展的摆放
+    if (usedCount < 2 && (this.difficulty === 'medium' || this.difficulty === 'hard')) {
+      const earlyMove = this.getEarlyBestCenterMove(board, availablePieces);
+      if (earlyMove) return earlyMove;
+    }
+    // 开局 2-3 轮（第 3 块起）：仅五块、向中心拓展，纯随机
+    if (turnNum <= 10 && usedCount >= 2 && (this.difficulty === 'medium' || this.difficulty === 'hard')) {
+      const earlyMove = this.getEarlyRandomMove(board, availablePieces);
+      if (earlyMove) return earlyMove;
+    }
+    
     const totalPieces = pieces.length;
     const remaining = availablePieces.length;
     const usedRatio = 1 - remaining / totalPieces;
@@ -170,16 +184,16 @@ export class AIPlayer {
     const allCandidates: Array<{ piece: Piece; score: number; bestMove: { piece: Piece; position: Position } }> = [];
 
     for (const piece of availablePieces) {
-      const transformations = getUniqueTransformations(piece);
-      let bestScore = -Infinity;
-      let bestMove: { piece: Piece; position: Position } | null = null;
-
-      for (const transformedPiece of transformations) {
+        const transformations = getUniqueTransformations(piece);
+        let bestScore = -Infinity;
+        let bestMove: { piece: Piece; position: Position } | null = null;
+        
+        for (const transformedPiece of transformations) {
         const positions = this.findAllPositions(board, transformedPiece);
         for (const pos of positions) {
           const score = this.evaluatePosition(board, transformedPiece, pos, gamePhase, boardAnalysis);
-          if (score > bestScore) {
-            bestScore = score;
+            if (score > bestScore) {
+              bestScore = score;
             bestMove = { piece: transformedPiece, position: pos };
           }
         }
@@ -204,7 +218,7 @@ export class AIPlayer {
       i = j;
     }
 
-    switch (this.difficulty) {
+      switch (this.difficulty) {
       case 'easy': {
         const top = allCandidates.slice(0, Math.min(8, allCandidates.length));
         return top[Math.floor(Math.random() * top.length)].bestMove;
@@ -243,7 +257,72 @@ export class AIPlayer {
     }
     return positions;
   }
-  
+
+  /** 最开始两块：从五格拼图随机抽一块，找最向中心拓展的摆放 */
+  private getEarlyBestCenterMove(board: number[][], availablePieces: Piece[]): { piece: Piece; position: Position } | null {
+    const fiveBlocks = availablePieces.filter(p => p.type === 5);
+    if (fiveBlocks.length === 0) return null;
+    const picked = fiveBlocks[Math.floor(Math.random() * fiveBlocks.length)];
+    let bestMove: { piece: Piece; position: Position } | null = null;
+    let bestScore = -Infinity;
+    const transformations = getUniqueTransformations(picked);
+    for (const transformed of transformations) {
+      const positions = this.findAllPositions(board, transformed);
+      for (const pos of positions) {
+        if (!this.isTowardCenter(transformed, pos, board.length)) continue;
+        const score = this.getTowardCenterProgressScore(pos.x, pos.y, transformed.shape, board.length);
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = { piece: transformed, position: pos };
+        }
+      }
+    }
+    return bestMove;
+  }
+
+  /** 开局 2-3 轮（第 3 块起）：仅五块、向中心拓展，纯随机选取 */
+  private getEarlyRandomMove(board: number[][], availablePieces: Piece[]): { piece: Piece; position: Position } | null {
+    const fiveBlocks = availablePieces.filter(p => p.type === 5);
+    if (fiveBlocks.length === 0) return null;
+    const candidates: Array<{ piece: Piece; position: Position }> = [];
+    for (const piece of fiveBlocks) {
+      const transformations = getUniqueTransformations(piece);
+      for (const transformed of transformations) {
+        const positions = this.findAllPositions(board, transformed);
+        for (const pos of positions) {
+          if (this.isTowardCenter(transformed, pos, board.length)) {
+            candidates.push({ piece: transformed, position: pos });
+          }
+        }
+      }
+    }
+    if (candidates.length === 0) return null;
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  /** 是否向中心拓展：拼图质心在己方角朝向棋盘中心的方向 */
+  private isTowardCenter(piece: Piece, position: Position, boardSize: number): boolean {
+    let sx = 0; let sy = 0; let n = 0;
+    for (let row = 0; row < piece.shape.length; row++) {
+      for (let col = 0; col < piece.shape[row].length; col++) {
+        if (piece.shape[row][col] === 1) {
+          sx += position.x + col;
+          sy += position.y + row;
+          n++;
+        }
+      }
+    }
+    if (n === 0) return false;
+    const cx = sx / n; const cy = sy / n;
+    switch (this.colorIndex) {
+      case 1: return cx + cy >= 2;
+      case 2: return (boardSize - 1 - cx) + cy >= 2;
+      case 3: return (boardSize - 1 - cx) + (boardSize - 1 - cy) >= 2;
+      case 4: return cx + (boardSize - 1 - cy) >= 2;
+      default: return true;
+    }
+  }
+    
   // 寻找最佳放置位置（创意模式等仍可能调用）
   private findBestPosition(board: number[][], piece: Piece): Position | null {
     const positions = this.findAllPositions(board, piece);
@@ -256,7 +335,7 @@ export class AIPlayer {
     scored.sort((a, b) => b.score - a.score);
     return scored[0].position;
   }
-
+  
   // 评估位置分数
   private evaluatePosition(board: number[][], piece: Piece, position: Position, gamePhase: GamePhase, boardAnalysis: BoardAnalysis | null = null): number {
     let score = 0;
@@ -286,10 +365,10 @@ export class AIPlayer {
       if (cellCount <= 2) score -= 35;
       else if (cellCount <= 3) score -= 12;
     }
-
+    
     return score;
   }
-
+  
   /** 阶段化策略：不区分策略类型，根据 gamePhase 动态调整
    * early: 扩张+针对真人；mid: 封堵+侵入；late: 平衡 */
   private getPhaseMultipliers(gamePhase: GamePhase) {
@@ -320,6 +399,7 @@ export class AIPlayer {
       const maxOppCells = Math.max(0, ...Array.from(boardAnalysis.opponentCellCounts.values()));
       if (maxOppCells > boardAnalysis.ourCellCount) invadeBoost = 1.25;
     }
+    const leaderCrowdFactor = boardAnalysis && boardAnalysis.ourRank >= 3 ? 0.25 : 1;
     const base = (w: number, boost: number) => w * boost;
 
     switch (this.difficulty) {
@@ -343,14 +423,14 @@ export class AIPlayer {
         return {
           centerWeight: 0.5 * pm.center,
           towardCenterProgressWeight: 1.2 * pm.towardCenter,
-          towardLeaderWeight: 0.4 * invadeBoost,
+          towardLeaderWeight: 0.4 * invadeBoost * leaderCrowdFactor,
           surroundingWeight: 0.8,
           connectionWeight: 1.0 * connectionBoost,
           expansionWeight: base(2.8 * pm.expansion, expandBoost),
           pieceSizeWeight: 0.6 * pm.pieceSize,
           blockHumanWeight: 1.4 * pm.blockHuman,
-          blockOpponentWeight: 1.2,
-          invasionWeight: base(1.0 * pm.invasion, invadeBoost),
+          blockOpponentWeight: 1.2 * leaderCrowdFactor,
+          invasionWeight: base(1.0 * pm.invasion, invadeBoost) * leaderCrowdFactor,
           territoryWeight: 0.4,
           blockingWeight: base(0.5 * pm.blocking, blockBoost),
           gapWeight: 0.5,
@@ -359,14 +439,14 @@ export class AIPlayer {
         return {
           centerWeight: 0.7 * pm.center,
           towardCenterProgressWeight: 2.0 * pm.towardCenter,
-          towardLeaderWeight: 0.7 * invadeBoost,
+          towardLeaderWeight: 0.7 * invadeBoost * leaderCrowdFactor,
           surroundingWeight: 1.0,
           connectionWeight: 1.2 * connectionBoost,
           expansionWeight: base(3.8 * pm.expansion, expandBoost),
           pieceSizeWeight: 0.8 * pm.pieceSize,
           blockHumanWeight: 2.0 * pm.blockHuman,
-          blockOpponentWeight: 1.6,
-          invasionWeight: base(2.0 * pm.invasion, invadeBoost),
+          blockOpponentWeight: 1.6 * leaderCrowdFactor,
+          invasionWeight: base(2.0 * pm.invasion, invadeBoost) * leaderCrowdFactor,
           territoryWeight: 0.8,
           blockingWeight: base(0.9 * pm.blocking, blockBoost),
           gapWeight: 0.8,
@@ -520,7 +600,8 @@ export class AIPlayer {
     for (const [c, n] of opponentCellCounts) {
       if (n > maxCount) { maxCount = n; leadingOpponent = c; }
     }
-    return { opponentExpansionSpots, opponentCenters, leadingOpponent, ourExpansionSpots, ourCellCount, ourClusterCount, opponentCellCounts, threatLevel };
+    const ourRank = 1 + Array.from(opponentCellCounts.values()).filter(n => n > ourCellCount).length;
+    return { opponentExpansionSpots, opponentCenters, leadingOpponent, ourExpansionSpots, ourCellCount, ourClusterCount, opponentCellCounts, threatLevel, ourRank };
   }
 
   private countClusters(board: number[][], colorIndex: number): number {
@@ -802,9 +883,9 @@ export class AIPlayer {
         if (shape[row][col] === 0) continue;
         const boardX = x + col;
         const boardY = y + row;
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (dx === 0 && dy === 0) continue;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
             const cx = boardX + dx;
             const cy = boardY + dy;
             const key = `${cx},${cy}`;

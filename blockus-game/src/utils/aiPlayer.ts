@@ -18,6 +18,7 @@ export interface BoardAnalysis {
   ourClusterCount: number;  // 己方连通块数，>1 表示碎片化
   opponentCellCounts: Map<number, number>;
   threatLevel: number;  // 己方与对手边相邻的格子数
+  ourRank: number;  // 己方排名 1-4，用于避免多名 AI 同时挤入领先者领地
 }
 
 export interface CreativeContext {
@@ -48,7 +49,7 @@ export class AIPlayer {
   private difficulty: 'easy' | 'medium' | 'hard';
   private strategy: AIStrategy;
   private humanColorIndices: Set<number>;
-
+  
   constructor(color: PlayerColor, difficulty: 'easy' | 'medium' | 'hard' = 'medium', humanColors: PlayerColor | PlayerColor[] = [], strategy: AIStrategy = 'balanced') {
     this.color = color;
     this.colorIndex = this.getColorIndex(color);
@@ -102,6 +103,20 @@ export class AIPlayer {
   ): { piece: Piece; position: Position } | null {
     const availablePieces = pieces.filter(p => !p.isUsed);
     if (availablePieces.length === 0) return null;
+    const turnNum = fullState?.turnCount ?? 0;
+
+    // 每个 AI 最开始的两块：从五格拼图随机抽，选最向中心拓展的摆放
+    const usedCount = pieces.length - availablePieces.length;
+    if (!creativeCtx && usedCount < 2 && (this.difficulty === 'medium' || this.difficulty === 'hard')) {
+      const earlyMove = this.getEarlyBestCenterMove(board, availablePieces);
+      if (earlyMove) return earlyMove;
+    }
+
+    // 开局 2-3 轮（第 3 块起）：仅用五块、向中心拓展，纯随机
+    if (!creativeCtx && turnNum <= 10 && usedCount >= 2 && (this.difficulty === 'medium' || this.difficulty === 'hard')) {
+      const earlyMove = this.getEarlyRandomMove(board, availablePieces);
+      if (earlyMove) return earlyMove;
+    }
 
     // hard 难度 + 经典模式 + 有完整状态：使用 Minimax+Alpha-Beta，自适应深度
     if (
@@ -230,6 +245,71 @@ export class AIPlayer {
       }
     }
     return positions;
+  }
+
+  /** 最开始两块：从五格拼图随机抽一块，找最向中心拓展的摆放 */
+  private getEarlyBestCenterMove(board: number[][], availablePieces: Piece[]): { piece: Piece; position: Position } | null {
+    const fiveBlocks = availablePieces.filter(p => p.type === 5);
+    if (fiveBlocks.length === 0) return null;
+    const picked = fiveBlocks[Math.floor(Math.random() * fiveBlocks.length)];
+    let bestMove: { piece: Piece; position: Position } | null = null;
+    let bestScore = -Infinity;
+    const transformations = getUniqueTransformations(picked);
+    for (const transformed of transformations) {
+      const positions = this.findAllPositions(board, transformed);
+      for (const pos of positions) {
+        if (!this.isTowardCenter(transformed, pos, board.length)) continue;
+        const score = this.getTowardCenterProgressScore(pos.x, pos.y, transformed.shape, board.length);
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = { piece: transformed, position: pos };
+        }
+      }
+    }
+    return bestMove;
+  }
+
+  /** 开局 2-3 轮（第 3 块起）：仅五块、向中心拓展，纯随机选取 */
+  private getEarlyRandomMove(board: number[][], availablePieces: Piece[]): { piece: Piece; position: Position } | null {
+    const fiveBlocks = availablePieces.filter(p => p.type === 5);
+    if (fiveBlocks.length === 0) return null;
+    const candidates: Array<{ piece: Piece; position: Position }> = [];
+    for (const piece of fiveBlocks) {
+      const transformations = getUniqueTransformations(piece);
+      for (const transformed of transformations) {
+        const positions = this.findAllPositions(board, transformed);
+        for (const pos of positions) {
+          if (this.isTowardCenter(transformed, pos, board.length)) {
+            candidates.push({ piece: transformed, position: pos });
+          }
+        }
+      }
+    }
+    if (candidates.length === 0) return null;
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  /** 是否向中心拓展：拼图质心在己方角朝向棋盘中心的方向 */
+  private isTowardCenter(piece: Piece, position: Position, boardSize: number): boolean {
+    let sx = 0; let sy = 0; let n = 0;
+    for (let row = 0; row < piece.shape.length; row++) {
+      for (let col = 0; col < piece.shape[row].length; col++) {
+        if (piece.shape[row][col] === 1) {
+          sx += position.x + col;
+          sy += position.y + row;
+          n++;
+        }
+      }
+    }
+    if (n === 0) return false;
+    const cx = sx / n; const cy = sy / n;
+    switch (this.colorIndex) {
+      case 1: return cx + cy >= 2;           // Red (0,0) -> 向 (center,center)
+      case 2: return (boardSize - 1 - cx) + cy >= 2;   // Yellow
+      case 3: return (boardSize - 1 - cx) + (boardSize - 1 - cy) >= 2;  // Blue
+      case 4: return cx + (boardSize - 1 - cy) >= 2;   // Green
+      default: return true;
+    }
   }
   
   private evaluatePositionFull(
@@ -392,7 +472,8 @@ export class AIPlayer {
         leadingOpponent = c;
       }
     });
-    return { opponentExpansionSpots, opponentCenters, leadingOpponent, ourExpansionSpots, ourCellCount, ourClusterCount, opponentCellCounts, threatLevel };
+    const ourRank = 1 + Array.from(opponentCellCounts.values()).filter(n => n > ourCellCount).length;
+    return { opponentExpansionSpots, opponentCenters, leadingOpponent, ourExpansionSpots, ourCellCount, ourClusterCount, opponentCellCounts, threatLevel, ourRank };
   }
 
   /** 统计己方连通块数（边相邻） */
@@ -714,6 +795,9 @@ export class AIPlayer {
       if (maxOppCells > boardAnalysis.ourCellCount) invadeBoost = 1.25;
     }
 
+    // 3、4 名 AI 不挤入领先者领地，避免多人围攻反而给领先者创造扩张机会
+    const leaderCrowdFactor = boardAnalysis && boardAnalysis.ourRank >= 3 ? 0.25 : 1;
+
     const base = (w: number, boost: number) => w * boost;
     switch (this.difficulty) {
       case 'easy':
@@ -739,15 +823,15 @@ export class AIPlayer {
         return {
           centerWeight: 0.5 * pm.center,
           towardCenterProgressWeight: 1.2 * pm.towardCenter,
-          towardLeaderWeight: 0.4 * invadeBoost,
+          towardLeaderWeight: 0.4 * invadeBoost * leaderCrowdFactor,
           surroundingWeight: 0.8,
           connectionWeight: 1.0 * connectionBoost,
           expansionWeight: base(2.8 * pm.expansion, expandBoost),
           pieceSizeWeight: 0.6 * pm.pieceSize,
           blockHumanWeight: 1.4 * pm.blockHuman,
-          blockOpponentWeight: 1.2,
+          blockOpponentWeight: 1.2 * leaderCrowdFactor,
           blockingWeight: base(0.5 * pm.blocking, blockBoost),
-          invasionWeight: base(1.0 * pm.invasion, invadeBoost),
+          invasionWeight: base(1.0 * pm.invasion, invadeBoost) * leaderCrowdFactor,
           territoryWeight: 0.4,
           gapWeight: 0.5,
           specialTileWeight: 1.0,
@@ -758,15 +842,15 @@ export class AIPlayer {
         return {
           centerWeight: 0.7 * pm.center,
           towardCenterProgressWeight: 2.0 * pm.towardCenter,
-          towardLeaderWeight: 0.7 * invadeBoost,
+          towardLeaderWeight: 0.7 * invadeBoost * leaderCrowdFactor,
           surroundingWeight: 1.0,
           connectionWeight: 1.2 * connectionBoost,
           expansionWeight: base(3.8 * pm.expansion, expandBoost),
           pieceSizeWeight: 0.8 * pm.pieceSize,
           blockHumanWeight: 2.0 * pm.blockHuman,
-          blockOpponentWeight: 1.6,
+          blockOpponentWeight: 1.6 * leaderCrowdFactor,
           blockingWeight: base(0.9 * pm.blocking, blockBoost),
-          invasionWeight: base(2.0 * pm.invasion, invadeBoost),
+          invasionWeight: base(2.0 * pm.invasion, invadeBoost) * leaderCrowdFactor,
           territoryWeight: 0.8,
           gapWeight: 0.8,
           specialTileWeight: 1.8,
@@ -794,7 +878,7 @@ export class AIPlayer {
         };
     }
   }
-  
+
   private getCenterDistanceScore(x: number, y: number, boardSize: number, shape?: number[][]): number {
     let cx = x, cy = y;
     if (shape) {

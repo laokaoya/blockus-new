@@ -717,7 +717,7 @@ export class GameManager {
 
             let moveResult = isCreative
               ? aiPlayer.makeMoveCreative(game.state.board, pieces, game.state.creativeState!.specialTiles, hasBigBan)
-              : aiPlayer.makeMove(game.state.board, pieces);
+              : aiPlayer.makeMove(game.state.board, pieces, game.state.turnCount);
 
             if (!moveResult) {
               // 首轮（每玩家至少一次落子机会）若 AI 返回无步，优先跳过而非结算，避免屏障/布局导致误判
