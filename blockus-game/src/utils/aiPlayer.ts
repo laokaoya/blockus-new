@@ -148,6 +148,19 @@ export class AIPlayer {
     if (allCandidates.length === 0) return null;
 
     allCandidates.sort((a, b) => b.score - a.score);
+    // 同分随机打乱，避免所有 AI 选同一块
+    let i = 0;
+    while (i < allCandidates.length) {
+      let j = i + 1;
+      while (j < allCandidates.length && allCandidates[j].score === allCandidates[i].score) j++;
+      if (j - i > 1) {
+        for (let k = j - 1; k > i; k--) {
+          const r = i + Math.floor(Math.random() * (k - i + 1));
+          [allCandidates[k], allCandidates[r]] = [allCandidates[r], allCandidates[k]];
+        }
+      }
+      i = j;
+    }
 
     switch (this.difficulty) {
       case 'easy': {
@@ -160,10 +173,10 @@ export class AIPlayer {
         return top[idx].bestMove;
       }
       case 'hard': {
-        if (allCandidates.length > 1 && Math.random() < 0.1) {
-          return allCandidates[1].bestMove;
-        }
-        return allCandidates[0].bestMove;
+        const top = allCandidates.slice(0, Math.min(3, allCandidates.length));
+        const weights = top.map((_, i) => [7, 2, 1][i] ?? 1); // 70% 20% 10%
+        const idx = this.getWeightedRandomIndex(weights);
+        return top[idx].bestMove;
       }
       default: {
         const top = allCandidates.slice(0, Math.min(5, allCandidates.length));

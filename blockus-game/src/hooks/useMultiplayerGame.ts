@@ -6,7 +6,7 @@ import { GameState, Player, Piece, Position, PlayerColor, GameMove } from '../ty
 import { PIECE_SHAPES, PIECE_COUNTS } from '../constants/pieces';
 import { canPlacePiece } from '../utils/gameEngine';
 import { overlapsBarrier } from '../utils/creativeModeEngine';
-import { rotatePiece, flipPiece } from '../utils/pieceTransformations';
+import { rotatePiece, flipPiece, getUniqueTransformations } from '../utils/pieceTransformations';
 import socketService, { ServerGameState, GameRanking } from '../services/socketService';
 import soundManager from '../utils/soundManager';
 import { useRoom } from '../contexts/RoomContext';
@@ -811,10 +811,13 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
     return myPlayer.pieces
       .filter(p => !p.isUsed)
       .some(piece => {
-        for (let y = 0; y < BOARD_SIZE; y++) {
-          for (let x = 0; x < BOARD_SIZE; x++) {
-            if (canPlacePiece(gameState.board, piece, { x, y }, colorIndex)) {
-              if (!specialTiles?.length || !overlapsBarrier(piece.shape, { x, y }, specialTiles)) return true;
+        const variants = getUniqueTransformations(piece);
+        for (const variant of variants) {
+          for (let y = 0; y < BOARD_SIZE; y++) {
+            for (let x = 0; x < BOARD_SIZE; x++) {
+              if (canPlacePiece(gameState.board, variant, { x, y }, colorIndex)) {
+                if (!specialTiles?.length || !overlapsBarrier(variant.shape, { x, y }, specialTiles)) return true;
+              }
             }
           }
         }
@@ -841,10 +844,13 @@ export function useMultiplayerGame(options: MultiplayerGameOptions) {
       const canContinue = myPlayer.pieces
         .filter(p => !p.isUsed)
         .some(piece => {
-          for (let y = 0; y < BOARD_SIZE; y++) {
-            for (let x = 0; x < BOARD_SIZE; x++) {
-              if (canPlacePiece(gameState.board, piece, { x, y }, colorIndex)) {
-                if (!specialTiles?.length || !overlapsBarrier(piece.shape, { x, y }, specialTiles)) return true;
+          const variants = getUniqueTransformations(piece);
+          for (const variant of variants) {
+            for (let y = 0; y < BOARD_SIZE; y++) {
+              for (let x = 0; x < BOARD_SIZE; x++) {
+                if (canPlacePiece(gameState.board, variant, { x, y }, colorIndex)) {
+                  if (!specialTiles?.length || !overlapsBarrier(variant.shape, { x, y }, specialTiles)) return true;
+                }
               }
             }
           }

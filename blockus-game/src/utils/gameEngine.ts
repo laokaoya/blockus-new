@@ -1,6 +1,7 @@
 // 游戏引擎核心逻辑
 
 import { GameState, Piece, Position, PlayerColor } from '../types/game';
+import { getUniqueTransformations } from './pieceTransformations';
 
 // 检查拼图是否可以放置在指定位置
 export function canPlacePiece(
@@ -210,16 +211,18 @@ export function getWinner(players: any[]): any {
   }, players[0]);
 }
 
-// 检查玩家是否可以继续放置拼图
+// 检查玩家是否可以继续放置拼图（含旋转/翻转后的所有形态）
 export function canPlayerContinue(board: number[][], pieces: Piece[], playerColorIndex: number): boolean {
   for (const piece of pieces) {
     if (piece.isUsed) continue;
-    
-    // 尝试在棋盘的每个位置放置拼图
-    for (let y = 0; y < board.length; y++) {
-      for (let x = 0; x < board[y].length; x++) {
-        if (canPlacePiece(board, piece, { x, y }, playerColorIndex)) {
-          return true;
+
+    const variants = getUniqueTransformations(piece);
+    for (const variant of variants) {
+      for (let y = 0; y < board.length; y++) {
+        for (let x = 0; x < board[y].length; x++) {
+          if (canPlacePiece(board, variant, { x, y }, playerColorIndex)) {
+            return true;
+          }
         }
       }
     }

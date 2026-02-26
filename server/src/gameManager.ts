@@ -87,7 +87,7 @@ export class GameManager {
 
     const gameState: GameState = {
       board,
-      currentPlayerIndex: 0,
+      currentPlayerIndex: Math.floor(Math.random() * players.length), // 随机先手
       gamePhase: 'playing',
       turnCount: 1,
       moves: [],

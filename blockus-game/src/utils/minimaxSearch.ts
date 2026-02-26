@@ -91,7 +91,15 @@ function getAllLegalMoves(
   return moves;
 }
 
-/** 获取候选动作：按 heuristic 排序，取 top-k；我方用 evaluator，对手用块大小+扩张 */
+/** 打乱数组中 [start, end) 区间，用于同分落子随机化 */
+function shuffleSegment<T>(arr: T[], start: number, end: number): void {
+  for (let i = end - 1; i > start; i--) {
+    const j = start + Math.floor(Math.random() * (i - start + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+/** 获取候选动作：按 heuristic 排序，取 top-k；同分时随机打乱，避免所有 AI 选同一块 */
 export function getCandidateMoves(
   board: number[][],
   pieces: Piece[],
@@ -111,6 +119,14 @@ export function getCandidateMoves(
       : evaluator(board, m.piece, m.position, colorIndex, gamePhase),
   }));
   scored.sort((a, b) => b.score - a.score);
+  // 同分落子随机打乱，增加开局多样性
+  let i = 0;
+  while (i < scored.length) {
+    let j = i + 1;
+    while (j < scored.length && scored[j].score === scored[i].score) j++;
+    if (j - i > 1) shuffleSegment(scored, i, j);
+    i = j;
+  }
   return scored.slice(0, limit);
 }
 
