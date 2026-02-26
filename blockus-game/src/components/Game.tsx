@@ -17,6 +17,7 @@ import { overlapsBarrier } from '../utils/creativeModeEngine';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useVisibilityPause } from '../hooks/useVisibilityPause';
 import { useRoom } from '../contexts/RoomContext';
 import soundManager from '../utils/soundManager';
 import socketService from '../services/socketService';
@@ -497,6 +498,7 @@ const SinglePlayerGame: React.FC = () => {
   const [showRulesModal, setShowRulesModal] = useState(false);
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { isVisibilityPaused, resume } = useVisibilityPause(setPaused);
   
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const player = gameState.players[0];
@@ -687,6 +689,18 @@ const SinglePlayerGame: React.FC = () => {
         </GameContainer>
       )}
       <GameRulesModal isOpen={showRulesModal} onClose={() => { setShowRulesModal(false); setPaused(false); }} />
+      {isVisibilityPaused && gameState.gamePhase !== 'finished' && (
+        <PauseOverlay style={{ position: 'fixed', zIndex: 300 }}>
+          <PauseTitle>{t('game.pausedVisibility') || '您已离开游戏'}</PauseTitle>
+          <PauseDesc>{t('game.pausedVisibilityDesc') || '点击继续游戏'}</PauseDesc>
+          <PauseBackBtn onClick={() => { soundManager.buttonClick(); resume(); }} onMouseEnter={() => soundManager.buttonHover()}>
+            {t('game.resume') || '继续'}
+          </PauseBackBtn>
+          <PauseBackBtn onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()} style={{ marginTop: 12 }}>
+            {t('game.forceBack') || '返回大厅'}
+          </PauseBackBtn>
+        </PauseOverlay>
+      )}
     </>
   );
 };
@@ -704,6 +718,7 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
   const isSpectateMode = searchParams.get('spectate') === 'true' || isSpectating;
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const { isVisibilityPaused: isVisibilityPausedMP, resume: resumeVisibilityMP } = useVisibilityPause();
 
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
   const [itemTargetSelection, setItemTargetSelection] = useState<{ cardIndex: number; card: ItemCard } | null>(null);
@@ -1119,6 +1134,18 @@ const MultiplayerGameView: React.FC<MultiplayerGameViewProps> = ({ roomId }: Mul
               <PauseDesc>{t('game.pausedReconnect') || '玩家已离开，请返回大厅后点击「回到游戏」继续'}</PauseDesc>
               <PauseBackBtn onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()}>
                 ← {isSpectateMode ? (t('room.leaveSpectate') || '离开观战') : t('common.back')}
+              </PauseBackBtn>
+            </PauseOverlay>
+          )}
+          {isVisibilityPausedMP && !isPaused && (gameState.gamePhase as string) !== 'finished' && (
+            <PauseOverlay style={{ position: 'fixed', zIndex: 300 }}>
+              <PauseTitle>{t('game.pausedVisibility') || '您已离开游戏'}</PauseTitle>
+              <PauseDesc>{t('game.pausedVisibilityDesc') || '点击继续游戏'}</PauseDesc>
+              <PauseBackBtn onClick={() => { soundManager.buttonClick(); resumeVisibilityMP(); }} onMouseEnter={() => soundManager.buttonHover()}>
+                {t('game.resume') || '继续'}
+              </PauseBackBtn>
+              <PauseBackBtn onClick={handleBackToLobby} onMouseEnter={() => soundManager.buttonHover()} style={{ marginTop: 12 }}>
+                {t('game.forceBack') || '返回大厅'}
               </PauseBackBtn>
             </PauseOverlay>
           )}

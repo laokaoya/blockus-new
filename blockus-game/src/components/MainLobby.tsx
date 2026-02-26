@@ -384,7 +384,7 @@ const MainLobby: React.FC = () => {
     soundManager.buttonClick();
     if (!user || isQuickStarting) return;
     const strategies = [getRandomAIStrategy(), getRandomAIStrategy(), getRandomAIStrategy()];
-    const settings = { aiDifficulty: 'medium' as const, aiStrategies: strategies, timeLimit: 60, showHints: true, soundEnabled: true };
+    const settings = { aiDifficulty: 'hard' as const, aiStrategies: strategies, timeLimit: 60, showHints: true, soundEnabled: true };
     localStorage.setItem('gameSettings', JSON.stringify(settings));
     if (!isOnline) {
       navigate('/game', { state: { showTransition: true } });
@@ -422,7 +422,7 @@ const MainLobby: React.FC = () => {
     soundManager.buttonClick();
     if (!user || isQuickStarting) return;
     const strategies = [getRandomAIStrategy(), getRandomAIStrategy(), getRandomAIStrategy()];
-    const settings = { aiDifficulty: 'medium' as const, aiStrategies: strategies, timeLimit: 60, showHints: true, soundEnabled: true };
+    const settings = { aiDifficulty: 'hard' as const, aiStrategies: strategies, timeLimit: 60, showHints: true, soundEnabled: true };
     localStorage.setItem('gameSettings', JSON.stringify(settings));
     if (!isOnline) {
       navigate('/creative', { state: { showTransition: true } });

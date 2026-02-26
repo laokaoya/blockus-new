@@ -37,10 +37,15 @@ const ChatContainer = styled.div<{ isOpen: boolean }>`
   overflow: hidden;
 
   @media (max-width: 768px) {
+    position: fixed;
     width: calc(100% - 40px);
     right: 20px;
+    left: 20px;
     bottom: 100px;
+    top: auto;
     height: 300px;
+    /* 防止打开时触发页面滚动 */
+    overscroll-behavior: contain;
   }
 `;
 
@@ -152,6 +157,7 @@ const ChatInput = styled.input`
   font-size: 0.9rem;
   font-family: 'Rajdhani', sans-serif;
   transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
 
   &:focus {
     outline: none;
@@ -217,6 +223,9 @@ const ToggleButton = styled.button<{ isOpen: boolean; hasUnread: boolean; $inlin
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  /* 移动端：禁用点击高亮和默认触觉反馈，防止振动和界面偏移 */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 
   svg {
     width: 20px;
@@ -313,6 +322,22 @@ const ChatBox: React.FC<ChatBoxProps> = ({ isOpen: controlledOpen, onOpen, onClo
     }
   }, [isOpen]);
 
+  /* 移动端：聊天打开时锁定 body 滚动，防止界面下移 */
+  useEffect(() => {
+    if (!isOpen) return;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    if (isMobile) {
+      const prevOverflow = document.body.style.overflow;
+      const prevTouchAction = document.body.style.touchAction;
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        document.body.style.touchAction = prevTouchAction;
+      };
+    }
+  }, [isOpen]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim()) {
@@ -326,7 +351,11 @@ const ChatBox: React.FC<ChatBoxProps> = ({ isOpen: controlledOpen, onOpen, onClo
     <ToggleButton 
       $inline={placement === 'header'}
       isOpen={isOpen} 
-      onClick={() => { openChat(); soundManager.buttonClick(); }}
+      onClick={(e) => {
+        e.preventDefault();
+        openChat();
+        soundManager.buttonClick();
+      }}
       hasUnread={hasUnread}
       title="Chat"
     >

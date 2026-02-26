@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Game from '../Game';
 import styled, { keyframes } from 'styled-components';
 import { useCreativeGameState } from '../../hooks/useCreativeGameState';
+import { useVisibilityPause } from '../../hooks/useVisibilityPause';
 import GameBoard from '../GameBoard';
 import PlayerPieceLibrary from '../PlayerPieceLibrary';
 import AIPlayersInfo from '../AIPlayersInfo';
@@ -305,6 +306,34 @@ const ItemPhaseOverlay = styled.div`
   pointer-events: none;
 `;
 
+// 离开游戏后返回的暂停遮罩（可点击）
+const VisibilityPauseOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--text-primary);
+  padding: 24px;
+  text-align: center;
+  button {
+    padding: 12px 24px;
+    border-radius: 50px;
+    border: 1px solid var(--surface-border);
+    background: var(--surface-highlight);
+    color: var(--text-primary);
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    &:hover { background: var(--surface-border); }
+  }
+`;
+
 const getPlayerColorIndex = (color: string): number => {
   switch (color) {
     case 'red': return 1;
@@ -331,6 +360,7 @@ const LocalCreativeGame: React.FC = () => {
   const [showRulesModal, setShowRulesModal] = useState(false);
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { isVisibilityPaused, resume } = useVisibilityPause(setPaused);
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const player = gameState.players[0];
@@ -534,6 +564,14 @@ const LocalCreativeGame: React.FC = () => {
         </GameContainer>
       )}
       <GameRulesModal isOpen={showRulesModal} onClose={() => { setShowRulesModal(false); setPaused(false); }} mode="creative" />
+      {isVisibilityPaused && gameState.gamePhase !== 'finished' && (
+        <VisibilityPauseOverlay>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>{t('game.pausedVisibility') || '您已离开游戏'}</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>{t('game.pausedVisibilityDesc') || '点击继续游戏'}</div>
+          <button onClick={() => { soundManager.buttonClick(); resume(); }}>{t('game.resume') || '继续'}</button>
+          <button onClick={handleBackToLobby}>{t('game.forceBack') || '返回大厅'}</button>
+        </VisibilityPauseOverlay>
+      )}
     </>
   );
 };

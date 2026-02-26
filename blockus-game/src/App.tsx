@@ -7,6 +7,7 @@ import { RoomProvider } from './contexts/RoomContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { GameErrorFallback } from './components/GameErrorFallback';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import ParticlesBackground from './components/ParticlesBackground';
 import TransitionOverlay from './components/TransitionOverlay';
@@ -51,8 +52,8 @@ function App() {
                           <Route path="/" element={<MainLobby />} />
                           <Route path="/profile" element={<UserProfile />} />
                           <Route path="/room/:roomId" element={<GameRoom />} />
-                          <Route path="/game" element={<Game />} />
-                          <Route path="/creative" element={<CreativeGame />} />
+                          <Route path="/game" element={<ErrorBoundary fallback={<GameErrorFallback />}><Game /></ErrorBoundary>} />
+                          <Route path="/creative" element={<ErrorBoundary fallback={<GameErrorFallback />}><CreativeGame /></ErrorBoundary>} />
                           <Route path="/settings" element={<Settings />} />
                           <Route path="/game-settings" element={<GameSettings />} />
                           <Route path="/statistics" element={<Statistics />} />
