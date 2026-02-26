@@ -9,7 +9,7 @@ import GameRulesModal from './GameRulesModal';
 import RoomList from './RoomList';
 import LadderBoard from './LadderBoard';
 import soundManager from '../utils/soundManager';
-import { getRandomAIStrategy } from '../types/game';
+import { getRandomAIStrategyForQuickStart } from '../types/game';
 import { SettingsIcon, UserIcon, BookIcon, RocketIcon, LogoutIcon } from './Icons';
 
 interface UserStats {
@@ -383,7 +383,7 @@ const MainLobby: React.FC = () => {
   const handleQuickClassic = async () => {
     soundManager.buttonClick();
     if (!user || isQuickStarting) return;
-    const strategies = [getRandomAIStrategy(), getRandomAIStrategy(), getRandomAIStrategy()];
+    const strategies = [getRandomAIStrategyForQuickStart(), getRandomAIStrategyForQuickStart(), getRandomAIStrategyForQuickStart()];
     const settings = { aiDifficulty: 'hard' as const, aiStrategies: strategies, timeLimit: 60, showHints: true, soundEnabled: true };
     localStorage.setItem('gameSettings', JSON.stringify(settings));
     if (!isOnline) {
@@ -421,7 +421,7 @@ const MainLobby: React.FC = () => {
   const handleQuickCreative = async () => {
     soundManager.buttonClick();
     if (!user || isQuickStarting) return;
-    const strategies = [getRandomAIStrategy(), getRandomAIStrategy(), getRandomAIStrategy()];
+    const strategies = [getRandomAIStrategyForQuickStart(), getRandomAIStrategyForQuickStart(), getRandomAIStrategyForQuickStart()];
     const settings = { aiDifficulty: 'hard' as const, aiStrategies: strategies, timeLimit: 60, showHints: true, soundEnabled: true };
     localStorage.setItem('gameSettings', JSON.stringify(settings));
     if (!isOnline) {

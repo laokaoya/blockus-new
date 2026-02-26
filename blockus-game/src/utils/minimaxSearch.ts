@@ -142,7 +142,19 @@ function clonePiecesAndMarkUsed(pieces: Piece[], placedPiece: Piece): Piece[] {
   });
 }
 
-/** 从当前状态评估「我方」局面：取我方最佳落子的 heuristic 分 */
+/** 统计棋盘上各颜色格子数 */
+function countBoardScores(board: number[][]): Map<number, number> {
+  const counts = new Map<number, number>();
+  for (let y = 0; y < board.length; y++) {
+    for (let x = 0; x < board[y].length; x++) {
+      const c = board[y][x];
+      if (c > 0) counts.set(c, (counts.get(c) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/** 从当前状态评估「我方」局面：取我方最佳落子的 heuristic 分 + 局面分数差 */
 function evaluateStateFromOurPerspective(
   state: SearchState,
   ourColorIndex: number,
@@ -164,7 +176,12 @@ function evaluateStateFromOurPerspective(
     candidateLimit
   );
   if (candidates.length === 0) return -1e6; // 无路可走
-  return candidates[0].score;
+  let score = candidates[0].score;
+  const boardScores = countBoardScores(state.board);
+  const ourCells = boardScores.get(ourColorIndex) ?? 0;
+  const maxOpp = Math.max(0, ...COLOR_INDEX_TO_PLAYER.filter(c => c !== ourColorIndex).map(c => boardScores.get(c) ?? 0));
+  score += (ourCells - maxOpp) * 3;  // 局面分数差
+  return score;
 }
 
 /** 下一玩家索引（含跳过无步可走的玩家） */
@@ -236,6 +253,7 @@ export function minimax(
 
   if (isOurTurn) {
     let maxScore = -Infinity;
+    const ties: SearchMove[] = [];
     for (const { move } of candidates) {
       const newBoard = placePiece(state.board, move.piece, move.position, colorIndex);
       const newPiecesByPlayer = state.piecesByPlayer.map((ps, i) =>
@@ -250,14 +268,19 @@ export function minimax(
       const { score } = minimax(nextState, ourColorIndex, evaluator, depth - 1, alpha, beta, candidateLimit);
       if (score > maxScore) {
         maxScore = score;
-        bestMove = move;
+        ties.length = 0;
+        ties.push(move);
+      } else if (score === maxScore) {
+        ties.push(move);
       }
       alpha = Math.max(alpha, maxScore);
       if (beta <= alpha) break;
     }
+    bestMove = ties.length > 1 ? ties[Math.floor(Math.random() * ties.length)]! : ties[0] ?? null;
     return { score: maxScore, move: bestMove };
   } else {
     let minScore = Infinity;
+    const ties: SearchMove[] = [];
     for (const { move } of candidates) {
       const newBoard = placePiece(state.board, move.piece, move.position, colorIndex);
       const newPiecesByPlayer = state.piecesByPlayer.map((ps, i) =>
@@ -272,25 +295,35 @@ export function minimax(
       const { score } = minimax(nextState, ourColorIndex, evaluator, depth - 1, alpha, beta, candidateLimit);
       if (score < minScore) {
         minScore = score;
-        bestMove = move;
+        ties.length = 0;
+        ties.push(move);
+      } else if (score === minScore) {
+        ties.push(move);
       }
       beta = Math.min(beta, minScore);
       if (beta <= alpha) break;
     }
+    bestMove = ties.length > 1 ? ties[Math.floor(Math.random() * ties.length)]! : ties[0] ?? null;
     return { score: minScore, move: bestMove };
   }
 }
 
-/** 迭代加深：先深度 1，再深度 2，返回最佳着法 */
+/** 迭代加深：逐步加深深度，可选时间限制；同分时随机选 */
 export function iterativeDeepeningSearch(
   state: SearchState,
   ourColorIndex: number,
   evaluator: MoveEvaluator,
   maxDepth: number,
-  candidateLimit: number
+  candidateLimit: number,
+  deadlineMs?: number
 ): SearchMove | null {
   let bestMove: SearchMove | null = null;
+  let bestScore = -Infinity;
+  const tieMoves: SearchMove[] = [];
+  const start = Date.now();
+
   for (let d = 1; d <= maxDepth; d++) {
+    if (deadlineMs && Date.now() - start > deadlineMs) break;
     const result = minimax(
       state,
       ourColorIndex,
@@ -300,7 +333,19 @@ export function iterativeDeepeningSearch(
       Infinity,
       candidateLimit
     );
-    if (result.move) bestMove = result.move;
+    if (result.move) {
+      if (result.score > bestScore) {
+        bestScore = result.score;
+        bestMove = result.move;
+        tieMoves.length = 0;
+        tieMoves.push(result.move);
+      } else if (result.score === bestScore) {
+        tieMoves.push(result.move);
+      }
+    }
+  }
+  if (tieMoves.length > 1) {
+    return tieMoves[Math.floor(Math.random() * tieMoves.length)];
   }
   return bestMove;
 }

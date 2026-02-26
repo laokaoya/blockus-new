@@ -8,6 +8,17 @@ import type { SpecialTile } from './creativeTypes';
 
 export type GamePhase = 'early' | 'mid' | 'late';
 
+interface BoardAnalysis {
+  opponentExpansionSpots: Map<number, Set<string>>;
+  opponentCenters: Map<number, { cx: number; cy: number; count: number }>;
+  leadingOpponent: number;
+  ourExpansionSpots: number;
+  ourCellCount: number;
+  ourClusterCount: number;
+  opponentCellCounts: Map<number, number>;
+  threatLevel: number;
+}
+
 export class AIPlayer {
   private color: PlayerColor;
   private colorIndex: number;
@@ -152,6 +163,10 @@ export class AIPlayer {
     const usedRatio = 1 - remaining / totalPieces;
     const gamePhase: 'early' | 'mid' | 'late' = usedRatio < 0.2 ? 'early' : usedRatio > 0.65 ? 'late' : 'mid';
 
+    const boardAnalysis = (this.difficulty === 'medium' || this.difficulty === 'hard')
+      ? this.computeBoardAnalysis(board)
+      : null;
+
     const allCandidates: Array<{ piece: Piece; score: number; bestMove: { piece: Piece; position: Position } }> = [];
 
     for (const piece of availablePieces) {
@@ -162,7 +177,7 @@ export class AIPlayer {
       for (const transformedPiece of transformations) {
         const positions = this.findAllPositions(board, transformedPiece);
         for (const pos of positions) {
-          const score = this.evaluatePosition(board, transformedPiece, pos, gamePhase);
+          const score = this.evaluatePosition(board, transformedPiece, pos, gamePhase, boardAnalysis);
           if (score > bestScore) {
             bestScore = score;
             bestMove = { piece: transformedPiece, position: pos };
@@ -200,8 +215,12 @@ export class AIPlayer {
         return top[idx].bestMove;
       }
       case 'hard': {
-        const top = allCandidates.slice(0, Math.min(3, allCandidates.length));
-        const weights = top.map((_, i) => [7, 2, 1][i] ?? 1); // 70% 20% 10%
+        const isEarly = gamePhase === 'early';
+        const topN = isEarly ? 6 : 3;
+        const top = allCandidates.slice(0, Math.min(topN, allCandidates.length));
+        const weights = isEarly
+          ? top.map((_, i) => [22, 20, 18, 16, 14, 10][i] ?? 1) // 开局更随机，避免所有 AI 选同一块
+          : top.map((_, i) => [7, 2, 1][i] ?? 1); // 中后期 70/20/10
         const idx = this.getWeightedRandomIndex(weights);
         return top[idx].bestMove;
       }
@@ -239,112 +258,134 @@ export class AIPlayer {
   }
 
   // 评估位置分数
-  private evaluatePosition(board: number[][], piece: Piece, position: Position, gamePhase: GamePhase): number {
+  private evaluatePosition(board: number[][], piece: Piece, position: Position, gamePhase: GamePhase, boardAnalysis: BoardAnalysis | null = null): number {
     let score = 0;
     const { x, y } = position;
     const { shape } = piece;
-    const weights = this.getDifficultyWeights(gamePhase);
+    const weights = this.getDifficultyWeights(gamePhase, boardAnalysis);
 
     score += this.getCenterDistanceScore(x, y, board.length, shape) * weights.centerWeight;
+    score += this.getTowardCenterProgressScore(x, y, shape, board.length) * weights.towardCenterProgressWeight;
+    score += this.getTowardLeaderScore(x, y, shape, boardAnalysis) * weights.towardLeaderWeight;
     score += this.getSurroundingScore(board, x, y, shape) * weights.surroundingWeight;
     score += this.getConnectionScore(board, x, y, shape) * weights.connectionWeight;
-    score += this.getExpansionScore(board, x, y, shape) * weights.expansionWeight;
     score += this.getPieceSizeBonus(piece, gamePhase) * weights.pieceSizeWeight;
     score += this.getBlockHumanScore(board, x, y, shape) * weights.blockHumanWeight;
-    score += this.getInvasionScore(board, piece, x, y, shape) * weights.invasionWeight;
+    score += this.getBlockOpponentExpansionScore(board, x, y, shape, boardAnalysis) * weights.blockOpponentWeight;
+    const expansionScore = this.getExpansionScore(board, x, y, shape);
+    score += expansionScore * weights.expansionWeight;
+    if (gamePhase === 'mid' && expansionScore < 4 && boardAnalysis) score -= 25;
+    score += this.getInvasionScore(board, piece, x, y, shape, boardAnalysis) * weights.invasionWeight;
     score += this.getTerritoryConservationPenalty(board, x, y, shape, gamePhase) * weights.territoryWeight;
     score += this.getCompleteBlockScore(board, x, y, shape) * weights.blockingWeight;
     score += this.getGapMinimizationPenalty(board, x, y, shape) * weights.gapWeight;
 
-    // 填隙策略：避免过早使用 1～2 格的小块，应优先用大块填隙；残局时允许小块
-    if (this.strategy === 'gapMinimizer' && gamePhase !== 'late') {
+    // 阶段化：早期/中期避免过早用小块，优先大块扩张；残局允许小块填隙
+    if (gamePhase !== 'late') {
       const cellCount = shape.reduce((sum, row) => sum + row.filter(c => c === 1).length, 0);
-      if (cellCount <= 2) score -= 40;
-      else if (cellCount <= 3) score -= 15;
+      if (cellCount <= 2) score -= 35;
+      else if (cellCount <= 3) score -= 12;
     }
 
     return score;
   }
 
-  private getStrategyModifiers(): Record<string, number> {
-    const base = { center: 1.0, invasion: 1.0, blocking: 1.0, territory: 1.0, gap: 1.0, connection: 1.0, expansion: 1.0, pieceSize: 1.0, blockHuman: 1.0 };
-    switch (this.strategy) {
-      case 'aggressive':
-        return { ...base, center: 1.0, expansion: 1.2, invasion: 1.5, blocking: 0.5, territory: 0.4, gap: 0.6, blockHuman: 1.3 };
-      case 'defensive':
-        return { ...base, center: 0.6, expansion: 1.4, invasion: 0.3, blocking: 1.4, territory: 1.3, gap: 1.2, blockHuman: 1.2 };
-      case 'expansionist':
-        return { ...base, center: 1.0, expansion: 1.8, invasion: 1.0, blocking: 0.5, territory: 0.5, gap: 0.6, blockHuman: 0.8 };
-      case 'blocker':
-        return { ...base, center: 0.6, expansion: 1.2, invasion: 0.5, blocking: 1.6, connection: 1.3, territory: 1.0, gap: 0.8, blockHuman: 1.6 };
-      case 'conservative':
-        return { ...base, expansion: 1.3, invasion: 0.8, blocking: 1.0, territory: 1.1, blockHuman: 1.0 };
-      case 'gapMinimizer':
-        return { ...base, center: 0.6, expansion: 1.5, invasion: 0.6, blocking: 0.9, territory: 1.4, gap: 1.6, blockHuman: 1.2 };
-      case 'hunter':
-        return { ...base, center: 1.0, expansion: 1.2, invasion: 1.8, blocking: 0.5, territory: 0.4, gap: 0.7, blockHuman: 1.5 };
-      default:
-        return base;
+  /** 阶段化策略：不区分策略类型，根据 gamePhase 动态调整
+   * early: 扩张+针对真人；mid: 封堵+侵入；late: 平衡 */
+  private getPhaseMultipliers(gamePhase: GamePhase) {
+    switch (gamePhase) {
+      case 'early':
+        return { expansion: 2.2, blockHuman: 1.8, towardCenter: 1.6, invasion: 0.4, blocking: 0.2, pieceSize: 1.5, center: 1.2 };
+      case 'mid':
+        return { expansion: 1.2, blockHuman: 1.2, towardCenter: 1.8, invasion: 2.0, blocking: 1.6, pieceSize: 1.0, center: 1.0 };
+      case 'late':
+        return { expansion: 1.0, blockHuman: 1.0, towardCenter: 1.2, invasion: 1.2, blocking: 1.0, pieceSize: 0.6, center: 0.5 };
     }
   }
 
-  private getDifficultyWeights(gamePhase: GamePhase) {
-    const centerMult = gamePhase === 'early' ? 1.5 : gamePhase === 'late' ? 0.4 : 1.0;
-    const expansionMult = gamePhase === 'early' ? 1.8 : gamePhase === 'late' ? 1.0 : 1.4;
-    const blockingMult = gamePhase === 'early' ? 0.3 : gamePhase === 'late' ? 1.5 : 1.2;
-    const mod = this.getStrategyModifiers();
+  private getDifficultyWeights(gamePhase: GamePhase, boardAnalysis: BoardAnalysis | null = null) {
+    const pm = this.getPhaseMultipliers(gamePhase);
+    let expandBoost = 1, blockBoost = 1, invadeBoost = 1, connectionBoost = 1;
+    if (boardAnalysis && this.difficulty !== 'easy') {
+      const totalOppSpots = Array.from(boardAnalysis.opponentExpansionSpots.values()).reduce((s, set) => s + set.size, 0);
+      if (boardAnalysis.ourExpansionSpots < totalOppSpots * 0.7) expandBoost = 1.3;
+      if (boardAnalysis.threatLevel > 3) blockBoost = 1.4;
+      if (boardAnalysis.threatLevel > 6) {
+        blockBoost = 1.7;
+        connectionBoost = 1.4;
+      }
+      if (boardAnalysis.ourClusterCount > 1) {
+        connectionBoost = Math.max(connectionBoost, 1.3 + 0.2 * (boardAnalysis.ourClusterCount - 1));
+      }
+      const maxOppCells = Math.max(0, ...Array.from(boardAnalysis.opponentCellCounts.values()));
+      if (maxOppCells > boardAnalysis.ourCellCount) invadeBoost = 1.25;
+    }
+    const base = (w: number, boost: number) => w * boost;
+
     switch (this.difficulty) {
       case 'easy':
         return {
-          centerWeight: 0.3 * centerMult * mod.center,
+          centerWeight: 0.3 * pm.center,
+          towardCenterProgressWeight: 0.3 * pm.towardCenter,
+          towardLeaderWeight: 0,
           surroundingWeight: 0.3,
-          connectionWeight: 0.3 * mod.connection,
-          expansionWeight: 0.2 * expansionMult * mod.expansion,
-          pieceSizeWeight: 0.3 * mod.pieceSize,
-          blockHumanWeight: 0.2 * mod.blockHuman,
-          invasionWeight: 0 * mod.invasion,
-          territoryWeight: 0 * mod.territory,
-          blockingWeight: 0 * mod.blocking,
-          gapWeight: 0 * mod.gap,
+          connectionWeight: 0.3,
+          expansionWeight: 0.25 * pm.expansion,
+          pieceSizeWeight: 0.35 * pm.pieceSize,
+          blockHumanWeight: 0.25 * pm.blockHuman,
+          blockOpponentWeight: 0,
+          invasionWeight: 0.1 * pm.invasion,
+          territoryWeight: 0,
+          blockingWeight: 0.05 * pm.blocking,
+          gapWeight: 0,
         };
       case 'medium':
         return {
-          centerWeight: 0.5 * centerMult * mod.center,
+          centerWeight: 0.5 * pm.center,
+          towardCenterProgressWeight: 1.2 * pm.towardCenter,
+          towardLeaderWeight: 0.4 * invadeBoost,
           surroundingWeight: 0.8,
-          connectionWeight: 1.0 * mod.connection,
-          expansionWeight: 2.5 * expansionMult * mod.expansion,
-          pieceSizeWeight: 0.6 * mod.pieceSize,
-          blockHumanWeight: 1.2 * mod.blockHuman,
-          invasionWeight: 0.6 * mod.invasion,
-          territoryWeight: 0.4 * mod.territory,
-          blockingWeight: 0.4 * blockingMult * mod.blocking,
-          gapWeight: 0.5 * mod.gap,
+          connectionWeight: 1.0 * connectionBoost,
+          expansionWeight: base(2.8 * pm.expansion, expandBoost),
+          pieceSizeWeight: 0.6 * pm.pieceSize,
+          blockHumanWeight: 1.4 * pm.blockHuman,
+          blockOpponentWeight: 1.2,
+          invasionWeight: base(1.0 * pm.invasion, invadeBoost),
+          territoryWeight: 0.4,
+          blockingWeight: base(0.5 * pm.blocking, blockBoost),
+          gapWeight: 0.5,
         };
       case 'hard':
         return {
-          centerWeight: 0.4 * centerMult * mod.center,
+          centerWeight: 0.7 * pm.center,
+          towardCenterProgressWeight: 2.0 * pm.towardCenter,
+          towardLeaderWeight: 0.7 * invadeBoost,
           surroundingWeight: 1.0,
-          connectionWeight: 1.2 * mod.connection,
-          expansionWeight: 3.5 * expansionMult * mod.expansion,
-          pieceSizeWeight: 0.8 * mod.pieceSize,
-          blockHumanWeight: 1.8 * mod.blockHuman,
-          invasionWeight: 1.0 * mod.invasion,
-          territoryWeight: 0.5 * mod.territory,
-          blockingWeight: 0.6 * blockingMult * mod.blocking,
-          gapWeight: 0.8 * mod.gap,
+          connectionWeight: 1.2 * connectionBoost,
+          expansionWeight: base(3.8 * pm.expansion, expandBoost),
+          pieceSizeWeight: 0.8 * pm.pieceSize,
+          blockHumanWeight: 2.0 * pm.blockHuman,
+          blockOpponentWeight: 1.6,
+          invasionWeight: base(2.0 * pm.invasion, invadeBoost),
+          territoryWeight: 0.8,
+          blockingWeight: base(0.9 * pm.blocking, blockBoost),
+          gapWeight: 0.8,
         };
       default:
         return {
-          centerWeight: 0.5 * mod.center,
+          centerWeight: 0.5 * pm.center,
+          towardCenterProgressWeight: 1.2 * pm.towardCenter,
+          towardLeaderWeight: 0.4,
           surroundingWeight: 0.8,
-          connectionWeight: 1.0 * mod.connection,
-          expansionWeight: 2.5 * expansionMult * mod.expansion,
-          pieceSizeWeight: 0.6 * mod.pieceSize,
-          blockHumanWeight: 1.2 * mod.blockHuman,
-          invasionWeight: 0.6 * mod.invasion,
-          territoryWeight: 0.4 * mod.territory,
-          blockingWeight: 0.4 * mod.blocking,
-          gapWeight: 0.5 * mod.gap,
+          connectionWeight: 1.0 * connectionBoost,
+          expansionWeight: 2.8 * pm.expansion,
+          pieceSizeWeight: 0.6 * pm.pieceSize,
+          blockHumanWeight: 1.4 * pm.blockHuman,
+          blockOpponentWeight: 1.2,
+          invasionWeight: 1.0 * pm.invasion,
+          territoryWeight: 0.4,
+          blockingWeight: 0.5 * pm.blocking,
+          gapWeight: 0.5,
         };
     }
   }
@@ -384,6 +425,178 @@ export class AIPlayer {
     }
   }
 
+  private computeBoardAnalysis(board: number[][]): BoardAnalysis {
+    const opponentExpansionSpots = new Map<number, Set<string>>();
+    const opponentSums = new Map<number, { sx: number; sy: number; count: number }>();
+    for (let c = 1; c <= 4; c++) {
+      if (c === this.colorIndex) continue;
+      opponentExpansionSpots.set(c, new Set());
+      opponentSums.set(c, { sx: 0, sy: 0, count: 0 });
+    }
+    let ourExpansionSpots = 0;
+    let ourCellCount = 0;
+    let ourClusterCount = 0;
+    const opponentCellCounts = new Map<number, number>();
+    for (let c = 1; c <= 4; c++) {
+      if (c !== this.colorIndex) opponentCellCounts.set(c, 0);
+    }
+    let threatLevel = 0;
+    const corners = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+    const edges = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    const bs = board.length;
+
+    for (let y = 0; y < bs; y++) {
+      for (let x = 0; x < bs; x++) {
+        const cell = board[y][x];
+        if (cell === 0) continue;
+        if (cell === this.colorIndex) {
+          ourCellCount++;
+          for (const [dx, dy] of edges) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < bs && ny >= 0 && ny < bs && board[ny][nx] > 0 && board[ny][nx] !== this.colorIndex) {
+              threatLevel++;
+              break;
+            }
+          }
+          const counted = new Set<string>();
+          for (const [dx, dy] of corners) {
+            const cx = x + dx, cy = y + dy;
+            if (cx < 0 || cx >= bs || cy < 0 || cy >= bs) continue;
+            if (board[cy][cx] !== 0) continue;
+            const key = `${cx},${cy}`;
+            if (counted.has(key)) continue;
+            const hasOurCorner = corners.some(([odx, ody]) => {
+              const ox = cx + odx, oy = cy + ody;
+              return ox >= 0 && ox < bs && oy >= 0 && oy < bs && board[oy][ox] === this.colorIndex;
+            });
+            const noOurEdge = edges.every(([ex, ey]) => {
+              const ox = cx + ex, oy = cy + ey;
+              if (ox < 0 || ox >= bs || oy < 0 || oy >= bs) return true;
+              return board[oy][ox] !== this.colorIndex;
+            });
+            if (hasOurCorner && noOurEdge) {
+              counted.add(key);
+              ourExpansionSpots++;
+            }
+          }
+        } else if (cell > 0) {
+          opponentCellCounts.set(cell, (opponentCellCounts.get(cell) ?? 0) + 1);
+          const sum = opponentSums.get(cell)!;
+          sum.sx += x;
+          sum.sy += y;
+          sum.count++;
+          const spots = opponentExpansionSpots.get(cell)!;
+          const counted = new Set<string>();
+          for (const [dx, dy] of corners) {
+            const cx = x + dx, cy = y + dy;
+            if (cx < 0 || cx >= bs || cy < 0 || cy >= bs) continue;
+            if (board[cy][cx] !== 0) continue;
+            const key = `${cx},${cy}`;
+            if (counted.has(key)) continue;
+            const hasOppCorner = corners.some(([odx, ody]) => {
+              const ox = cx + odx, oy = cy + ody;
+              return ox >= 0 && ox < bs && oy >= 0 && oy < bs && board[oy][ox] === cell;
+            });
+            const noOppEdge = edges.every(([ex, ey]) => {
+              const ox = cx + ex, oy = cy + ey;
+              if (ox < 0 || ox >= bs || oy < 0 || oy >= bs) return true;
+              return board[oy][ox] === 0 || board[oy][ox] === cell;
+            });
+            if (hasOppCorner && noOppEdge) {
+              counted.add(key);
+              spots.add(key);
+            }
+          }
+        }
+      }
+    }
+    ourClusterCount = this.countClusters(board, this.colorIndex);
+    const opponentCenters = new Map<number, { cx: number; cy: number; count: number }>();
+    for (const [c, s] of opponentSums) {
+      if (s.count > 0) opponentCenters.set(c, { cx: s.sx / s.count, cy: s.sy / s.count, count: s.count });
+    }
+    let leadingOpponent = 0;
+    let maxCount = 0;
+    for (const [c, n] of opponentCellCounts) {
+      if (n > maxCount) { maxCount = n; leadingOpponent = c; }
+    }
+    return { opponentExpansionSpots, opponentCenters, leadingOpponent, ourExpansionSpots, ourCellCount, ourClusterCount, opponentCellCounts, threatLevel };
+  }
+
+  private countClusters(board: number[][], colorIndex: number): number {
+    const bs = board.length;
+    const visited = new Set<string>();
+    let clusters = 0;
+    const edges = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    const dfs = (x: number, y: number) => {
+      const key = `${x},${y}`;
+      if (visited.has(key)) return;
+      if (x < 0 || x >= bs || y < 0 || y >= bs || board[y][x] !== colorIndex) return;
+      visited.add(key);
+      for (const [dx, dy] of edges) dfs(x + dx, y + dy);
+    };
+    for (let y = 0; y < bs; y++) {
+      for (let x = 0; x < bs; x++) {
+        if (board[y][x] === colorIndex && !visited.has(`${x},${y}`)) {
+          clusters++;
+          dfs(x, y);
+        }
+      }
+    }
+    return clusters;
+  }
+
+  private getBlockOpponentExpansionScore(board: number[][], x: number, y: number, shape: number[][], analysis: BoardAnalysis | null): number {
+    if (!analysis || this.difficulty === 'easy') return 0;
+    const bs = board.length;
+    const boardCenter = (bs - 1) / 2;
+    let blockValue = 0;
+    for (const [colorIdx, spots] of analysis.opponentExpansionSpots) {
+      if (spots.size === 0) continue;
+      const humanBonus = this.humanColorIndices.has(colorIdx) ? 1.4 : 1.0;
+      const gatewayBonus = spots.size <= 5 ? 1 + 0.6 * (1 - spots.size / 6) : 1;
+      const center = analysis.opponentCenters.get(colorIdx);
+      for (let row = 0; row < shape.length; row++) {
+        for (let col = 0; col < shape[row].length; col++) {
+          if (shape[row][col] === 0) continue;
+          const bx = x + col, by = y + row;
+          const key = `${bx},${by}`;
+          if (spots.has(key)) {
+            let spotValue = 22 * humanBonus * gatewayBonus;
+            if (center) {
+              const dist = Math.hypot(bx - center.cx, by - center.cy);
+              const proximityBonus = Math.max(0, 1 - dist / (bs * 0.7));
+              spotValue *= (1 + 0.4 * proximityBonus);
+            }
+            const distToCenter = Math.hypot(bx - boardCenter, by - boardCenter);
+            const centerControlBonus = Math.max(0, 1 - distToCenter / (bs * 0.6));
+            spotValue *= (1 + 0.25 * centerControlBonus);
+            blockValue += Math.round(spotValue);
+          }
+        }
+      }
+    }
+    return blockValue;
+  }
+
+  private getTowardLeaderScore(x: number, y: number, shape: number[][], analysis: BoardAnalysis | null): number {
+    if (!analysis || !analysis.leadingOpponent) return 0;
+    const center = analysis.opponentCenters.get(analysis.leadingOpponent);
+    if (!center) return 0;
+    let sumDist = 0, count = 0;
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (shape[row][col] === 0) continue;
+        const bx = x + col, by = y + row;
+        sumDist += Math.hypot(bx - center.cx, by - center.cy);
+        count++;
+      }
+    }
+    if (count === 0) return 0;
+    const avgDist = sumDist / count;
+    return Math.max(0, (30 - avgDist) * 2);
+  }
+
   private isUnderThreat(board: number[][]): boolean {
     const edges = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     for (let y = 0; y < board.length; y++) {
@@ -401,10 +614,11 @@ export class AIPlayer {
     return false;
   }
 
-  /** 侵入对手领地：对角接触对手即加分；接触真人额外加分（阻挡真人） */
-  private getInvasionScore(board: number[][], piece: Piece, x: number, y: number, shape: number[][]): number {
+  /** 侵入对手领地：对角接触对手即加分；接触真人/领先者额外加分 */
+  private getInvasionScore(board: number[][], piece: Piece, x: number, y: number, shape: number[][], analysis: BoardAnalysis | null = null): number {
     let totalInvasion = 0;
     let humanInvasion = 0;
+    let leaderInvasion = 0;
     const corners = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
     const counted = new Set<string>();
     for (let row = 0; row < shape.length; row++) {
@@ -419,14 +633,16 @@ export class AIPlayer {
           const key = `${cx},${cy}`;
           if (counted.has(key)) continue;
           counted.add(key);
-          totalInvasion += 12;
+          totalInvasion += 18;
           if (this.humanColorIndices.has(cell)) {
-            humanInvasion += this.strategy === 'hunter' ? 35 : 25;
+            humanInvasion += 28;
+          } else if (analysis && analysis.leadingOpponent === cell) {
+            leaderInvasion += 15;
           }
         }
       }
     }
-    return totalInvasion + humanInvasion;
+    return totalInvasion + humanInvasion + leaderInvasion;
   }
 
   /** 阻挡真人：占据真人可落子的角位，使其无法扩张 */
@@ -482,13 +698,28 @@ export class AIPlayer {
         if (shape[row][col] === 0) continue;
         const bx = x + col, by = y + row;
         const distToCorner = Math.abs(bx - myCorner.x) + Math.abs(by - myCorner.y);
-        if (distToCorner <= 6) inOwnTerritory++;
+        if (distToCorner <= 8) inOwnTerritory++;
       }
     }
     if (inOwnTerritory === 0) return 0;
     const totalCells = shape.flat().filter((c: number) => c === 1).length;
     if (inOwnTerritory < totalCells) return 0;
-    return -20 * (gamePhase === 'early' ? 1.5 : gamePhase === 'mid' ? 1.0 : 0.5);
+    return -50 * (gamePhase === 'early' ? 1.5 : gamePhase === 'mid' ? 1.0 : 0.5);
+  }
+
+  private getTowardCenterProgressScore(x: number, y: number, shape: number[][], boardSize: number): number {
+    const myCorner = this.getMyCorner(boardSize);
+    let sumDist = 0, count = 0;
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (shape[row][col] === 0) continue;
+        const bx = x + col, by = y + row;
+        sumDist += Math.abs(bx - myCorner.x) + Math.abs(by - myCorner.y);
+        count++;
+      }
+    }
+    if (count === 0) return 0;
+    return (sumDist / count) * 4;
   }
 
   private getCompleteBlockScore(board: number[][], x: number, y: number, shape: number[][]): number {

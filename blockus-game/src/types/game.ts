@@ -153,7 +153,11 @@ export interface RoomMessage {
 export type AIStrategy = 'aggressive' | 'balanced' | 'defensive' | 'expansionist' | 'blocker' | 'conservative' | 'gapMinimizer' | 'hunter';
 
 const AI_STRATEGIES: AIStrategy[] = ['aggressive', 'balanced', 'defensive', 'expansionist', 'blocker', 'conservative', 'gapMinimizer', 'hunter'];
+const AGGRESSIVE_STRATEGIES: AIStrategy[] = ['aggressive', 'expansionist', 'hunter'];
 export const getRandomAIStrategy = (): AIStrategy => AI_STRATEGIES[Math.floor(Math.random() * AI_STRATEGIES.length)];
+/** 快速入口用：50% 偏向侵略/扩张型策略，让 AI 更积极侵入 */
+export const getRandomAIStrategyForQuickStart = (): AIStrategy =>
+  Math.random() < 0.5 ? AGGRESSIVE_STRATEGIES[Math.floor(Math.random() * AGGRESSIVE_STRATEGIES.length)] : getRandomAIStrategy();
 
 export interface GameSettings {
   boardSize: number;
